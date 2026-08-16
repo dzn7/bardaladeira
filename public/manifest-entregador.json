@@ -1,0 +1,27 @@
+{
+  "name": "Bar da Ladeira - Painel do Entregador",
+  "short_name": "Entregas",
+  "description": "Painel para entregadores gerenciarem suas entregas - Bar da Ladeira",
+  "start_url": "/entregador",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#22c55e",
+  "orientation": "portrait",
+  "scope": "/entregador",
+  "icons": [
+    {
+      "src": "/assets/favicon/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/favicon/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false
+}

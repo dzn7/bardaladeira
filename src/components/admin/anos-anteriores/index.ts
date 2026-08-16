@@ -1,0 +1,8 @@
+export { default as CartaoEstatistica } from './CartaoEstatistica'
+export { default as DashboardAnoAnterior } from './DashboardAnoAnterior'
+export { default as PedidosAnoAnterior } from './PedidosAnoAnterior'
+export { default as RelatoriosAnoAnterior } from './RelatoriosAnoAnterior'
+export { default as EntregasAnoAnterior } from './EntregasAnoAnterior'
+export { default as ModalDetalhesPedidoHistorico } from './ModalDetalhesPedidoHistorico'
+export { default as SaldosAnoAnterior } from './SaldosAnoAnterior'
+export { default as SalariosAnoAnterior } from './SalariosAnoAnterior'

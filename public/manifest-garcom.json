@@ -1,0 +1,25 @@
+{
+  "name": "Bar da Ladeira - Garçom",
+  "short_name": "Garçom",
+  "description": "Painel de pedidos para garçom - Bar da Ladeira",
+  "start_url": "/garcom",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#16a34a",
+  "orientation": "portrait",
+  "scope": "/garcom/",
+  "icons": [
+    {
+      "src": "/assets/favicon/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/favicon/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
