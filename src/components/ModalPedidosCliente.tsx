@@ -173,14 +173,14 @@ export default function ModalPedidosCliente({ aberto, onFechar }: ModalPedidosCl
                       value={telefone}
                       onChange={(e) => setTelefone(e.target.value)}
                       placeholder="(63) 98105-3014"
-                      className="h-11 w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-4 text-sm text-zinc-900 outline-none transition-all focus:border-bordo-500 focus:ring-2 focus:ring-bordo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                      className="h-11 w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-4 text-sm text-zinc-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={carregando}
-                    className="inline-flex h-11 min-w-[44px] items-center justify-center gap-2 rounded-xl bg-bordo-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-bordo-700 active:scale-[0.97] disabled:opacity-60 cursor-pointer"
+                    className="inline-flex h-11 min-w-[44px] items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.97] disabled:opacity-60 cursor-pointer"
                   >
                     {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                     <span className="hidden sm:inline">Buscar</span>
@@ -210,7 +210,7 @@ export default function ModalPedidosCliente({ aberto, onFechar }: ModalPedidosCl
 
                 {carregando ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-16">
-                    <Loader2 className="h-6 w-6 animate-spin text-bordo-500" />
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">Buscando pedidos...</p>
                   </div>
                 ) : consultado && pedidos.length === 0 ? (

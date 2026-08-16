@@ -35,13 +35,13 @@ export default function Header({ onAbrirAjuda }: HeaderProps) {
       <div className="container mx-auto px-4 py-2.5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border/70 bg-card">
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-black">
               <Image
                 src="/logo.webp"
                 alt="Bar da Ladeira"
                 width={44}
                 height={44}
-                className="h-9 w-9 rounded-sm object-contain"
+                className="h-11 w-11 object-cover"
                 priority
               />
             </div>
@@ -69,7 +69,7 @@ export default function Header({ onAbrirAjuda }: HeaderProps) {
               className="shrink-0"
             >
               {mounted && theme === 'dark' ? (
-                <Sun className="h-5 w-5 text-dourado-400" />
+                <Sun className="h-5 w-5 text-primary" />
               ) : (
                 <Moon className="h-5 w-5 text-muted-foreground" />
               )}

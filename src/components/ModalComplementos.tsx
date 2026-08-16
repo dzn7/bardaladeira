@@ -221,13 +221,13 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-semibold text-bordo-600 dark:text-bordo-400 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
                 {produto.categoria}
               </span>
               <h3 className="text-base font-bold text-zinc-900 dark:text-white leading-tight truncate">
                 {produto.nome}
               </h3>
-              <span className="text-sm font-bold text-bordo-600 dark:text-bordo-400">
+              <span className="text-sm font-bold text-primary">
                 R$ {produto.preco.toFixed(2)}
               </span>
             </div>
@@ -273,7 +273,7 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
         <div className="flex-1 overflow-y-auto overscroll-contain">
           {carregando ? (
             <div className="flex items-center justify-center py-16">
-              <div className="w-8 h-8 border-3 border-bordo-200 border-t-bordo-600 rounded-full animate-spin" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
             </div>
           ) : adicionais.length === 0 ? (
             <div className="px-4 py-8 text-center">
@@ -302,7 +302,7 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
                         onClick={() => toggleAdicional(adicional)}
                         className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left
                           ${selecionado
-                            ? 'bg-bordo-50 dark:bg-bordo-950/20'
+                            ? 'bg-primary/10'
                             : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/30'
                           }`}
                         aria-pressed={selecionado}
@@ -313,7 +313,7 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
                         <div
                           className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-all duration-200
                             ${selecionado
-                              ? 'bg-bordo-600 border-bordo-600'
+                              ? 'bg-primary border-primary'
                               : 'border-zinc-300 dark:border-zinc-600'
                             }`}
                         >
@@ -325,7 +325,7 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
                         {/* Nome */}
                         <span className={`flex-1 text-sm font-medium transition-colors
                           ${selecionado
-                            ? 'text-bordo-700 dark:text-bordo-300'
+                            ? 'text-primary'
                             : 'text-zinc-800 dark:text-zinc-200'
                           }`}>
                           {adicional.nome}
@@ -334,7 +334,7 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
                         {/* Preço */}
                         <span className={`text-sm font-bold flex-shrink-0 transition-colors
                           ${selecionado
-                            ? 'text-bordo-600 dark:text-bordo-400'
+                            ? 'text-primary'
                             : 'text-zinc-500 dark:text-zinc-400'
                           }`}>
                           +R$ {adicional.preco.toFixed(2)}
@@ -358,7 +358,7 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
               placeholder="Ex: Sem cebola, molho à parte..."
               rows={2}
               className="w-full px-3 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 
-                       rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-bordo-500 focus:border-transparent
+                       rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
                        text-zinc-900 dark:text-white placeholder:text-zinc-400"
             />
           </div>
@@ -405,8 +405,8 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
           <button
             onClick={confirmar}
             className="w-full flex items-center justify-between py-3.5 px-5 rounded-xl
-                     bg-bordo-600 hover:bg-bordo-700 active:bg-bordo-800
-                     text-white font-bold transition-colors shadow-lg shadow-bordo-600/20"
+                     bg-primary hover:bg-primary/90 active:bg-primary/80
+                     text-primary-foreground font-bold transition-colors shadow-lg shadow-primary/20"
           >
             <div className="flex items-center gap-2">
               <ShoppingBag className="w-5 h-5" />

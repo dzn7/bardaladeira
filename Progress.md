@@ -1,5 +1,16 @@
 # Progress
 
+## [2026-08-15] Cardápio público rústico + pedido enviado em Drawer
+
+**Agente/Modelo:** Cursor Grok 4.6
+**Objetivo:** paleta rústica só no site do cliente (Bar da Ladeira) e confirmação de pedido enviado como Drawer.
+**Arquivos alterados:** `src/app/globals.css`, `src/app/page.tsx`, `src/app/preview-mobile-frame/page.tsx`, `src/components/Header.tsx`, `src/components/ModalCarrinho.tsx`, `src/components/CartaoProduto.tsx`, `src/components/CartaoBebida.tsx`, `src/components/CartaoCombo.tsx`, `src/components/ModalComplementos.tsx`, `src/components/ModalPedidosCliente.tsx`, `src/components/ModalSelecionarMesa.tsx`, `UI.md`, `Progress.md`.
+**O que foi feito:** tokens `tema-publico` (pergaminho/terracota no claro, madeira/creme no escuro) no `html` e no wrapper da Home; acentos `bordo-*` do fluxo público viraram `primary`; overlay legado de pedido enviado entrou no mesmo Drawer do checkout.
+**Decisões tomadas:** não mexer em `:root` / `tailwind.config.js` (pintaria o admin). Classe no `html` para Drawers portalados herdarem. Logo do header em fundo preto como a marca. Sem fonte serif nova.
+**Verificação:** `npx tsc --noEmit --incremental false` nesta sessão. Sem Playwright. Admin permanece Juridiq se a classe `tema-publico` não estiver no `html`.
+**Pendências / próximos passos:** conferir visualmente `/` claro/escuro e um pedido até a tela Entendi; `/admin` deve continuar azul.
+**Armadilhas descobertas:** `bordo-*` no Tailwind é escala slate hardcoded — só mudar CSS variables não recoloria CTAs do cliente. Drawers do Vaul saem no `body` e não herdam classe só do wrapper.
+
 ## [2026-08-15] Logo: png → webp
 
 **Agente/Modelo:** Cursor Grok 4.6

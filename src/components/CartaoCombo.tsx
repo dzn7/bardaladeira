@@ -34,7 +34,7 @@ export default function CartaoCombo({ combo, onAdicionar }: CartaoComboProps) {
           <>
             {!imagemCarregada && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-200 border-t-bordo-600 dark:border-zinc-700 dark:border-t-bordo-400" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
               </div>
             )}
             <Image

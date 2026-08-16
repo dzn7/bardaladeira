@@ -68,6 +68,24 @@ export default function Home() {
   const { lojaFechada, numeroWhatsApp } = useStatusLoja()
   const { adicionarItem } = useCarrinho()
 
+  useEffect(() => {
+    const raiz = document.documentElement
+    const caminho = window.location.pathname
+    if (caminho !== '/' && !caminho.startsWith('/preview-mobile-frame')) return
+
+    raiz.classList.add('tema-publico')
+    const meta = document.querySelector('meta[name="theme-color"]')
+    const corAnterior = meta?.getAttribute('content') ?? null
+    meta?.setAttribute('content', raiz.classList.contains('dark') ? '#1A1410' : '#F3E6D4')
+
+    return () => {
+      raiz.classList.remove('tema-publico')
+      if (!meta) return
+      if (corAnterior) meta.setAttribute('content', corAnterior)
+      else meta.removeAttribute('content')
+    }
+  }, [])
+
   const obterCategoriaDaBebida = useCallback((bebida: Pick<Bebida, 'categoria'>) => {
     return normalizarNomeCategoria(bebida.categoria)
   }, [])
@@ -477,7 +495,7 @@ export default function Home() {
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="tema-publico min-h-screen bg-background text-foreground">
       <Header onAbrirAjuda={() => setAjudaAberta(true)} />
 
       <main className="pb-24 pt-24">
@@ -497,7 +515,7 @@ export default function Home() {
                 {busca && (
                   <button
                     onClick={() => setBusca('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-0.5 text-muted-foreground transition-colors hover:text-foreground"
                     aria-label="Limpar busca"
                   >
                     <XIcon className="h-4 w-4" />
@@ -505,7 +523,7 @@ export default function Home() {
                 )}
               </div>
               {busca && !carregando && (
-                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="mt-2 text-xs text-muted-foreground">
                   {totalResultados} {totalResultados === 1 ? 'resultado' : 'resultados'} para &quot;{busca}&quot;
                 </p>
               )}
@@ -536,14 +554,14 @@ export default function Home() {
             {carregando ? (
               <div className="flex items-center justify-center py-24">
                 <div className="text-center">
-                  <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-zinc-200 border-t-bordo-600 dark:border-zinc-700 dark:border-t-bordo-400" />
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Carregando cardápio...</p>
+                  <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+                  <p className="text-sm text-muted-foreground">Carregando cardápio...</p>
                 </div>
               </div>
             ) : categoriaAtivaEhCombo ? (
               combosFiltrados.length === 0 ? (
                 <div className="py-20 text-center">
-                  <p className="text-zinc-400 dark:text-zinc-500">Nenhum combo encontrado</p>
+                  <p className="text-muted-foreground">Nenhum combo encontrado</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
@@ -555,7 +573,7 @@ export default function Home() {
             ) : categoriaAtivaEhCategoriaBebidas ? (
               bebidasFiltradas.length === 0 ? (
                 <div className="py-20 text-center">
-                  <p className="text-zinc-400 dark:text-zinc-500">Nenhum item encontrado</p>
+                  <p className="text-muted-foreground">Nenhum item encontrado</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
@@ -567,15 +585,15 @@ export default function Home() {
             ) : categoriaAtiva === CATEGORIA_FILTRO_TODOS ? (
               totalResultados === 0 ? (
                 <div className="py-20 text-center">
-                  <p className="text-zinc-400 dark:text-zinc-500">Nenhum produto encontrado</p>
+                  <p className="text-muted-foreground">Nenhum produto encontrado</p>
                 </div>
               ) : (
                 <div className="space-y-10">
                   {combosFiltrados.length > 0 && (
                     <section>
                       <div className="mb-4 flex items-center gap-3">
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{categoriaCombo}</h3>
-                        <span className="rounded-full bg-bordo-100 px-2 py-0.5 text-[11px] font-semibold text-bordo-700 dark:bg-bordo-900/30 dark:text-bordo-300">
+                        <h3 className="text-lg font-bold text-foreground">{categoriaCombo}</h3>
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                           {combosFiltrados.length}
                         </span>
                       </div>
@@ -589,8 +607,8 @@ export default function Home() {
                   {gruposCategorias.map((grupo) => (
                     <section key={grupo.categoria}>
                       <div className="mb-4 flex items-center gap-3">
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{grupo.categoria}</h3>
-                        <span className="rounded-full bg-bordo-100 px-2 py-0.5 text-[11px] font-semibold text-bordo-700 dark:bg-bordo-900/30 dark:text-bordo-300">
+                        <h3 className="text-lg font-bold text-foreground">{grupo.categoria}</h3>
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                           {grupo.produtos.length + grupo.bebidas.length}
                         </span>
                       </div>
@@ -608,7 +626,7 @@ export default function Home() {
               )
             ) : produtosFiltrados.length === 0 ? (
               <div className="py-20 text-center">
-                <p className="text-zinc-400 dark:text-zinc-500">Nenhum produto encontrado</p>
+                <p className="text-muted-foreground">Nenhum produto encontrado</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">

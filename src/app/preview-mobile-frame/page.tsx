@@ -14,7 +14,7 @@ import { PreviewProvider } from '@/contexts/PreviewContext'
 export default function PreviewFramePage() {
     return (
         <PreviewProvider simulacaoInicial={true}>
-            <div className="w-full min-h-screen bg-white dark:bg-zinc-950">
+            <div className="tema-publico min-h-screen w-full bg-background">
                 <Home />
             </div>
         </PreviewProvider>

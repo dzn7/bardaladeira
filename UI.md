@@ -35,6 +35,15 @@ Há tokens equivalentes para sidebar. Novos componentes devem preferir esses nom
 - Aliases históricos `laranja`/`bordo`/`dourado` no CSS apontam ao azul Juridiq por compatibilidade.
 - Estados operacionais: emerald/rose/amber; acento de UI preferir `primaryBlue` / `primary` em vez de `sky-*`.
 
+### Paleta do cardápio público (Bar da Ladeira)
+
+Escopo **somente** `/`, `/preview-mobile-frame` e os overlays do cliente. Classe `tema-publico` no wrapper da Home **e** em `document.documentElement` (para Drawers/portais). **Não** alterar `:root` — o admin, garçom, entregador e `/dzn` continuam Juridiq azul `#0296F9`.
+
+- **Claro:** pergaminho `36 32% 93%`, texto espresso, primário terracota do telhado da marca `16 52% 38%`, cards creme, bordas taupey.
+- **Escuro:** fundo madeira quase preta `24 18% 7%` (como o logo), texto creme, primário terracota mais claro `18 48% 50%`.
+- CTAs, chips ativos, badge do carrinho e confirmação de pedido usam `primary` / `primary-foreground`.
+- Pedido enviado no checkout é **Drawer** (mesmo `Drawer` do Vaul do checkout), não overlay `modal-overlay`.
+
 ### Forma e elevação
 
 - Radius global: `0.625rem`.
@@ -76,7 +85,7 @@ Primitivos Kibo UI disponíveis:
 | `CartaoBebida` | `src/components/CartaoBebida.tsx` | Item de bebida |
 | `CartaoCombo` | `src/components/CartaoCombo.tsx` | Item de combo |
 | `ModalComplementos` | `src/components/ModalComplementos.tsx` | Quantidade, adicionais e observações |
-| `ModalCarrinho` | `src/components/ModalCarrinho.tsx` | Checkout completo |
+| `ModalCarrinho` | `src/components/ModalCarrinho.tsx` | Checkout completo; confirmação de pedido enviado no mesmo Drawer |
 | `AjudaPedidoPublica` | `src/components/AjudaPedidoPublica.tsx` | Drawer de “Como pedir”, aberto somente pela navbar, com contato por WhatsApp |
 | `ModalSelecionarMesa` | `src/components/ModalSelecionarMesa.tsx` | Escolha do ponto local |
 | `ModalPedidosCliente` | `src/components/ModalPedidosCliente.tsx` | Consulta de pedidos por cliente |

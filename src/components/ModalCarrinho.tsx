@@ -456,30 +456,6 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
   }, [])
 
   useEffect(() => {
-    // O Vaul controla o scroll durante o checkout. O bloqueio manual só é
-    // necessário na tela de sucesso, que substitui o Drawer por um overlay legado.
-    if (!aberto || !pedidoEnviado || modoSimulacao) return
-
-    const scrollY = window.scrollY
-    document.body.style.overflow = 'hidden'
-    document.body.style.position = 'fixed'
-    document.body.style.top = `-${scrollY}px`
-    document.body.style.left = '0'
-    document.body.style.right = '0'
-    document.documentElement.style.overflow = 'hidden'
-
-    return () => {
-      document.body.style.overflow = ''
-      document.body.style.position = ''
-      document.body.style.top = ''
-      document.body.style.left = ''
-      document.body.style.right = ''
-      document.documentElement.style.overflow = ''
-      window.scrollTo(0, scrollY)
-    }
-  }, [aberto, modoSimulacao, pedidoEnviado])
-
-  useEffect(() => {
     // Ao encolher o painel para caber acima do teclado, o campo em foco pode sair
     // da área rolável; o browser só o alinha antes do redimensionamento.
     if (alturaTecladoAberto === null) return
@@ -1537,147 +1513,11 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
       container: 'border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900',
       titulo: 'text-zinc-900 dark:text-zinc-100',
       texto: 'text-zinc-700 dark:text-zinc-300',
-      icon: <Info className="h-4 w-4 text-bordo-700 dark:text-bordo-300" />,
+        icon: <Info className="h-4 w-4 text-primary" />,
     }
   }
 
   const estiloFeedbackCupom = feedbackCupom ? obterEstiloFeedbackCupom(feedbackCupom.tipo) : null
-
-  // Tela de Pedido Enviado com Sucesso
-  if (pedidoEnviado) {
-    return (
-      <div
-        className={modoSimulacao ? "absolute inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center" : "modal-overlay items-end p-0 sm:items-center sm:p-4"}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onFechar()
-        }}
-      >
-          <div className={`modal-content max-w-md ${modoSimulacao ? 'w-full h-[90dvh] max-h-[90dvh] rounded-t-2xl sm:rounded-2xl mb-0' : 'max-h-[92dvh]'}`}>
-            <div className="flex h-full flex-col">
-              <div className="flex-1 overflow-y-auto px-6 pb-4 pt-6 sm:px-8 sm:pb-6 sm:pt-8">
-            {/* Ícone de sucesso animado */}
-            <div className="flex justify-center mb-6">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 rounded-full flex items-center justify-center shadow-lg">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center animate-[scale_0.3s_ease-out] shadow-lg shadow-green-500/30">
-                  <Check className="w-10 h-10 sm:w-12 sm:h-12 text-white" strokeWidth={3} />
-                </div>
-              </div>
-            </div>
-
-            {/* Título */}
-            <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 dark:text-white mb-2">
-              {pedidoEnviado.pagamentoOnlineAprovado ? 'Pagamento aprovado' : 'Pedido enviado'}
-            </h2>
-            <p className="text-center text-gray-500 dark:text-gray-400 text-sm mb-4">
-              {pedidoEnviado.pagamentoOnlineAprovado
-                ? 'PIX Online confirmado em tempo real'
-                : 'Recebemos seu pedido com sucesso'}
-            </p>
-
-            {pedidoEnviado.pagamentoOnlineAprovado && (
-              <div className="mb-5 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 p-4 dark:border-emerald-900/60 dark:from-emerald-950/40 dark:to-green-950/30">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/25">
-                    <Check className="h-5 w-5" strokeWidth={3} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
-                      Pedido aprovado automaticamente
-                    </p>
-                    <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                      Seu pedido já entrou no painel administrativo como pago online.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Número do pedido - Destaque */}
-            <div className="text-center mb-6">
-              <div className="inline-block bg-bordo-700 text-white px-6 py-3 rounded-2xl shadow-lg">
-                <span className="text-sm font-medium opacity-90">Seu número</span>
-                <p className="text-3xl font-extrabold">#{pedidoEnviado.numeroPedido}</p>
-              </div>
-            </div>
-
-            {/* Mensagem principal */}
-            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-2xl p-4 sm:p-5 mb-6 space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                    Acompanhe pelo WhatsApp
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    Você receberá atualizações sobre o status do seu pedido.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-bordo-100 dark:bg-bordo-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                    {pedidoEnviado.tipoEntrega === 'entrega' ? (
-                      <MapPin className="w-5 h-5 text-bordo-700 dark:text-bordo-300" />
-                    ) : pedidoEnviado.tipoEntrega === 'local' ? (
-                      <UtensilsCrossed className="w-5 h-5 text-bordo-700 dark:text-bordo-300" />
-                    ) : (
-                      <ShoppingBag className="w-5 h-5 text-bordo-700 dark:text-bordo-300" />
-                    )}
-                  </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                    {pedidoEnviado.tipoEntrega === 'entrega' 
-                      ? 'Entrega a caminho'
-                      : pedidoEnviado.tipoEntrega === 'local'
-                        ? `Mesa ${pedidoEnviado.mesa}`
-                        : 'Retirada no balcão'}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    {pedidoEnviado.tipoEntrega === 'entrega'
-                      ? 'Seu pedido será entregue no endereço informado.'
-                      : pedidoEnviado.tipoEntrega === 'local'
-                        ? 'Seu pedido será servido na sua mesa.'
-                        : 'Retire seu pedido quando estiver pronto.'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Tempo estimado e Total */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-3 text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">⏱️ Tempo estimado</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">{tempoEntregaEstimado} min</p>
-              </div>
-              <div className="bg-bordo-50 dark:bg-bordo-900/20 rounded-xl p-3 text-center">
-                <p className="text-xs text-bordo-700 dark:text-bordo-300 mb-1">Total</p>
-                <p className="text-lg font-bold text-bordo-700 dark:text-bordo-300">
-                  R$ {pedidoEnviado.total.toFixed(2)}
-                </p>
-              </div>
-            </div>
-              </div>
-            <div className="flex-shrink-0 border-t border-zinc-200 bg-white/95 px-6 pb-6 pt-4 [padding-bottom:max(env(safe-area-inset-bottom),1.5rem)] dark:border-zinc-800 dark:bg-black/95 sm:px-8">
-            {/* Botão de fechar */}
-            <button
-              onClick={onFechar}
-              className="w-full py-4 px-6 bg-bordo-700 hover:bg-bordo-800 text-white font-bold rounded-xl transition-all duration-300 text-lg shadow-lg"
-            >
-              Entendi
-            </button>
-
-            {/* Mensagem de agradecimento */}
-            <p className="mt-3 text-center text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-              Obrigado por escolher o <span className="font-semibold text-bordo-700 dark:text-bordo-300">Bar da Ladeira</span>.
-            </p>
-              </div>
-            </div>
-          </div>
-      </div>
-    )
-  }
 
   return (
     <>
@@ -1696,9 +1536,14 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
         }}
       >
         <DrawerContent
-          className="mx-auto h-[92dvh] max-h-[92dvh] w-full max-w-2xl overflow-hidden p-0"
+          className={cn(
+            'mx-auto w-full overflow-hidden p-0',
+            pedidoEnviado
+              ? 'max-h-[92dvh] max-w-md'
+              : 'h-[92dvh] max-h-[92dvh] max-w-2xl',
+          )}
           style={
-            ajusteTeclado
+            !pedidoEnviado && ajusteTeclado
               ? {
                   height: `${ajusteTeclado.altura}px`,
                   maxHeight: `${ajusteTeclado.altura}px`,
@@ -1707,6 +1552,129 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
               : undefined
           }
         >
+          {pedidoEnviado ? (
+            <>
+              <DrawerTitle className="sr-only">
+                {pedidoEnviado.pagamentoOnlineAprovado ? 'Pagamento aprovado' : 'Pedido enviado'}
+              </DrawerTitle>
+              <DrawerDescription className="sr-only">
+                {pedidoEnviado.pagamentoOnlineAprovado
+                  ? 'PIX Online confirmado em tempo real'
+                  : 'Recebemos seu pedido com sucesso'}
+              </DrawerDescription>
+              <div className="flex max-h-[92dvh] flex-col">
+                <div className="flex-1 overflow-y-auto px-6 pb-4 pt-6 sm:px-8 sm:pb-6 sm:pt-8">
+                  <div className="mb-6 flex justify-center">
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100 shadow-lg dark:bg-emerald-900/30 sm:h-28 sm:w-28">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600 shadow-lg shadow-emerald-500/30 sm:h-20 sm:w-20">
+                        <Check className="h-10 w-10 text-white sm:h-12 sm:w-12" strokeWidth={3} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <h2 className="mb-2 text-center text-2xl font-bold text-foreground sm:text-3xl">
+                    {pedidoEnviado.pagamentoOnlineAprovado ? 'Pagamento aprovado' : 'Pedido enviado'}
+                  </h2>
+                  <p className="mb-4 text-center text-sm text-muted-foreground">
+                    {pedidoEnviado.pagamentoOnlineAprovado
+                      ? 'PIX Online confirmado em tempo real'
+                      : 'Recebemos seu pedido com sucesso'}
+                  </p>
+
+                  {pedidoEnviado.pagamentoOnlineAprovado && (
+                    <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white">
+                          <Check className="h-5 w-5" strokeWidth={3} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
+                            Pedido aprovado automaticamente
+                          </p>
+                          <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+                            Seu pedido já entrou no painel administrativo como pago online.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-6 text-center">
+                    <div className="inline-block rounded-2xl bg-primary px-6 py-3 text-primary-foreground shadow-lg">
+                      <span className="text-sm font-medium opacity-90">Seu número</span>
+                      <p className="text-3xl font-extrabold">#{pedidoEnviado.numeroPedido}</p>
+                    </div>
+                  </div>
+
+                  <div className="mb-6 space-y-4 rounded-2xl bg-muted p-4 sm:p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+                        <Phone className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground sm:text-base">
+                          Acompanhe pelo WhatsApp
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Você receberá atualizações sobre o status do seu pedido.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        {pedidoEnviado.tipoEntrega === 'entrega' ? (
+                          <MapPin className="h-5 w-5 text-primary" />
+                        ) : pedidoEnviado.tipoEntrega === 'local' ? (
+                          <UtensilsCrossed className="h-5 w-5 text-primary" />
+                        ) : (
+                          <ShoppingBag className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground sm:text-base">
+                          {pedidoEnviado.tipoEntrega === 'entrega'
+                            ? 'Entrega a caminho'
+                            : pedidoEnviado.tipoEntrega === 'local'
+                              ? `Mesa ${pedidoEnviado.mesa}`
+                              : 'Retirada no balcão'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {pedidoEnviado.tipoEntrega === 'entrega'
+                            ? 'Seu pedido será entregue no endereço informado.'
+                            : pedidoEnviado.tipoEntrega === 'local'
+                              ? 'Seu pedido será servido na sua mesa.'
+                              : 'Retire seu pedido quando estiver pronto.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-6 grid grid-cols-2 gap-4">
+                    <div className="rounded-xl bg-muted p-3 text-center">
+                      <p className="mb-1 text-xs text-muted-foreground">Tempo estimado</p>
+                      <p className="text-lg font-bold text-foreground">{tempoEntregaEstimado} min</p>
+                    </div>
+                    <div className="rounded-xl bg-primary/10 p-3 text-center">
+                      <p className="mb-1 text-xs text-primary">Total</p>
+                      <p className="text-lg font-bold text-primary">
+                        R$ {pedidoEnviado.total.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-shrink-0 border-t border-border/70 bg-card px-6 pb-6 pt-4 [padding-bottom:max(env(safe-area-inset-bottom),1.5rem)] sm:px-8">
+                  <Button type="button" onClick={onFechar} className="h-12 w-full text-base">
+                    Entendi
+                  </Button>
+                  <p className="mt-3 text-center text-sm leading-relaxed text-muted-foreground">
+                    Obrigado por escolher o <span className="font-semibold text-primary">Bar da Ladeira</span>.
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
           <DrawerTitle className="sr-only">Finalizar pedido</DrawerTitle>
           <DrawerDescription className="sr-only">
             Revise os itens, informe seus dados e escolha a forma de pagamento.
@@ -1997,7 +1965,7 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
                         <span className={mesaSelecionada ? 'text-gray-900 dark:text-white' : 'text-gray-500'}>
                           {mesaSelecionada ? (
                             <span className="flex items-center gap-2">
-                              <UtensilsCrossed className="w-4 h-4 text-bordo-600" />
+                              <UtensilsCrossed className="w-4 h-4 text-primary" />
                               {obterRotuloPontoLocal(pontoLocalSelecionado, mesaSelecionada)}
                             </span>
                           ) : (
@@ -2036,7 +2004,7 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
                         <span className={bairroSelecionado ? 'text-gray-900 dark:text-white' : 'text-gray-500'}>
                           {bairroSelecionado ? (
                             <span className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4 text-bordo-600" />
+                              <MapPin className="w-4 h-4 text-primary" />
                               {bairroSelecionado.nome}
                               <span className={`font-medium text-sm ${bairroSelecionado.entrega_gratis ? 'text-emerald-600 dark:text-emerald-400' : 'text-green-600 dark:text-green-400'}`}>
                                 {bairroSelecionado.entrega_gratis ? '(Grátis!)' : `(R$ ${bairroSelecionado.taxa_entrega.toFixed(2)})`}
@@ -2267,14 +2235,14 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
                         type="button"
                         onClick={aplicarCupom}
                         disabled={validandoCupom || !codigoCupom.trim()}
-                        className="w-full sm:w-auto sm:shrink-0 px-4 py-2 rounded-lg bg-bordo-700 text-white text-sm font-semibold whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed hover:bg-bordo-800"
+                        className="w-full whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0"
                       >
                         {validandoCupom ? 'Validando...' : 'Aplicar'}
                       </button>
                     </div>
                   ) : (
                     <div className="rounded-lg bg-white dark:bg-gray-900 border border-amber-200 dark:border-zinc-700 px-3 py-2">
-                      <p className="text-sm font-semibold text-bordo-700 dark:text-bordo-300">
+                      <p className="text-sm font-semibold text-primary">
                         {cupomAplicado.codigo} aplicado
                       </p>
                       <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -2457,7 +2425,7 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
             <DrawerContent className="mx-auto max-h-[85dvh] w-full max-w-md overflow-hidden p-0">
               <div className="flex shrink-0 items-center justify-between border-b border-border p-4">
                 <DrawerTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-                  <MapPin className="h-5 w-5 text-bordo-600" />
+                  <MapPin className="h-5 w-5 text-primary" />
                   Selecione seu bairro
                 </DrawerTitle>
                 <button
@@ -2476,7 +2444,7 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {carregandoBairros ? (
                 <div className="p-8 text-center text-gray-500">
-                  <div className="w-8 h-8 border-2 border-bordo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   Carregando bairros...
                 </div>
               ) : bairros.length === 0 ? (
@@ -2528,21 +2496,21 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
                       }}
                       className={`w-full p-4 flex items-center justify-between text-left transition-colors
                         ${bairroSelecionado?.id === b.id
-                          ? 'bg-bordo-50 dark:bg-bordo-900/20'
+                          ? 'bg-primary/10'
                           : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center
                           ${bairroSelecionado?.id === b.id
-                            ? 'bg-bordo-600 text-white'
+                            ? 'bg-primary text-primary-foreground'
                             : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                           }`}
                         >
                           <MapPin className="w-5 h-5" />
                         </div>
                         <span className={`font-medium ${bairroSelecionado?.id === b.id
-                            ? 'text-bordo-700 dark:text-bordo-400'
+                            ? 'text-primary'
                             : 'text-gray-900 dark:text-white'
                           }`}>
                           {b.nome}
@@ -2557,7 +2525,7 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
                           {b.entrega_gratis ? 'Grátis!' : `R$ ${b.taxa_entrega.toFixed(2)}`}
                         </span>
                         {bairroSelecionado?.id === b.id && (
-                          <Check className="w-5 h-5 text-bordo-600" />
+                          <Check className="w-5 h-5 text-primary" />
                         )}
                       </div>
                     </button>
@@ -2567,6 +2535,8 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
               </div>
             </DrawerContent>
           </DrawerNested>
+            </>
+          )}
         </DrawerContent>
       </Drawer>
 
@@ -2653,7 +2623,7 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
                     type="button"
                     onClick={() => consultarStatusPagamentoPix(true)}
                     disabled={sincronizandoPagamentoPix}
-                    className="rounded-xl bg-bordo-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-bordo-800 disabled:opacity-60"
+                    className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
                   >
                     {sincronizandoPagamentoPix ? 'Atualizando...' : 'Atualizar status'}
                   </button>

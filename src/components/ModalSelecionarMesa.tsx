@@ -176,7 +176,7 @@ export default function ModalSelecionarMesa({
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center">
-                    <div className="mx-auto mb-2 h-7 w-7 animate-spin rounded-full border-2 border-zinc-200 border-t-bordo-600 dark:border-zinc-700 dark:border-t-bordo-400" />
+                    <div className="mx-auto mb-2 h-7 w-7 animate-spin rounded-full border-2 border-border border-t-primary" />
                     <p className="text-xs text-zinc-400">Carregando mesas...</p>
                   </div>
                 </div>
@@ -207,7 +207,7 @@ export default function ModalSelecionarMesa({
                                   ocupada
                                     ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed dark:bg-zinc-800/50 dark:text-zinc-600'
                                     : selecionando
-                                    ? 'bg-bordo-50 text-bordo-600 ring-2 ring-bordo-500 dark:bg-bordo-900/20 dark:text-bordo-400'
+                                    ? 'bg-primary/10 text-primary ring-2 ring-primary'
                                     : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/15'
                                 }`}
                               >
