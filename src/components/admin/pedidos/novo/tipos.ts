@@ -22,6 +22,7 @@ export type ProdutoSelecionadoPedidoNovo = {
   observacoes: string
   adicionais: AdicionalPedidoNovo[]
   descontoManualInput: string
+  tipo: TipoItemCatalogoPedido
 }
 
 export type CategoriaCatalogoPedido = {

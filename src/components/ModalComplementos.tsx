@@ -5,6 +5,11 @@ import { X, Check, Minus, Plus, ShoppingBag, ChevronDown, ChevronUp } from 'luci
 import Image from 'next/image'
 import { Produto, Adicional, supabase } from '@/lib/supabase'
 import { useCarrinho } from '@/contexts/CarrinhoContext'
+import {
+  avaliarCompraProduto,
+  mensagemAvaliacaoCompra,
+  somarQuantidadeProdutoNoCarrinho,
+} from '@/lib/estoque-produto.mjs'
 
 type ModalComplementosProps = {
   produto: Produto | null
@@ -45,7 +50,7 @@ const agruparPorCategoria = (adicionais: Adicional[]): Record<string, Adicional[
 }
 
 export default function ModalComplementos({ produto, aberto, onFechar, onItemAdicionado }: ModalComplementosProps) {
-  const { adicionarItem } = useCarrinho()
+  const { adicionarItem, itens } = useCarrinho()
   const [adicionais, setAdicionais] = useState<Adicional[]>([])
   const [adicionaisSelecionados, setAdicionaisSelecionados] = useState<Adicional[]>([])
   const [quantidade, setQuantidade] = useState(1)
@@ -163,7 +168,13 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
 
   const confirmar = () => {
     if (!produto) return
-    adicionarItem(produto, quantidade, adicionaisSelecionados, observacoes)
+    const jaNoCarrinho = somarQuantidadeProdutoNoCarrinho(itens, produto.id)
+    const avaliacao = avaliarCompraProduto(produto, jaNoCarrinho, quantidade)
+    if (!avaliacao.permitido) {
+      return
+    }
+    const adicionado = adicionarItem(produto, quantidade, adicionaisSelecionados, observacoes)
+    if (!adicionado) return
     onFechar()
     onItemAdicionado(produto.nome)
   }
@@ -174,6 +185,10 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
   const adicionaisAgrupados = agruparPorCategoria(adicionais)
   const categoriasAdicionais = Object.keys(adicionaisAgrupados)
   const temImagem = produto.imagem_url && produto.imagem_url.trim() !== ''
+  const jaNoCarrinho = somarQuantidadeProdutoNoCarrinho(itens, produto.id)
+  const avaliacaoAtual = avaliarCompraProduto(produto, jaNoCarrinho, quantidade)
+  const avaliacaoMaisUm = avaliarCompraProduto(produto, jaNoCarrinho, quantidade + 1)
+  const mensagemEstoque = mensagemAvaliacaoCompra(produto, avaliacaoAtual)
 
   return (
     <div
@@ -384,9 +399,13 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
                 {quantidade}
               </span>
               <button
-                onClick={() => setQuantidade(quantidade + 1)}
+                onClick={() => {
+                  if (!avaliacaoMaisUm.permitido) return
+                  setQuantidade(quantidade + 1)
+                }}
+                disabled={!avaliacaoMaisUm.permitido}
                 className="w-9 h-9 flex items-center justify-center rounded-r-lg 
-                         hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                         hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-40"
                 aria-label="Aumentar quantidade"
               >
                 <Plus className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
@@ -402,11 +421,19 @@ export default function ModalComplementos({ produto, aberto, onFechar, onItemAdi
           )}
 
           {/* Botão de confirmar */}
+          {mensagemEstoque ? (
+            <p className="text-xs text-center text-red-600 dark:text-red-400" role="alert">
+              {mensagemEstoque}
+            </p>
+          ) : null}
+
           <button
             onClick={confirmar}
+            disabled={!avaliacaoAtual.permitido}
             className="w-full flex items-center justify-between py-3.5 px-5 rounded-xl
                      bg-primary hover:bg-primary/90 active:bg-primary/80
-                     text-primary-foreground font-bold transition-colors shadow-lg shadow-primary/20"
+                     text-primary-foreground font-bold transition-colors shadow-lg shadow-primary/20
+                     disabled:opacity-50 disabled:pointer-events-none"
           >
             <div className="flex items-center gap-2">
               <ShoppingBag className="w-5 h-5" />

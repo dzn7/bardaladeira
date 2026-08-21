@@ -15,7 +15,6 @@ import {
   Search,
   TrendingDown,
   TrendingUp,
-  Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -38,8 +37,9 @@ import { ListaPedidosNaoPagos } from './ListaPedidosNaoPagos'
 import { ListaCrediarioPendente } from './ListaCrediarioPendente'
 import { ListaPagamentos } from './ListaPagamentos'
 import { ModalMovimentacao } from './ModalMovimentacao'
-import { ModalPagamentoSalario } from './ModalPagamentoSalario'
+import { GestaoPagamentosFuncionarios } from './GestaoPagamentosFuncionarios'
 import { PainelDiarias } from './PainelDiarias'
+import { ResumoLucroProdutos } from './ResumoLucroProdutos'
 
 const CHAVE_OCULTAR = 'financas:valoresOcultos'
 
@@ -116,7 +116,10 @@ export function PainelFinancas() {
   const {
     carregando,
     erro,
+    erroLucro,
     resumo,
+    resumoLucro,
+    lucroProdutos,
     fluxoCaixa,
     composicaoReceita,
     resumoMensal,
@@ -235,15 +238,15 @@ export function PainelFinancas() {
             <span
               className={cn(
                 'text-sm font-semibold tabular-nums',
-                resumo.lucroLiquido >= 0
+                resumo.resultadoCaixa >= 0
                   ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-rose-600 dark:text-rose-400',
               )}
             >
-              Lucro {formatarMoeda(resumo.lucroLiquido)}
+              Resultado {formatarMoeda(resumo.resultadoCaixa)}
             </span>
           ) : (
-            <span className="text-sm font-semibold text-muted-foreground">Lucro ••••••</span>
+            <span className="text-sm font-semibold text-muted-foreground">Resultado ••••••</span>
           )}
         </div>
 
@@ -278,20 +281,10 @@ export function PainelFinancas() {
               </Button>
             }
           />
-          <ModalPagamentoSalario
+          <GestaoPagamentosFuncionarios
             funcionarios={funcionarios}
             categorias={categorias}
-            onSubmit={adicionarMovimentacao}
-            trigger={
-              <Button
-                variant="outline"
-                data-onboarding="financas-salario"
-                className="h-10 gap-2 rounded-xl border-border/70 px-3 text-sm font-medium shadow-none"
-              >
-                <Users className="h-4 w-4" />
-                Salário
-              </Button>
-            }
+            aoAtualizar={refetch}
           />
         </div>
       </div>
@@ -538,6 +531,13 @@ export function PainelFinancas() {
             <GraficoComposicao dados={composicaoReceita} total={totalReceitaPeriodo} carregando={carregando} />
           </div>
           <GraficoLucroMensal dados={resumoMensal} carregando={carregando} />
+          <ResumoLucroProdutos
+            resumo={resumoLucro}
+            produtos={lucroProdutos}
+            carregando={carregando}
+            erro={erroLucro}
+            valoresOcultos={valoresOcultos}
+          />
           {!valoresOcultos ? (
             <p className="text-xs text-muted-foreground">
               {resumo.pedidosCount} pedidos · ticket {formatarMoeda(resumo.ticketMedio)} · a receber{' '}

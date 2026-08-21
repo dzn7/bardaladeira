@@ -2,11 +2,18 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Plus, Info, UtensilsCrossed } from 'lucide-react'
+import { Plus, Info, UtensilsCrossed, Ban } from 'lucide-react'
 import { Produto } from '@/lib/supabase'
 import ModalIngredientes from './ModalIngredientes'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useCarrinho } from '@/contexts/CarrinhoContext'
+import {
+  avaliarCompraProduto,
+  produtoBloqueadoPorEstoque,
+  somarQuantidadeProdutoNoCarrinho,
+} from '@/lib/estoque-produto.mjs'
+import { cn } from '@/lib/utils'
 
 type CartaoProdutoProps = {
   produto: Produto
@@ -17,6 +24,7 @@ export default function CartaoProduto({ produto, onAdicionar }: CartaoProdutoPro
   const [imagemCarregada, setImagemCarregada] = useState(false)
   const [erroImagem, setErroImagem] = useState(false)
   const [modalIngredientesAberto, setModalIngredientesAberto] = useState(false)
+  const { itens } = useCarrinho()
 
   const precoOriginal = typeof produto.preco_original === 'number' ? produto.preco_original : null
   const possuiDesconto = Boolean(produto.desconto && produto.desconto > 0 && precoOriginal)
@@ -25,10 +33,19 @@ export default function CartaoProduto({ produto, onAdicionar }: CartaoProdutoPro
       ? produto.imagem_url
       : ''
   const exibindoPlaceholder = !srcImagem
+  const esgotadoBloqueado = produtoBloqueadoPorEstoque(produto)
+  const jaNoCarrinho = somarQuantidadeProdutoNoCarrinho(itens, produto.id)
+  const avaliacao = avaliarCompraProduto(produto, jaNoCarrinho, 1)
+  const compraBloqueada = esgotadoBloqueado || !avaliacao.permitido
 
   return (
     <>
-      <article className="group flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground transition-colors hover:border-border">
+      <article
+        className={cn(
+          'group flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground transition-colors hover:border-border',
+          esgotadoBloqueado && 'opacity-70 grayscale',
+        )}
+      >
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-muted">
           {!exibindoPlaceholder && (
             <>
@@ -66,13 +83,20 @@ export default function CartaoProduto({ produto, onAdicionar }: CartaoProdutoPro
             </Badge>
           </div>
 
-          {possuiDesconto && (
+          {esgotadoBloqueado ? (
+            <div className="absolute right-2 top-2">
+              <Badge variant="destructive" className="gap-1 px-2 py-0.5 text-[10px]">
+                <Ban className="h-3 w-3" aria-hidden />
+                Esgotado
+              </Badge>
+            </div>
+          ) : possuiDesconto ? (
             <div className="absolute right-2 top-2">
               <Badge className="bg-destructive px-2 py-0.5 text-[10px] text-destructive-foreground">
                 -{produto.desconto}%
               </Badge>
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="flex flex-1 flex-col p-3">
@@ -114,11 +138,16 @@ export default function CartaoProduto({ produto, onAdicionar }: CartaoProdutoPro
               type="button"
               onClick={() => onAdicionar(produto)}
               size="sm"
+              disabled={compraBloqueada}
               className="min-h-10 w-full gap-1.5 text-xs"
-              aria-label={`Adicionar ${produto.nome} ao carrinho`}
+              aria-label={
+                compraBloqueada
+                  ? `${produto.nome} esgotado`
+                  : `Adicionar ${produto.nome} ao carrinho`
+              }
             >
               <Plus className="h-4 w-4" />
-              Adicionar
+              {esgotadoBloqueado ? 'Esgotado' : 'Adicionar'}
             </Button>
           </div>
         </div>

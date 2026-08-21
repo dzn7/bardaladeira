@@ -26,7 +26,9 @@ Centralizar a operação digital e presencial do Bar da Ladeira: exposição do 
 - Gestão de salão: mesas, comandas, locais externos, ocupação, tempo limite e liberação.
 - Gestão de entregas, entregadores e repasses.
 - Catálogo: produtos, bebidas, combos, adicionais, categorias, ordenação, imagens e disponibilidade.
+- Estoque operacional de produtos finais: custo opcional, quantidade, mínimo, bloqueio de venda e reserva/restauração atômica pelos itens do pedido. Bebidas, combos, adicionais e insumos ficam fora desse controle.
 - Caixa, movimentações, categorias financeiras, saldos, salários, crediário, relatórios e fechamento anual.
+- A Central do Admin mantém ocorrências persistentes de estoque baixo/esgotado, pedidos novos e pagamentos mensais da equipe, com preferências por administrador, deduplicação e resolução automática.
 - Gestão de usuários de sistema (`admin`, `garcom`, `entregador`) e cadastro derivado de clientes.
 - Controle global de visibilidade dos menus do admin e garçom pelo superusuário em `/dzn`.
 - Controle visual de ações por cargo e usuário para garçons e entregadores, administrável em Usuários e no `/dzn`.
@@ -77,7 +79,7 @@ O menu de `src/components/admin/AdminLayout.tsx` organiza o produto em quatro gr
 
 - **Operações:** dashboard, painel Kanban, PDV, pedidos e novo pedido.
 - **Operação:** mesas, salão, caixa, formas de pagamento, crediário, entregas, funcionários, garçons, usuários e bairros.
-- **Catálogo e canais:** produtos, combos, adicionais, cupons, WhatsApp e impressora.
+- **Catálogo e canais:** produtos, estoque, combos, adicionais, cupons, WhatsApp e impressora.
 - **Análise:** finanças, produtividade, análise diária, relatórios e anos anteriores.
 
 Há ainda páginas de detalhes/edição de pedido, relatórios e saldos de caixa, pedidos por garçom e uma página técnica `/admin/dev`.
@@ -183,6 +185,15 @@ Há ainda páginas de detalhes/edição de pedido, relatórios e saldos de caixa
 - Pagamento manual livre nunca pode exceder `saldo_atual`; saldos negativos históricos permanecem uma reconciliação separada.
 - Views `vw_crediario_contas_resumo` e `vw_usuarios_cliente_metricas` suportam telas de consulta.
 - Dados de anos encerrados são movidos para tabelas `historico_*` e `resumo_anual`.
+- Finanças separa resultado de caixa de lucro bruto conhecido. Vendas novas congelam o custo administrativo do item em relação privada; itens históricos sem snapshot não recebem custo inventado pelo catálogo atual.
+- Agendas mensais por funcionário registram dia, antecedência, valor previsto, competência e baixa transacional em `movimentacoes_caixa`; pagamentos próximos ou atrasados alimentam a Central.
+
+### 7.1 Estoque e notificações administrativas
+
+- `/admin/estoque` consulta somente produtos finais e oferece busca, estado, categoria, paginação e ajuste rápido por RPC atômica.
+- `itens_pedido.produto_id` reserva saldo ao inserir/alterar item e restaura exatamente o consumo ao excluir, cancelar ou reabrir um pedido.
+- Quando o bloqueio está ativo, saldo insuficiente rejeita a venda; sem bloqueio, o sistema consome apenas o saldo disponível e registra quanto foi efetivamente reservado.
+- A Central usa route handlers autenticados e service role para suas relações privadas. O estoque operacional legado continua acessado pelo client anon, risco conhecido que esta task não amplia.
 
 ### 8. WhatsApp
 
@@ -218,6 +229,7 @@ O `.env.local` da aplicação principal aponta para esse projeto (`NEXT_PUBLIC_S
 | Pedido e pagamento | `pedidos`, `itens_pedido`, `item_adicionais`, `formas_pagamento`, `pagamentos_pedido`, `pagamentos_online`, `cupons`, `cupons_usos` |
 | Operação e identidade | `configuracoes_loja`, `bairros`, `mesas`, `entregas`, `fila_impressao`, `atividade_garcom`, `funcionarios`, `usuarios_sistema`, `usuarios_cliente`, `notification_preferences`, `anotacoes_painel` |
 | Financeiro | `caixas`, `caixa_automacao_config`, `categorias_caixa`, `movimentacoes_caixa`, `pagamentos_entregadores`, `crediario_contas`, `crediario_movimentos` |
+| Estoque e alertas | campos de estoque em `produtos`/`itens_pedido`; `custos_itens_pedido_admin`, `notificacoes_admin`, `notificacoes_admin_leituras`, `notificacoes_admin_preferencias`, `funcionarios_pagamento_config`, `funcionarios_pagamentos` |
 | Produtividade | `produtividade_config` (pesos/metas; fechada para `anon`) + funções `produtividade_*` |
 | Histórico | `historico_caixas`, `historico_entregas`, `historico_item_adicionais`, `historico_itens_pedido`, `historico_movimentacoes_caixa`, `historico_pedidos`, `resumo_anual` |
 | WhatsApp | `whatsapp_conversations`, `whatsapp_customer_memory`, `whatsapp_messages`, `whatsapp_order_drafts`, `whatsapp_order_notifications`, `whatsapp_outbox`, `whatsapp_product_aliases`, `whatsapp_product_lookup_misses`, `whatsapp_session` |
@@ -262,6 +274,7 @@ Outros triggers importantes atualizam snapshots de itens/fila, saldo do crediár
 | Temas | Variáveis CSS semânticas + Tailwind; `next-themes` | Claro/escuro compartilham os mesmos componentes | 2026-07-12 |
 | UI compartilhada | Primitivos shadcn/Radix em `src/components/ui` e Kibo UI em `src/components/kibo-ui` | Novas telas devem reutilizar essas bases | 2026-07-12 |
 | Arquivos | Backblaze B2 via API compatível com S3 | URLs públicas ficam salvas nas entidades | 2026-07-12 |
+| Estoque de produtos | Postgres reserva/restaura por `itens_pedido.produto_id`; ajustes usam RPC `SECURITY INVOKER` | Cobre todos os produtores de pedido sem copiar produtos da base Edienai | 2026-08-20 |
 
 ## Hotspots e dependências sensíveis
 
@@ -304,4 +317,5 @@ Uma mudança em pedido pode refletir em `itens_pedido`, pagamentos, entrega, mes
 - **Gaveta / caixa operacional:** dinheiro físico da sessão aberta; sangria/suprimento e fechamento conferem só Dinheiro (PIX/cartão são informativos).
 - **Carol:** atendente do serviço WhatsApp via Evolution API.
 - **Outbox:** fila persistente de mensagens a enviar pelo bot.
+- **Estoque consumido:** quantidade efetivamente retirada do saldo para um item; pode ser menor que a quantidade vendida quando o bloqueio está desligado e é a base da restauração exata.
 - **migracao_edienai_antigo:** valor técnico de `crediario_contas.origem` herdado da base; **não** rebatizar no banco. A UI exibe “Sistema antigo”.

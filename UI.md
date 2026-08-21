@@ -96,7 +96,7 @@ Primitivos Kibo UI disponíveis:
 
 | Componente | Caminho | Responsabilidade |
 |---|---|---|
-| `AdminLayout` | `src/components/admin/AdminLayout.tsx` | Sidebar, header, comandos, atalhos, tema e alertas de salão; personalização via `SidebarPersonalizarModal` + API |
+| `AdminLayout` | `src/components/admin/AdminLayout.tsx` | Sidebar, header, comandos, atalhos, tema, alertas de salão e Central de Notificações; personalização via `SidebarPersonalizarModal` + API |
 | Dashboard | `src/app/admin/dashboard/page.tsx` | Faixa KPI (hoje/mês) + loja compacta + fila impressão + pedidos (tabela desktop / cards mobile); sem aviso de jogo |
 | `ControleStatusLoja` | `src/components/admin/ControleStatusLoja.tsx` | Status abrir/fechar + auto; edição de grade semanal em Dialog; AlertDialog de confirmação |
 | `AvisoJogoBot` | `src/components/admin/AvisoJogoBot.tsx` | Config de aviso de jogo do bot — vive na aba Jogo de `/admin/whatsapp` |
@@ -117,7 +117,11 @@ Primitivos Kibo UI disponíveis:
 | Relatórios | `src/app/admin/relatorios/page.tsx` | Faixa KPI Juridiq + filtros período (pills) + seções com charts/PDF; loading Skeleton; tokens semânticos |
 | Combos | `src/app/admin/combos/page.tsx` | Shell `max-w-6xl` + header card; busca por nome; cards densos + `MenuAcoes`; Dialog form; Empty; toast sonner |
 | `BarraPagamentoParcial` | `src/components/admin/BarraPagamentoParcial.tsx` | Progresso e saldo de pagamentos |
-| `PainelFinancas` | `src/features/financas/components/PainelFinancas.tsx` | Finanças Juridiq: lucro ocultável; Receitas/Despesas/Salário; card principal com toggle **Lançamentos \| Diárias**; Diárias ocupa o card (calendário FullCalendar + lista); tabs inferiores Análise/Pagamentos |
+| `PainelFinancas` | `src/features/financas/components/PainelFinancas.tsx` | Finanças Juridiq: resultado de caixa ocultável; Receitas/Despesas/Pagamentos da equipe; análise separa caixa de lucro bruto histórico |
+| `GestaoPagamentosFuncionarios` | `src/features/financas/components/GestaoPagamentosFuncionarios.tsx` | Agenda mensal por funcionário, competência, estado e baixa transacional no caixa |
+| `ResumoLucroProdutos` | `src/features/financas/components/ResumoLucroProdutos.tsx` | Receita coberta, CMV conhecido, lucro/margem bruta e ranking sem inventar custo histórico |
+| `CentralNotificacoes` | `src/features/notificacoes/CentralNotificacoes.tsx` | Sino e badge no Header; painel desktop/bottom sheet mobile, leitura, dispensa, navegação contextual e preferências por categoria |
+| `ModalNotificacoesEntrada` | `src/features/notificacoes/ModalNotificacoesEntrada.tsx` | Ocorrências ainda não apresentadas, com preferência reversível para não abrir automaticamente |
 | `CardRadialFinancas` | `src/features/financas/components/CardRadialFinancas.tsx` | Card Receitas/Despesas (verde/laranja/azul + donut Chart.js) espelhando `ChartRadialStacked` do Juridiq |
 | `ListaMovimentacoes` | `src/features/financas/components/ListaMovimentacoes.tsx` | Desktop: tabela Juridiq (borda-l verde/vermelho, status centralizado, row clicável). Mobile: `CardMovimentacaoFinancas`. Paginação default 15 |
 | `CardMovimentacaoFinancas` | `src/features/financas/components/CardMovimentacaoFinancas.tsx` | Card mobile estilo Juridiq `FinanceTransactionCard` para lançamentos |
@@ -139,7 +143,10 @@ Primitivos Kibo UI disponíveis:
 | `FiltroPedidosAdmin` | `src/features/pedidos/components/FiltroPedidosAdmin.tsx` | Status + tipo — `/admin/pedidos` |
 | `FiltroEntregasAdmin` | `src/features/entregas/components/FiltroEntregasAdmin.tsx` | Período + status + entregador — `/admin/entregas` |
 | `FiltroProdutosAdmin` | `src/components/admin/produtos/FiltroProdutosAdmin.tsx` | Status / tipo / foto / categoria — `/admin/produtos` |
-| `ModalFormularioProduto` | `src/components/admin/produtos/ModalFormularioProduto.tsx` | Criar/editar produto em Dialog (header/body/footer); substitui edição inline |
+| `ModalFormularioProduto` | `src/components/admin/produtos/ModalFormularioProduto.tsx` | Criar/editar produto em Dialog; produtos finais incluem custo, quantidade, mínimo e bloqueio de venda; bebidas preservam o contrato anterior |
+| `ControleEstoqueProduto` | `src/components/admin/estoque/ControleEstoqueProduto.tsx` | `−` / input / `+` / Zerar; RPC atômica, otimista, rollback e lock por linha |
+| `/admin/estoque` | `src/app/admin/estoque/page.tsx` | KPIs inline, busca, pills de estado, categoria, tabela/cards, paginação e deep-link `?produto=` |
+| `FiltroEstoqueAdmin` | `src/components/admin/estoque/FiltroEstoqueAdmin.tsx` | Categoria via `FiltroAvancado` na tela de estoque |
 | `FiltroFuncionariosAdmin` | `src/components/admin/funcionarios/FiltroFuncionariosAdmin.tsx` | Função + status — `/admin/funcionarios` |
 | `FiltroPedidosGarcom` | `src/components/admin/garcons/FiltroPedidosGarcom.tsx` | Abas Geral / Pagamento / Período para monitoramento de pedidos do garçom |
 | `PedidosCriadosGarcom` | `src/components/admin/garcons/PedidosCriadosGarcom.tsx` | Default **hoje (3h)**; KPI **Vendas** = total do filtro (não da página); lista mobile densa com ícone por canal |
@@ -189,7 +196,7 @@ Primitivos Kibo UI disponíveis:
 - Sidebar colapsável: **112 px** fechada (estilo Juridiq) e 224 px aberta; logo `/logo.webp` + “Bar da Ladeira”; item ativo com barra esquerda absoluta + `bg-primary/10` (ícones opticamente centralizados quando fechada); grupos com abreviação de 3 letras e divisores no estado colapsado.
 - Scroll da sidebar desktop é preservado entre navegações (`renderSidebarContent` + restore de `scrollTop`); não redefinir o menu como componente interno do layout.
 - Largura via `--largura-sidebar-admin` (`AdminLayout`); sombra leve na rail.
-- Ícones da sidebar (`admin-sidebar-routes.ts`): cada rota com ícone distinto — Caixa `Wallet`, Crediário `Coins`, Finanças `Landmark`, Usuários `UserCog`, Funcionários `Contact`, Produtos `CookingPot`, Combos `Layers`, Adicionais `ListPlus`.
+- Ícones da sidebar (`admin-sidebar-routes.ts`): cada rota com ícone distinto — Caixa `Wallet`, Crediário `Coins`, Finanças `Landmark`, Usuários `UserCog`, Funcionários `Contact`, Produtos `CookingPot`, Estoque `Package`, Combos `Layers`, Adicionais `ListPlus`.
 - `Button` (`ui/button`): variantes com tokens (`primary` / `border-border/70` / `destructive`) — sem `bordo`/`zinc`.
 - Personalizar sidebar: botão no rodapé; itens ocultos no menu **Mais**; renomear grupos (lápis); config por usuário em Postgres (`admin_sidebar_config`). No mobile, abrir Personalizar fecha o Drawer do menu.
 - Visibilidade global: `/dzn` controla admin e garçom. Tela desativada globalmente não aparece em nenhum menu, em **Mais**, na busca, nos atalhos ou no personalizador.
@@ -201,6 +208,14 @@ Primitivos Kibo UI disponíveis:
 - Preferir faixas compactas, tabelas, listas e linhas densas às pilhas de cards.
 - Conteúdo precisa continuar utilizável com sidebar colapsada e em viewport menor.
 - Páginas de catálogo polidas (`/admin/bairros`, `/admin/adicionais`, `/admin/combos`): shell `mx-auto w-full max-w-5xl|6xl space-y-5`; header card `rounded-xl border border-border/70 bg-card p-4 sm:p-5` com ícone `text-primary`, contagem no subtítulo e CTAs outline+primary; listas densas com `MenuAcoes` para ações secundárias; empty via `@/components/ui/empty`.
+
+### Estoque (`/admin/estoque`)
+
+- Shell `max-w-6xl`; resumo inline Em estoque / Estoque baixo / Esgotados, sem grid de metric cards.
+- Busca normaliza acento/caixa; pills de estado + `FiltroAvancado` de categoria; tabela semântica desktop e cards mobile.
+- Ajuste rápido (`−` / input / `+` / Zerar): Enter confirma, Escape restaura, blur vazio restaura, lock somente na linha e alvos de 44px.
+- Paginação 15/30/50/100; deep-link `?produto=<uuid>` destaca o produto; mutation reconcilia somente a linha alterada.
+- Quantidade do modal de produto nunca entra no `insert`/`update` geral: ela passa exclusivamente por `ajustarEstoqueProduto`.
 
 ### Administração mobile
 

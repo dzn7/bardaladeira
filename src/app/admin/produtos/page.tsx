@@ -24,6 +24,12 @@ import {
   ModalFormularioProduto,
   type DadosSalvarProduto,
 } from '@/components/admin/produtos/ModalFormularioProduto'
+import { ajustarEstoqueProduto, ErroEstoque } from '@/lib/estoque'
+import {
+  camposEstoqueParaCatalogo,
+  camposEstoqueParaPersistenciaCatalogo,
+  normalizarDinheiro,
+} from '@/lib/estoque-produto.mjs'
 import { supabase } from '@/lib/supabase'
 import type { CategoriaCardapio, TipoCategoriaCardapio } from '@/lib/supabase'
 import Image from 'next/image'
@@ -89,6 +95,10 @@ type Produto = {
   disponivel: boolean
   ordem?: number | null
   tabela?: string
+  custo_unitario?: number | null
+  estoque_quantidade?: number
+  estoque_minimo?: number
+  bloquear_venda_sem_estoque?: boolean
 }
 
 type EstadoRecorte = {
@@ -1141,12 +1151,34 @@ export default function ProdutosPage() {
       if (erroOrdem) throw erroOrdem
 
       const proximaOrdem = (registroMaiorOrdem?.ordem ?? 0) + 1
+      let precoNormalizado = 0
+      try {
+        precoNormalizado = Number(normalizarDinheiro(dados.preco))
+      } catch {
+        throw new Error('Informe um preço de venda válido.')
+      }
+      const camposEstoque = isBebida
+        ? {}
+        : camposEstoqueParaPersistenciaCatalogo('produto', {
+            custoUnitario: dados.custoUnitario,
+            quantidade: dados.quantidadeEstoque,
+            minimo: dados.estoqueMinimo,
+            bloquear: dados.bloquearVendaSemEstoque,
+          })
+      const quantidadeInicial = isBebida
+        ? null
+        : camposEstoqueParaCatalogo('produto', {
+            custoUnitario: dados.custoUnitario,
+            quantidade: dados.quantidadeEstoque,
+            minimo: dados.estoqueMinimo,
+            bloquear: dados.bloquearVendaSemEstoque,
+          }).estoque_quantidade
 
       const dadosInsercao = isBebida
         ? {
           nome: dados.nome,
           descricao: dados.descricao || null,
-          preco: parseFloat(dados.preco),
+          preco: precoNormalizado,
           categoria: categoriaNormalizadaNovoProduto || categoriaBebidasAtual,
           ordem: proximaOrdem,
           disponivel: true,
@@ -1154,10 +1186,11 @@ export default function ProdutosPage() {
         : {
           nome: dados.nome,
           descricao: dados.descricao || null,
-          preco: parseFloat(dados.preco),
+          preco: precoNormalizado,
           categoria: categoriaNormalizadaNovoProduto,
           ordem: proximaOrdem,
           disponivel: true,
+          ...camposEstoque,
         }
 
       const { data: produtoCriado, error: erroCriacao } = await supabase
@@ -1167,6 +1200,18 @@ export default function ProdutosPage() {
         .single()
 
       if (erroCriacao) throw erroCriacao
+
+      if (!isBebida && produtoCriado && typeof quantidadeInicial === 'number') {
+        try {
+          await ajustarEstoqueProduto({ produtoId: produtoCriado.id, quantidade: quantidadeInicial })
+        } catch (erroEstoque) {
+          toast.error(
+            erroEstoque instanceof ErroEstoque
+              ? erroEstoque.message
+              : 'Produto criado, mas o estoque não foi ajustado.',
+          )
+        }
+      }
 
       if (blobNovoProduto && produtoCriado) {
         const resultadoUpload = await enviarImagemParaR2(
@@ -1232,7 +1277,18 @@ export default function ProdutosPage() {
     }
 
     const tabela = produto.tabela || 'produtos'
-    const precoNumero = parseFloat(dados.preco)
+    let precoNumero = 0
+    try {
+      precoNumero = Number(normalizarDinheiro(dados.preco))
+    } catch {
+      setModalNotificacao({
+        aberto: true,
+        tipo: 'aviso',
+        titulo: 'Preço Inválido',
+        mensagem: 'Informe um preço válido.'
+      })
+      return
+    }
     if (Number.isNaN(precoNumero) || precoNumero < 0) {
       setModalNotificacao({
         aberto: true,
@@ -1248,6 +1304,22 @@ export default function ProdutosPage() {
       ? precoNumero * (1 - descontoNumero / 100)
       : precoNumero
     const categoriaNormalizada = normalizarNomeCategoria(dados.categoria) || produto.categoria
+    const camposEstoque = tabela === 'bebidas'
+      ? {}
+      : camposEstoqueParaPersistenciaCatalogo('produto', {
+          custoUnitario: dados.custoUnitario,
+          quantidade: dados.quantidadeEstoque,
+          minimo: dados.estoqueMinimo,
+          bloquear: dados.bloquearVendaSemEstoque,
+        })
+    const quantidadeAlvo = tabela === 'bebidas'
+      ? null
+      : camposEstoqueParaCatalogo('produto', {
+          custoUnitario: dados.custoUnitario,
+          quantidade: dados.quantidadeEstoque,
+          minimo: dados.estoqueMinimo,
+          bloquear: dados.bloquearVendaSemEstoque,
+        }).estoque_quantidade
 
     setSalvando(produto.id)
     try {
@@ -1269,10 +1341,16 @@ export default function ProdutosPage() {
               desconto: descontoNumero > 0 ? descontoNumero : null,
               categoria: categoriaNormalizada,
               disponivel: dados.disponivel,
+              ...camposEstoque,
             }
 
       const { error } = await supabase.from(tabela).update(payload).eq('id', produto.id)
       if (error) throw error
+
+      let quantidadeConfirmada = produto.estoque_quantidade ?? 0
+      if (tabela !== 'bebidas' && typeof quantidadeAlvo === 'number') {
+        quantidadeConfirmada = await ajustarEstoqueProduto({ produtoId: produto.id, quantidade: quantidadeAlvo })
+      }
 
       if (tabela !== 'bebidas' && categoriaNormalizada !== produto.categoria) {
         await carregarProdutos(false)
@@ -1290,6 +1368,17 @@ export default function ProdutosPage() {
                     desconto: descontoNumero > 0 ? descontoNumero : null,
                     categoria: tabela === 'bebidas' ? item.categoria : categoriaNormalizada,
                     disponivel: dados.disponivel,
+                    ...(tabela === 'bebidas'
+                      ? {}
+                      : {
+                          custo_unitario:
+                            dados.custoUnitario.trim() === ''
+                              ? null
+                              : Number(camposEstoque.custo_unitario),
+                          estoque_quantidade: quantidadeConfirmada,
+                          estoque_minimo: Number(camposEstoque.estoque_minimo),
+                          bloquear_venda_sem_estoque: dados.bloquearVendaSemEstoque,
+                        }),
                   }
                 : item
             ),
@@ -1306,7 +1395,9 @@ export default function ProdutosPage() {
         aberto: true,
         tipo: 'erro',
         titulo: 'Erro ao Salvar',
-        mensagem: 'Não foi possível salvar as alterações. Tente novamente.'
+        mensagem: erro instanceof ErroEstoque
+          ? erro.message
+          : 'Não foi possível salvar as alterações. Tente novamente.'
       })
     } finally {
       setSalvando(null)

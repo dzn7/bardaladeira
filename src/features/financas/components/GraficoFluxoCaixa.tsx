@@ -44,7 +44,7 @@ export function GraficoFluxoCaixa({ dados, carregando }: GraficoFluxoCaixaProps)
           pointHoverRadius: 4,
         },
         {
-          label: 'Lucro',
+          label: 'Resultado',
           data: dados.map((d) => d.lucro),
           borderColor: CORES_GRAFICOS.lucro,
           backgroundColor: 'transparent',
@@ -104,7 +104,7 @@ export function GraficoFluxoCaixa({ dados, carregando }: GraficoFluxoCaixaProps)
     <div className="rounded-xl border border-border/70 bg-card p-5">
       <div className="mb-4">
         <h3 className="text-base font-semibold tracking-tight text-foreground">Fluxo de caixa</h3>
-        <p className="text-sm text-muted-foreground">Receita, despesa e lucro ao longo do período.</p>
+        <p className="text-sm text-muted-foreground">Receita, despesa e resultado de caixa ao longo do período.</p>
       </div>
 
       <div className="h-[280px]">

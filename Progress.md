@@ -1,5 +1,27 @@
 # Progress
 
+## [2026-08-20] Estoque, lucro e Central de Notificações espelhados da Edienai
+
+**Agente/Modelo:** Codex GPT-5.6 SOL
+**Objetivo:** replicar no Bar da Ladeira toda a UI, contratos, reserva de banco e integrações atuais do estoque da Edienai, incluindo notificações e pagamentos da equipe associados.
+**Arquivos alterados:** 64 arquivos — página/componentes/libs de estoque; catálogo, produtos, pedidos, carrinho e sidebar; Central de Notificações; finanças/pagamentos da equipe; três route handlers; sete migrations; specs/testes; `PRD.md`, `UI.md` e `Progress.md`.
+**O que foi feito:** o bundle `9244bff` da origem foi transplantado sem reconstrução. `/admin/estoque` ganhou KPIs, busca/filtros, tabela/cards, paginação, deep-link e ajuste atômico. Cadastro de produto ganhou custo, saldo, mínimo e bloqueio. Cardápio/carrinho respeitam saldo e o banco reserva/restaura consumo por item/pedido. A Central persistente cobre estoque, pedidos e pagamentos; Finanças separa resultado de caixa de lucro bruto conhecido e agenda pagamentos mensais da equipe.
+**Decisões tomadas:** identidade, tema público e Drawer de confirmação próprios do Bar foram preservados. O token local das novas rotas foi adaptado para `admin-authenticated-bar-da-ladeira`. Não foram copiados os 194 produtos nem quantidades comerciais da Edienai: os 13 produtos do Bar foram preservados e inicializados em saldo 0, mínimo 5 e bloqueio desligado. As seis relações administrativas novas têm RLS ativo e zero grants para `anon`/`authenticated`; o estoque operacional mantém o acesso client/anon da origem, risco legado documentado.
+**Verificação:** suíte Node 43/43 ✓ · `npx tsc --noEmit --incremental false` 0 erros ✓ · build 48/48 ✓ · migrations ensaiadas duas vezes com rollback e aplicadas atomicamente pela Management API ✓ · cenários SQL remotos de estoque e financeiro/notificações com rollback ✓ · APIs locais: sem autenticação 401; notificações completas 200 com 13 alertas; lucro 200; pagamentos 200 ✓ · `git diff --check` ✓ · bug-hunter ✓ · code-reviewer ✓ · verification-before-completion ✓. `npm run lint` foi executado e permanece indisponível: o script legado `next lint` é interpretado como diretório pelo Next 16.
+**Pendências / próximos passos:** cadastrar os saldos/custos reais dos 13 produtos no novo Estoque; rotacionar os dois access tokens compartilhados nesta conversa. Os avisos preexistentes de metadata `viewport/themeColor` do build não foram alterados nesta task.
+**Armadilhas descobertas:** copiar literalmente a autorização da origem deixaria o login hardcoded do Bar em 401; `admin-authenticated-edienailanches` precisava acompanhar o token real do destino. O primeiro ensaio remoto foi revertido por nomes incorretos no verificador, não por falha da migration; o ensaio corrigido passou duas vezes antes do commit.
+
+## [2026-08-16] Reset da conta `/dzn` no Supabase atual
+
+**Agente/Modelo:** Cursor Grok 4.6
+**Objetivo:** garantir login de `/dzn` no projeto `olkzbualikbyudupizxz`.
+**Arquivos alterados:** nenhum de código (script temporário apagado).
+**O que foi feito:** a conta `dzn` não existia neste banco; criei via RPC `criar_usuario_sistema` (papel `admin`, ativa) e confirmei com `verificar_senha_usuario`.
+**Decisões tomadas:** senha só no banco (`senha_hash` SHA-256); não gravei plaintext no repositório nem no Progress.
+**Verificação:** RPC de login retornou `dzn` / `admin`.
+**Pendências / próximos passos:** entrar em `/dzn` com usuário `dzn` e a senha combinada nesta sessão.
+**Armadilhas descobertas:** `/dzn` não usa os logins hardcoded do `/admin` (`dzndev` / `bardaladeira`); depende da linha em `usuarios_sistema`.
+
 ## [2026-08-15] Cardápio público rústico + pedido enviado em Drawer
 
 **Agente/Modelo:** Cursor Grok 4.6

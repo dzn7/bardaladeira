@@ -38,7 +38,7 @@ export interface ResumoPeriodo {
   receitaExtra: number
   receitaTotal: number
   despesas: number
-  lucroLiquido: number
+  resultadoCaixa: number
   pedidosCount: number
   ticketMedio: number
   pedidosNaoPagosTotal: number
@@ -46,6 +46,28 @@ export interface ResumoPeriodo {
   crediarioAberto: number
   crediarioCount: number
   aReceberTotal: number
+}
+
+export interface LucroProduto {
+  mes: string
+  produto_id: string | null
+  nome_produto: string
+  quantidade: number
+  receita_com_custo: number
+  custo_mercadorias: number
+  lucro_bruto: number
+  margem_bruta: number
+  receita_sem_custo: number
+  itens_sem_custo: number
+}
+
+export interface ResumoLucroProdutos {
+  receitaComCusto: number
+  custoConhecido: number
+  lucroBrutoConhecido: number
+  margemBrutaConhecida: number
+  receitaSemCusto: number
+  unidadesSemCusto: number
 }
 
 export interface PontoFluxoCaixa {

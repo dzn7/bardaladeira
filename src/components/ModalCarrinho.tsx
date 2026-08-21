@@ -12,6 +12,12 @@ import { enfileirarImpressao, gerarHashEventoImpressao } from '@/lib/filaImpress
 import { buscarProximoNumeroPedidoDiario, normalizarNumeroPedido, sincronizarNumeroPedidoDiario } from '@/lib/pedidos/numero-diario'
 import { nomeClienteParaPedido, nomeClienteParaPontoSalao } from '@/lib/nome-cliente-local.mjs'
 import { TEMPO_PADRAO_MESA_MINUTOS, calcularLiberacaoMesa } from '@/lib/mesas-tempo'
+import {
+  avaliarCompraProduto,
+  formatarErroEstoque,
+  mensagemAvaliacaoCompra,
+  somarQuantidadeProdutoNoCarrinho,
+} from '@/lib/estoque-produto.mjs'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -1037,6 +1043,45 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
     setEtapaAtual((prev) => Math.max(prev - 1, 1))
   }
 
+  const conferirEstoqueCatalogado = async (itensCatalogados: ItemCarrinhoCatalogado[]) => {
+    const itensProduto = itensCatalogados.filter((entrada) => entrada.tipoCatalogo === 'produto')
+    if (itensProduto.length === 0) return { ok: true as const }
+
+    const ids = Array.from(new Set(itensProduto.map(({ item }) => item.produto.id).filter(Boolean)))
+    const { data, error } = await supabase
+      .from('produtos')
+      .select('id, nome, estoque_quantidade, bloquear_venda_sem_estoque, disponivel')
+      .in('id', ids)
+
+    if (error) {
+      const mensagem = error.message || ''
+      if (/estoque_quantidade|bloquear_venda_sem_estoque|column/i.test(mensagem)) {
+        return { ok: true as const }
+      }
+      throw error
+    }
+
+    const porId = new Map((data || []).map((linha) => [String((linha as { id: string }).id), linha]))
+    const totais = new Map<string, number>()
+    for (const { item } of itensProduto) {
+      totais.set(item.produto.id, (totais.get(item.produto.id) || 0) + item.quantidade)
+    }
+
+    for (const [id, quantidade] of Array.from(totais.entries())) {
+      const atual = porId.get(id)
+      if (!atual) continue
+      const avaliacao = avaliarCompraProduto(atual, 0, quantidade)
+      if (!avaliacao.permitido) {
+        return {
+          ok: false as const,
+          mensagem: mensagemAvaliacaoCompra(atual, avaliacao) || 'Estoque insuficiente para concluir o pedido.',
+        }
+      }
+    }
+
+    return { ok: true as const }
+  }
+
   const iniciarPagamentoPixOnline = async (
     cupomConfirmado: CupomAplicadoCheckout | null,
     itensCatalogados: ItemCarrinhoCatalogado[]
@@ -1158,6 +1203,20 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
     } catch (erroClassificacao) {
       console.error('[Checkout] Erro ao classificar itens do carrinho:', erroClassificacao)
       mostrarAlerta('erro', 'Erro ao enviar pedido', 'Não foi possível validar os itens do pedido. Tente novamente.')
+      setEnviando(false)
+      return
+    }
+
+    try {
+      const conferencia = await conferirEstoqueCatalogado(itensCatalogados)
+      if (!conferencia.ok) {
+        mostrarAlerta('aviso', 'Estoque insuficiente', conferencia.mensagem)
+        setEnviando(false)
+        return
+      }
+    } catch (erroEstoque) {
+      console.error('[Checkout] Erro ao revalidar estoque:', erroEstoque)
+      mostrarAlerta('erro', 'Erro ao enviar pedido', 'Não foi possível conferir o estoque. Tente novamente.')
       setEnviando(false)
       return
     }
@@ -1449,14 +1508,15 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
           console.error('[Pedido] Falha ao reverter pedido após erro:', erroExcluirPedido)
         }
       }
-      const mensagemErro =
-        error instanceof Error &&
-        error.message &&
-        error.message.toLowerCase().includes('mesa')
+      const mensagemErro = formatarErroEstoque(error)
+      const mensagemExibida =
+        error instanceof Error && error.message && error.message.toLowerCase().includes('mesa')
           ? error.message
-          : 'Não foi possível enviar o pedido. Por favor, tente novamente.'
+          : /estoque insuficiente/i.test(mensagemErro)
+            ? mensagemErro
+            : 'Não foi possível enviar o pedido. Por favor, tente novamente.'
 
-      mostrarAlerta('erro', 'Erro ao enviar', mensagemErro)
+      mostrarAlerta('erro', 'Erro ao enviar', mensagemExibida)
     } finally {
       setEnviando(false)
     }
@@ -1770,11 +1830,15 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
                 ) : (
                   <>
                     {itens.map((item) => {
-                      // Garante sempre um src válido para o next/image.
                       const urlImagemProduto =
                         typeof item.produto.imagem_url === 'string' && item.produto.imagem_url.trim().length > 0
                           ? item.produto.imagem_url
                           : '/placeholder-produto.svg'
+                      const jaNosOutros = somarQuantidadeProdutoNoCarrinho(
+                        itens.filter((outro) => outro.id !== item.id),
+                        item.produto.id,
+                      )
+                      const podeAumentar = avaliarCompraProduto(item.produto, jaNosOutros, item.quantidade + 1).permitido
 
                       return (
                         <div
@@ -1812,7 +1876,23 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)}
+                                  onClick={() => {
+                                    const atualizado = atualizarQuantidade(item.id, item.quantidade + 1)
+                                    if (!atualizado) {
+                                      const avaliacao = avaliarCompraProduto(
+                                        item.produto,
+                                        jaNosOutros,
+                                        item.quantidade + 1,
+                                      )
+                                      mostrarAlerta(
+                                        'aviso',
+                                        'Estoque insuficiente',
+                                        mensagemAvaliacaoCompra(item.produto, avaliacao) ||
+                                          `Estoque insuficiente para ${item.produto.nome}.`,
+                                      )
+                                    }
+                                  }}
+                                  disabled={!podeAumentar}
                                   className="h-10 w-10 rounded-l-none"
                                   aria-label={`Aumentar quantidade de ${item.produto.nome}`}
                                 >

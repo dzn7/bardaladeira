@@ -4,16 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { obterDiaTrabalhoReferencia } from '@/lib/utils'
+import { calcularResumoFinanceiro, somarDinheiro } from '@/lib/financeiro.mjs'
 import type { CategoriaCaixa, Funcionario, MovimentacaoCaixa } from '@/lib/tipos-caixa'
 import type {
   ComposicaoReceita,
   ContaCrediarioResumo,
   FiltroFinancas,
+  LucroProduto,
   PagamentoPedido,
   PedidoFinanceiro,
   PontoFluxoCaixa,
   ResumoMensal,
   ResumoPeriodo,
+  ResumoLucroProdutos,
   TipoMovimentacao,
 } from '../types'
 import { CORES_GRAFICOS, rotularFormaPagamento } from '../lib/formatadores'
@@ -32,6 +35,13 @@ interface DadosFinancas {
   crediarios: ContaCrediarioResumo[]
   resumoMensal: ResumoMensal[]
   pagamentos: PagamentoPedido[]
+  lucroProdutos: LucroProduto[]
+}
+
+type RespostaLucroApi = {
+  sucesso?: boolean
+  erro?: string
+  lucroProdutos?: Array<Record<string, unknown>>
 }
 
 const DADOS_VAZIO: DadosFinancas = {
@@ -41,6 +51,7 @@ const DADOS_VAZIO: DadosFinancas = {
   crediarios: [],
   resumoMensal: [],
   pagamentos: [],
+  lucroProdutos: [],
 }
 
 const ehEntradaManual = (m: Pick<MovimentacaoCaixa, 'tipo' | 'pedido_id'>) =>
@@ -60,6 +71,7 @@ export function useFinancas(filtro: FiltroFinancas) {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [erroLucro, setErroLucro] = useState<string | null>(null)
 
   const fetchIdRef = useRef(0)
 
@@ -76,12 +88,13 @@ export function useFinancas(filtro: FiltroFinancas) {
     const id = ++fetchIdRef.current
     setCarregando(true)
     setErro(null)
+    setErroLucro(null)
 
     try {
       const fimFiltro = new Date(alvo.fim)
       const inicioJanela = new Date(fimFiltro.getFullYear(), fimFiltro.getMonth() - 11, 1, 0, 0, 0, 0)
 
-      const [resPedidosPagos, resPedidosNaoPagos, resMovs, resCrediario, resJanela, resMovsJanela, resPagamentos] =
+      const [resPedidosPagos, resPedidosNaoPagos, resMovs, resCrediario, resJanela, resMovsJanela, resPagamentos, resLucro] =
         await Promise.all([
           supabase
             .from('pedidos')
@@ -92,6 +105,8 @@ export function useFinancas(filtro: FiltroFinancas) {
             .lte('created_at', alvo.fim)
             .neq('status', 'cancelado')
             .neq('status', 'aguardando_pagamento')
+            .neq('status', 'pendente')
+            .neq('pagamento_online_status', 'aguardando_pagamento')
             .order('created_at', { ascending: false })
             .limit(2000),
 
@@ -131,6 +146,8 @@ export function useFinancas(filtro: FiltroFinancas) {
             .lte('created_at', alvo.fim)
             .neq('status', 'cancelado')
             .neq('status', 'aguardando_pagamento')
+            .neq('status', 'pendente')
+            .neq('pagamento_online_status', 'aguardando_pagamento')
             .limit(20000),
 
           supabase
@@ -147,6 +164,20 @@ export function useFinancas(filtro: FiltroFinancas) {
             .lte('created_at', alvo.fim)
             .order('created_at', { ascending: false })
             .limit(5000),
+
+          fetch(
+            `/api/admin/financas/lucro?inicio=${encodeURIComponent(alvo.inicio)}&fim=${encodeURIComponent(alvo.fim)}`,
+            { headers: { 'x-admin-token': window.localStorage.getItem('adminToken') || '' } },
+          ).then(async (resposta): Promise<{ ok: boolean; json: RespostaLucroApi }> => ({
+            ok: resposta.ok,
+            json: (await resposta.json()) as RespostaLucroApi,
+          })).catch((falha: unknown): { ok: boolean; json: RespostaLucroApi } => ({
+            ok: false,
+            json: {
+              sucesso: false,
+              erro: falha instanceof Error ? falha.message : 'Lucro bruto indisponível.',
+            },
+          })),
         ])
 
       if (id !== fetchIdRef.current) return
@@ -165,6 +196,24 @@ export function useFinancas(filtro: FiltroFinancas) {
         throw new Error(erros.map((e) => e?.message).join(' | '))
       }
 
+      const lucroProdutos = resLucro.ok && resLucro.json.sucesso
+        ? (resLucro.json.lucroProdutos || []).map((linha): LucroProduto => ({
+            mes: String(linha.mes || ''),
+            produto_id: linha.produto_id ? String(linha.produto_id) : null,
+            nome_produto: String(linha.nome_produto || 'Item'),
+            quantidade: Number(linha.quantidade || 0),
+            receita_com_custo: Number(linha.receita_com_custo || 0),
+            custo_mercadorias: Number(linha.custo_mercadorias || 0),
+            lucro_bruto: Number(linha.lucro_bruto || 0),
+            margem_bruta: Number(linha.margem_bruta || 0),
+            receita_sem_custo: Number(linha.receita_sem_custo || 0),
+            itens_sem_custo: Number(linha.itens_sem_custo || 0),
+          }))
+        : []
+      if (!resLucro.ok || !resLucro.json.sucesso) {
+        setErroLucro(resLucro.json.erro || 'Lucro bruto indisponível.')
+      }
+
       const resumoMensal = construirResumoMensal(
         (resJanela.data as { total: number; created_at: string }[]) ?? [],
         (resMovsJanela.data as { tipo: TipoMovimentacao; valor: number; created_at: string; pedido_id: string | null }[]) ?? [],
@@ -178,6 +227,7 @@ export function useFinancas(filtro: FiltroFinancas) {
         crediarios: (resCrediario.data as ContaCrediarioResumo[]) ?? [],
         resumoMensal,
         pagamentos: (resPagamentos.data as PagamentoPedido[]) ?? [],
+        lucroProdutos,
       })
     } catch (err) {
       if (id !== fetchIdRef.current) return
@@ -199,35 +249,29 @@ export function useFinancas(filtro: FiltroFinancas) {
   }, [filtro.inicio, filtro.fim, carregarDados, filtro])
 
   const resumo = useMemo<ResumoPeriodo>(() => {
-    const receitaPedidos = dados.pedidos.reduce((acc, p) => acc + Number(p.total ?? 0), 0)
-    const receitaExtra = dados.movimentacoes
-      .filter(ehEntradaManual)
-      .reduce((acc, m) => acc + Number(m.valor ?? 0), 0)
-    const despesas = dados.movimentacoes
-      .filter(ehSaida)
-      .reduce((acc, m) => acc + Number(m.valor ?? 0), 0)
-    const receitaTotal = receitaPedidos + receitaExtra
-    const lucroLiquido = receitaTotal - despesas
-    const pedidosCount = dados.pedidos.length
-    const ticketMedio = pedidosCount > 0 ? receitaPedidos / pedidosCount : 0
-    const pedidosNaoPagosTotal = dados.pedidosNaoPagos.reduce((acc, p) => acc + Number(p.total ?? 0), 0)
-    const crediarioAberto = dados.crediarios.reduce((acc, c) => acc + Number(c.saldo_atual ?? 0), 0)
-
-    return {
-      receitaPedidos,
-      receitaExtra,
-      receitaTotal,
-      despesas,
-      lucroLiquido,
-      pedidosCount,
-      ticketMedio,
-      pedidosNaoPagosTotal,
-      pedidosNaoPagosCount: dados.pedidosNaoPagos.length,
-      crediarioAberto,
-      crediarioCount: dados.crediarios.length,
-      aReceberTotal: pedidosNaoPagosTotal + crediarioAberto,
-    }
+    return calcularResumoFinanceiro({
+      pedidos: dados.pedidos,
+      movimentacoes: dados.movimentacoes,
+      pedidosNaoPagos: dados.pedidosNaoPagos,
+      crediarios: dados.crediarios,
+    })
   }, [dados])
+
+  const resumoLucro = useMemo<ResumoLucroProdutos>(() => {
+    const receitaComCusto = somarDinheiro(dados.lucroProdutos.map((item) => item.receita_com_custo))
+    const custoConhecido = somarDinheiro(dados.lucroProdutos.map((item) => item.custo_mercadorias))
+    const lucroBrutoConhecido = somarDinheiro(dados.lucroProdutos.map((item) => item.lucro_bruto))
+    return {
+      receitaComCusto,
+      custoConhecido,
+      lucroBrutoConhecido,
+      margemBrutaConhecida: receitaComCusto > 0
+        ? Number(((lucroBrutoConhecido / receitaComCusto) * 100).toFixed(2))
+        : 0,
+      receitaSemCusto: somarDinheiro(dados.lucroProdutos.map((item) => item.receita_sem_custo)),
+      unidadesSemCusto: dados.lucroProdutos.reduce((total, item) => total + item.itens_sem_custo, 0),
+    }
+  }, [dados.lucroProdutos])
 
   const fluxoCaixa = useMemo<PontoFluxoCaixa[]>(
     () => construirFluxoCaixa(filtro, dados.pedidos, dados.movimentacoes),
@@ -361,7 +405,10 @@ export function useFinancas(filtro: FiltroFinancas) {
   return {
     carregando,
     erro,
+    erroLucro,
     resumo,
+    resumoLucro,
+    lucroProdutos: dados.lucroProdutos,
     fluxoCaixa,
     composicaoReceita,
     resumoMensal: dados.resumoMensal,

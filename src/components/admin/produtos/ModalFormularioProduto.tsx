@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import {
   Camera,
@@ -32,6 +32,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  ESTOQUE_MINIMO_PADRAO,
+  ESTOQUE_QUANTIDADE_PADRAO,
+  normalizarConfiguracaoEstoque,
+  normalizarDinheiro,
+} from '@/lib/estoque-produto.mjs'
 import { cn } from '@/lib/utils'
 
 export type ProdutoFormulario = {
@@ -45,6 +51,10 @@ export type ProdutoFormulario = {
   imagem_url?: string
   disponivel: boolean
   tabela?: string
+  custo_unitario?: number | null
+  estoque_quantidade?: number
+  estoque_minimo?: number
+  bloquear_venda_sem_estoque?: boolean
 }
 
 export type DadosSalvarProduto = {
@@ -54,6 +64,10 @@ export type DadosSalvarProduto = {
   desconto: string
   categoria: string
   disponivel: boolean
+  custoUnitario: string
+  quantidadeEstoque: string
+  estoqueMinimo: string
+  bloquearVendaSemEstoque: boolean
 }
 
 type ModalFormularioProdutoProps = {
@@ -104,6 +118,15 @@ export const ModalFormularioProduto = ({
   const [criandoCategoria, setCriandoCategoria] = useState(false)
   const [novaCategoria, setNovaCategoria] = useState('')
   const [criandoCat, setCriandoCat] = useState(false)
+  const [custoUnitario, setCustoUnitario] = useState('')
+  const [quantidadeEstoque, setQuantidadeEstoque] = useState(String(ESTOQUE_QUANTIDADE_PADRAO))
+  const [estoqueMinimo, setEstoqueMinimo] = useState(String(ESTOQUE_MINIMO_PADRAO))
+  const [bloquearVendaSemEstoque, setBloquearVendaSemEstoque] = useState(false)
+  const [erros, setErros] = useState<Record<string, string>>({})
+  const campoPrecoRef = useRef<HTMLInputElement>(null)
+  const campoCustoRef = useRef<HTMLInputElement>(null)
+  const campoQuantidadeRef = useRef<HTMLInputElement>(null)
+  const campoMinimoRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!aberto) return
@@ -114,6 +137,14 @@ export const ModalFormularioProduto = ({
       setDesconto(String(produto.desconto || 0))
       setCategoria(produto.categoria)
       setDisponivel(produto.disponivel)
+      setCustoUnitario(
+        produto.custo_unitario === null || produto.custo_unitario === undefined
+          ? ''
+          : String(produto.custo_unitario),
+      )
+      setQuantidadeEstoque(String(produto.estoque_quantidade ?? ESTOQUE_QUANTIDADE_PADRAO))
+      setEstoqueMinimo(String(produto.estoque_minimo ?? ESTOQUE_MINIMO_PADRAO))
+      setBloquearVendaSemEstoque(produto.bloquear_venda_sem_estoque === true)
     } else {
       setNome('')
       setDescricao('')
@@ -121,7 +152,12 @@ export const ModalFormularioProduto = ({
       setDesconto('0')
       setCategoria(categorias[0] || categoriasBebidas[0] || categoriaBebidasFallback || '')
       setDisponivel(true)
+      setCustoUnitario('')
+      setQuantidadeEstoque(String(ESTOQUE_QUANTIDADE_PADRAO))
+      setEstoqueMinimo(String(ESTOQUE_MINIMO_PADRAO))
+      setBloquearVendaSemEstoque(false)
     }
+    setErros({})
     setCriandoCategoria(false)
     setNovaCategoria('')
   }, [aberto, modo, produto, categorias, categoriasBebidas, categoriaBebidasFallback])
@@ -148,6 +184,59 @@ export const ModalFormularioProduto = ({
       : produto?.imagem_url || null
 
   const handleSalvar = () => {
+    const proximosErros: Record<string, string> = {}
+    if (!nome.trim()) proximosErros.nome = 'Informe o nome.'
+
+    try {
+      normalizarDinheiro(preco)
+    } catch {
+      proximosErros.preco = 'Informe um preço de venda válido.'
+    }
+
+    if (!ehBebida) {
+      try {
+        normalizarDinheiro(custoUnitario, { opcional: true })
+      } catch {
+        proximosErros.custo = 'Informe um custo válido ou deixe em branco.'
+      }
+
+      try {
+        normalizarConfiguracaoEstoque({
+          quantidade: quantidadeEstoque,
+          minimo: estoqueMinimo,
+          bloquear: bloquearVendaSemEstoque,
+        })
+      } catch {
+        if (quantidadeEstoque.trim() === '') {
+          proximosErros.quantidade = 'Informe a quantidade. Zero é válido; vazio não zera.'
+        } else {
+          try {
+            normalizarConfiguracaoEstoque({ quantidade: quantidadeEstoque, minimo: 0 })
+          } catch {
+            proximosErros.quantidade = 'Quantidade deve ser um inteiro não negativo.'
+          }
+        }
+        if (estoqueMinimo.trim() === '') {
+          proximosErros.minimo = 'Informe o estoque mínimo. Zero é válido.'
+        } else {
+          try {
+            normalizarConfiguracaoEstoque({ quantidade: 0, minimo: estoqueMinimo })
+          } catch {
+            proximosErros.minimo = 'Estoque mínimo deve ser um inteiro não negativo.'
+          }
+        }
+      }
+    }
+
+    setErros(proximosErros)
+    if (Object.keys(proximosErros).length > 0) {
+      if (proximosErros.preco) campoPrecoRef.current?.focus()
+      else if (proximosErros.custo) campoCustoRef.current?.focus()
+      else if (proximosErros.quantidade) campoQuantidadeRef.current?.focus()
+      else if (proximosErros.minimo) campoMinimoRef.current?.focus()
+      return
+    }
+
     void onSalvar({
       nome: nome.trim(),
       descricao: descricao.trim(),
@@ -155,6 +244,10 @@ export const ModalFormularioProduto = ({
       desconto,
       categoria,
       disponivel,
+      custoUnitario,
+      quantidadeEstoque,
+      estoqueMinimo,
+      bloquearVendaSemEstoque,
     })
   }
 
@@ -318,8 +411,10 @@ export const ModalFormularioProduto = ({
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               placeholder={ehBebida ? 'Ex: Coca-Cola' : 'Ex: X-Burguer Especial'}
-              className="h-11 border-border/70 shadow-none"
+              aria-invalid={Boolean(erros.nome)}
+              className={cn('h-11 border-border/70 shadow-none', erros.nome && 'border-destructive')}
             />
+            {erros.nome ? <p className="text-xs text-destructive">{erros.nome}</p> : null}
           </div>
 
           <div className="space-y-2">
@@ -346,17 +441,21 @@ export const ModalFormularioProduto = ({
 
           <div className={cn('grid gap-3', modo === 'editar' ? 'grid-cols-2' : 'grid-cols-1')}>
             <div className="space-y-2">
-              <Label htmlFor="modal-produto-preco">Preço (R$) *</Label>
+              <Label htmlFor="modal-produto-preco">Preço de venda (R$) *</Label>
               <Input
+                ref={campoPrecoRef}
                 id="modal-produto-preco"
-                type="number"
+                type={ehBebida ? 'number' : 'text'}
+                inputMode="decimal"
                 step="0.01"
                 min="0"
                 value={preco}
                 onChange={(e) => setPreco(e.target.value)}
-                placeholder="0.00"
-                className="h-11 border-border/70 shadow-none"
+                placeholder="0,00"
+                aria-invalid={Boolean(erros.preco)}
+                className={cn('h-11 border-border/70 shadow-none', erros.preco && 'border-destructive')}
               />
+              {erros.preco ? <p className="text-xs text-destructive">{erros.preco}</p> : null}
             </div>
             {modo === 'editar' ? (
               <div className="space-y-2">
@@ -374,6 +473,71 @@ export const ModalFormularioProduto = ({
               </div>
             ) : null}
           </div>
+
+          {!ehBebida ? (
+            <div className="space-y-3 rounded-xl border border-border/60 p-3">
+              <div>
+                <p className="text-sm font-medium">Estoque</p>
+                <p className="text-xs text-muted-foreground">Somente produtos finais. Controle operacional, não segurança.</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="modal-produto-custo">Preço de custo (R$)</Label>
+                  <Input
+                    ref={campoCustoRef}
+                    id="modal-produto-custo"
+                    type="text"
+                    inputMode="decimal"
+                    value={custoUnitario}
+                    onChange={(e) => setCustoUnitario(e.target.value)}
+                    placeholder="Opcional"
+                    aria-invalid={Boolean(erros.custo)}
+                    className={cn('h-11 border-border/70 shadow-none', erros.custo && 'border-destructive')}
+                  />
+                  {erros.custo ? <p className="text-xs text-destructive">{erros.custo}</p> : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="modal-produto-quantidade">Quantidade atual</Label>
+                  <Input
+                    ref={campoQuantidadeRef}
+                    id="modal-produto-quantidade"
+                    type="text"
+                    inputMode="numeric"
+                    value={quantidadeEstoque}
+                    onChange={(e) => setQuantidadeEstoque(e.target.value)}
+                    aria-invalid={Boolean(erros.quantidade)}
+                    className={cn('h-11 border-border/70 shadow-none', erros.quantidade && 'border-destructive')}
+                  />
+                  {erros.quantidade ? <p className="text-xs text-destructive">{erros.quantidade}</p> : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="modal-produto-minimo">Alerta de estoque mínimo</Label>
+                  <Input
+                    ref={campoMinimoRef}
+                    id="modal-produto-minimo"
+                    type="text"
+                    inputMode="numeric"
+                    value={estoqueMinimo}
+                    onChange={(e) => setEstoqueMinimo(e.target.value)}
+                    aria-invalid={Boolean(erros.minimo)}
+                    className={cn('h-11 border-border/70 shadow-none', erros.minimo && 'border-destructive')}
+                  />
+                  {erros.minimo ? <p className="text-xs text-destructive">{erros.minimo}</p> : null}
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Bloquear venda quando acabar</p>
+                  <p className="text-xs text-muted-foreground">Esgotado continua visível no cardápio</p>
+                </div>
+                <Checkbox
+                  checked={bloquearVendaSemEstoque}
+                  onCheckedChange={(valor) => setBloquearVendaSemEstoque(valor === true)}
+                  aria-label="Bloquear venda quando acabar"
+                />
+              </div>
+            </div>
+          ) : null}
 
           {modo === 'editar' ? (
             <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-3">

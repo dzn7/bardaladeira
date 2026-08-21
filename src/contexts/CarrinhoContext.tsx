@@ -2,12 +2,16 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { Produto, Adicional, ItemCarrinho } from '@/lib/supabase'
+import {
+  avaliarCompraProduto,
+  somarQuantidadeProdutoNoCarrinho,
+} from '@/lib/estoque-produto.mjs'
 
 type CarrinhoContextType = {
   itens: ItemCarrinho[]
-  adicionarItem: (produto: Produto, quantidade: number, adicionais: Adicional[], observacoes?: string) => void
+  adicionarItem: (produto: Produto, quantidade: number, adicionais: Adicional[], observacoes?: string) => boolean
   removerItem: (id: string) => void
-  atualizarQuantidade: (id: string, quantidade: number) => void
+  atualizarQuantidade: (id: string, quantidade: number) => boolean
   limparCarrinho: () => void
   total: number
   quantidadeTotal: number
@@ -78,6 +82,10 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
     adicionais: Adicional[],
     observacoes?: string
   ) => {
+    const jaNoCarrinho = somarQuantidadeProdutoNoCarrinho(itens, produto.id)
+    const avaliacao = avaliarCompraProduto(produto, jaNoCarrinho, quantidade)
+    if (!avaliacao.permitido) return false
+
     const produtoNormalizado = normalizarProduto(produto)
     const subtotalAdicionais = adicionais.reduce((acc, ad) => acc + ad.preco, 0)
     const subtotal = (produtoNormalizado.preco + subtotalAdicionais) * quantidade
@@ -92,6 +100,7 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
     }
 
     setItens((prev) => [...prev, novoItem])
+    return true
   }
 
   const removerItem = (id: string) => {
@@ -101,8 +110,17 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
   const atualizarQuantidade = (id: string, quantidade: number) => {
     if (quantidade <= 0) {
       removerItem(id)
-      return
+      return true
     }
+
+    const atual = itens.find((item) => item.id === id)
+    if (!atual) return false
+    const jaNosOutros = somarQuantidadeProdutoNoCarrinho(
+      itens.filter((item) => item.id !== id),
+      atual.produto.id,
+    )
+    const avaliacao = avaliarCompraProduto(atual.produto, jaNosOutros, quantidade)
+    if (!avaliacao.permitido) return false
 
     setItens((prev) =>
       prev.map((item) => {
@@ -114,6 +132,7 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
         return item
       })
     )
+    return true
   }
 
   const limparCarrinho = () => {

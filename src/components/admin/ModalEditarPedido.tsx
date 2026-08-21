@@ -32,6 +32,8 @@ import {
 } from '@/lib/filaImpressao'
 import { limparSnapshotsOrfaosPagamentos } from '@/lib/pagamentoParcial'
 import { ModalSheet } from '@/components/ui/modal-sheet'
+import { criarVinculoCatalogoItemPedido } from '@/lib/vinculo-catalogo-item-pedido.mjs'
+import { formatarErroEstoque } from '@/lib/estoque-produto.mjs'
 
 type Pedido = {
   id: string
@@ -71,6 +73,9 @@ type ItemPedido = {
   created_at?: string
   observacoes?: string
   adicionais?: { id: string; nome: string; preco: number; quantidade?: number }[]
+  produto_id?: string | null
+  bebida_id?: string | null
+  combo_id?: string | null
 }
 
 type Produto = {
@@ -78,6 +83,7 @@ type Produto = {
   nome: string
   preco: number
   categoria: string
+  tipo: 'produto' | 'bebida' | 'combo'
 }
 
 type Pagamento = {
@@ -333,11 +339,18 @@ export default function ModalEditarPedido({ pedido, aberto, onFechar, onSucesso 
         .eq('disponivel', true)
         .order('nome')
 
+      const { data: combosData } = await supabase
+        .from('combos')
+        .select('id, nome, preco')
+        .eq('disponivel', true)
+        .order('nome')
+
       const produtosFormatados = (produtosData || []).map((p) => ({
         id: p.id,
         nome: p.nome,
         preco: Number(p.preco),
         categoria: p.categoria,
+        tipo: 'produto' as const,
       }))
 
       const bebidasFormatadas = (bebidasData || []).map((b) => ({
@@ -345,9 +358,18 @@ export default function ModalEditarPedido({ pedido, aberto, onFechar, onSucesso 
         nome: `${b.nome}${b.descricao ? ` - ${b.descricao}` : ''}`,
         preco: Number(b.preco),
         categoria: normalizarNomeCategoria(b.categoria),
+        tipo: 'bebida' as const,
       }))
 
-      setProdutos([...produtosFormatados, ...bebidasFormatadas])
+      const combosFormatados = (combosData || []).map((combo) => ({
+        id: combo.id,
+        nome: combo.nome,
+        preco: Number(combo.preco),
+        categoria: 'Combos',
+        tipo: 'combo' as const,
+      }))
+
+      setProdutos([...produtosFormatados, ...bebidasFormatadas, ...combosFormatados])
     } catch (error) {
       console.error('Erro ao carregar produtos:', error)
     }
@@ -412,6 +434,7 @@ export default function ModalEditarPedido({ pedido, aberto, onFechar, onSucesso 
       subtotal: produto.preco,
       created_at: new Date().toISOString(),
       observacoes: '',
+      ...criarVinculoCatalogoItemPedido(produto.tipo, produto.id),
     }
     setItens((prev) => [...prev, novoItem])
     setBuscaProduto('')
@@ -667,6 +690,9 @@ export default function ModalEditarPedido({ pedido, aberto, onFechar, onSucesso 
             .from('itens_pedido')
             .insert({
               ...dadosItem,
+              produto_id: item.produto_id || null,
+              bebida_id: item.bebida_id || null,
+              combo_id: item.combo_id || null,
               created_at: item.created_at || new Date().toISOString(),
             })
             .select('id')
@@ -799,6 +825,7 @@ export default function ModalEditarPedido({ pedido, aberto, onFechar, onSucesso 
       onFechar()
     } catch (error) {
       console.error('Erro ao salvar alterações:', error)
+      toast.error(formatarErroEstoque(error))
     } finally {
       setSalvando(false)
       setConfirmacaoCrediarioAberta(false)

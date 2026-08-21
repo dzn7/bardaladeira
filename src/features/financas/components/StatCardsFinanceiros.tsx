@@ -24,7 +24,7 @@ export function StatCardsFinanceiros({
   despesaTrigger,
 }: StatCardsFinanceirosProps) {
   const mostrar = (valor: number) => (valoresOcultos ? '••••••' : formatarMoeda(valor))
-  const margem = resumo.receitaTotal > 0 ? (resumo.lucroLiquido / resumo.receitaTotal) * 100 : 0
+  const margem = resumo.receitaTotal > 0 ? (resumo.resultadoCaixa / resumo.receitaTotal) * 100 : 0
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-4 overflow-hidden rounded-lg border border-border/80 bg-card p-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-6 lg:py-[1.125rem]">
@@ -32,22 +32,22 @@ export function StatCardsFinanceiros({
         <div className="min-w-0 w-full md:max-w-[200px]">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-sm text-muted-foreground">Lucro do período</p>
+              <p className="text-sm text-muted-foreground">Resultado de caixa</p>
               {carregando ? (
                 <div className="mt-1 h-7 w-28 animate-pulse rounded-md bg-muted" />
               ) : (
                 <p
                   className={cn(
                     'text-xl font-semibold tabular-nums',
-                    resumo.lucroLiquido >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400',
+                    resumo.resultadoCaixa >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400',
                   )}
                 >
-                  {mostrar(resumo.lucroLiquido)}
+                  {mostrar(resumo.resultadoCaixa)}
                 </p>
               )}
               {!carregando && resumo.receitaTotal > 0 ? (
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {valoresOcultos ? '—' : `${margem.toFixed(1)}% margem`}
+                  {valoresOcultos ? '—' : `${margem.toFixed(1)}% da receita`}
                 </p>
               ) : null}
             </div>

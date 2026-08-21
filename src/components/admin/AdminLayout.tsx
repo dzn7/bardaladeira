@@ -64,12 +64,14 @@ import {
 } from '@/components/ui/dialog'
 import {
   Drawer,
+  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerTitle,
 } from '@/components/ui/drawer'
 import { AvatarUsuario } from '@/components/admin/AvatarUsuario'
 import { SidebarPersonalizarModal } from '@/components/admin/SidebarPersonalizarModal'
+import { CentralNotificacoes } from '@/features/notificacoes'
 import {
   normalizarConfigVisibilidade,
   telaEstaVisivel,
@@ -981,11 +983,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       <Drawer open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <DrawerContent className="h-[96dvh] max-h-[96dvh] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground md:hidden">
+          <div className="flex shrink-0 justify-end px-1">
+            <DrawerClose
+              aria-label="Fechar menu"
+              className="flex h-11 w-11 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <X strokeWidth={1.6} className="size-5" />
+              <span className="sr-only">Fechar menu</span>
+            </DrawerClose>
+          </div>
           <DrawerTitle className="sr-only">Menu administrativo</DrawerTitle>
           <DrawerDescription className="sr-only">
             Navegue pelas áreas do painel operacional.
           </DrawerDescription>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {renderSidebarContent({ colapsada: false, mobile: true })}
           </div>
         </DrawerContent>
@@ -1070,6 +1081,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <Moon strokeWidth={1.6} className="size-[18px]" />
               )}
             </button>
+
+            <CentralNotificacoes />
 
             <div className="relative">
               <button

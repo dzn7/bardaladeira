@@ -16,6 +16,12 @@ import ModalPedidosCliente from '@/components/ModalPedidosCliente'
 import { AjudaPedidoPublica } from '@/components/AjudaPedidoPublica'
 import { Produto, Bebida, Combo, supabase } from '@/lib/supabase'
 import type { CategoriaCardapio } from '@/lib/supabase'
+import { COLUNAS_ESTOQUE_PUBLICO } from '@/lib/estoque'
+import {
+  avaliarCompraProduto,
+  mensagemAvaliacaoCompra,
+  somarQuantidadeProdutoNoCarrinho,
+} from '@/lib/estoque-produto.mjs'
 import { useStatusLoja } from '@/lib/useStatusLoja'
 import { useCarrinho } from '@/contexts/CarrinhoContext'
 import {
@@ -66,7 +72,7 @@ export default function Home() {
   })
 
   const { lojaFechada, numeroWhatsApp } = useStatusLoja()
-  const { adicionarItem } = useCarrinho()
+  const { adicionarItem, itens } = useCarrinho()
 
   useEffect(() => {
     const raiz = document.documentElement
@@ -137,7 +143,7 @@ export default function Home() {
     try {
       let consulta = supabase
         .from('produtos')
-        .select('*')
+        .select(COLUNAS_ESTOQUE_PUBLICO)
         .eq('disponivel', true)
 
       if (modoOrdenacao === 'manual') {
@@ -154,7 +160,23 @@ export default function Home() {
           .order('nome', { ascending: true })
       }
 
-      const { data, error } = await consulta
+      let { data, error } = await consulta
+      if (error && /estoque_quantidade|bloquear_venda_sem_estoque|column|schema cache/i.test(error.message || '')) {
+        let consultaLegado = supabase
+          .from('produtos')
+          .select('id, nome, descricao, preco, preco_original, desconto, categoria, imagem_url, disponivel, ordem, destaque, created_at, updated_at')
+          .eq('disponivel', true)
+        if (modoOrdenacao === 'manual') {
+          consultaLegado = consultaLegado.order('ordem', { ascending: true }).order('nome', { ascending: true })
+        } else if (modoOrdenacao === 'preco_crescente') {
+          consultaLegado = consultaLegado.order('preco', { ascending: true }).order('nome', { ascending: true })
+        } else {
+          consultaLegado = consultaLegado.order('preco', { ascending: false }).order('nome', { ascending: true })
+        }
+        const retry = await consultaLegado
+        data = retry.data as typeof data
+        error = retry.error
+      }
       if (error) throw error
       setProdutos(data || [])
     } catch (error) {
@@ -342,8 +364,19 @@ export default function Home() {
       return
     }
 
+    const jaNoCarrinho = somarQuantidadeProdutoNoCarrinho(itens, produto.id)
+    const avaliacao = avaliarCompraProduto(produto, jaNoCarrinho, 1)
+    if (!avaliacao.permitido) {
+      toast.error(mensagemAvaliacaoCompra(produto, avaliacao) || 'Não foi possível adicionar este produto.')
+      return
+    }
+
     if (!temAdicionaisDisponiveis) {
-      adicionarItem(produto, 1, [], undefined)
+      const adicionado = adicionarItem(produto, 1, [], undefined)
+      if (!adicionado) {
+        toast.error(mensagemAvaliacaoCompra(produto, avaliacao) || 'Não foi possível adicionar este produto.')
+        return
+      }
       mostrarItemAdicionado(produto.nome)
       return
     }

@@ -1317,7 +1317,7 @@ export default function PdvAdminPage() {
               created_at: item.criadoEm,
             }],
           }
-        }).filter(Boolean)
+        }).filter((pagamento): pagamento is NonNullable<typeof pagamento> => pagamento !== null)
 
         if (pagamentosParaInserir.length > 0) {
           const { error: pagamentosError } = await supabase

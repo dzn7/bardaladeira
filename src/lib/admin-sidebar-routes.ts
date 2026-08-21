@@ -15,6 +15,7 @@ import {
   Layers,
   ListPlus,
   MapPin,
+  Package,
   PlusCircle,
   Printer,
   Receipt,
@@ -79,6 +80,7 @@ export const GRUPOS_MENU_ADMIN: GrupoSidebarRota[] = [
     titulo: 'Catálogo e canais',
     itens: [
       { id: '/admin/produtos', texto: 'Produtos', icone: CookingPot, path: '/admin/produtos', categoria: 'Catálogo e canais' },
+      { id: '/admin/estoque', texto: 'Estoque', icone: Package, path: '/admin/estoque', categoria: 'Catálogo e canais' },
       { id: '/admin/combos', texto: 'Combos', icone: Layers, path: '/admin/combos', categoria: 'Catálogo e canais' },
       { id: '/admin/adicionais', texto: 'Adicionais', icone: ListPlus, path: '/admin/adicionais', categoria: 'Catálogo e canais' },
       { id: '/admin/cupons', texto: 'Cupons', icone: BadgePercent, path: '/admin/cupons', categoria: 'Catálogo e canais' },

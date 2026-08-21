@@ -23,6 +23,10 @@ export type Produto = {
   destaque: boolean
   created_at: string
   updated_at: string
+  custo_unitario?: number | null
+  estoque_quantidade?: number
+  estoque_minimo?: number
+  bloquear_venda_sem_estoque?: boolean
 }
 
 export type Adicional = {

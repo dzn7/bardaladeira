@@ -36,6 +36,8 @@ import { CategoriaCatalogoPedido, ItemCatalogoPedido } from '@/components/admin/
 import { cn } from '@/lib/utils'
 import { normalizarNomeCategoria } from '@/lib/categoriasCardapio'
 import { nomeClienteParaPedido, nomeClienteParaPontoSalao } from '@/lib/nome-cliente-local.mjs'
+import { criarVinculoCatalogoItemPedido } from '@/lib/vinculo-catalogo-item-pedido.mjs'
+import { formatarErroEstoque } from '@/lib/estoque-produto.mjs'
 
 type ProdutoSelecionado = {
   id: string
@@ -45,6 +47,7 @@ type ProdutoSelecionado = {
   observacoes: string
   adicionais: Adicional[]
   descontoManualInput: string
+  tipo: 'produto' | 'combo'
 }
 
 type Produto = {
@@ -618,7 +621,7 @@ function NovoPedidoContent() {
     }
   }, [tipoEntrega])
 
-  const adicionarProduto = (produto: Produto | ComboType) => {
+  const adicionarProduto = (produto: Produto | ComboType, tipo: 'produto' | 'combo' = 'produto') => {
     const jaExiste = produtosSelecionados.find((p) => p.id === produto.id)
 
     if (jaExiste) {
@@ -630,7 +633,7 @@ function NovoPedidoContent() {
     } else {
       setProdutosSelecionados([
         ...produtosSelecionados,
-        { ...produto, quantidade: 1, observacoes: '', adicionais: [], descontoManualInput: '' },
+        { ...produto, quantidade: 1, observacoes: '', adicionais: [], descontoManualInput: '', tipo },
       ])
     }
     setBuscaProduto('')
@@ -1093,6 +1096,7 @@ function NovoPedidoContent() {
           .from('itens_pedido')
           .insert({
             pedido_id: pedido.id,
+            ...criarVinculoCatalogoItemPedido(p.tipo, p.id),
             nome_item: p.nome,
             quantidade: p.quantidade,
             preco_unitario: p.preco,
@@ -1185,7 +1189,7 @@ function NovoPedidoContent() {
       router.push('/admin/pedidos')
     } catch (error) {
       console.error('Erro ao salvar pedido:', error)
-      toast.error(error instanceof Error ? error.message : 'Erro ao salvar pedido. Tente novamente.')
+      toast.error(formatarErroEstoque(error))
     } finally {
       setLoading(false)
     }
@@ -1415,6 +1419,7 @@ function NovoPedidoContent() {
             observacoes: '',
             adicionais: [],
             descontoManualInput: '',
+            tipo: item.tipo,
           },
         ])
       }
@@ -1487,13 +1492,14 @@ function NovoPedidoContent() {
             observacoes: atualizado.observacoes,
             adicionais: [],
             descontoManualInput: atualizado.descontoManualInput,
+            tipo: itensCatalogo.find((item) => item.id === modalItemDados.id)?.tipo || 'produto',
           },
         ])
       }
       setBuscaProduto('')
       setModalItemAberto(false)
     },
-    [modalItemDados, produtosSelecionados]
+    [itensCatalogo, modalItemDados, produtosSelecionados]
   )
 
   return (
