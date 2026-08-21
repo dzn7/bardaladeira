@@ -1,5 +1,16 @@
 # Progress
 
+## [2026-08-21] Toggle de esgotado exclusivo do site
+
+**Agente/Modelo:** Codex GPT-5.6 SOL
+**Objetivo:** permitir configurar por produto quando saldo zero deve aparecer como esgotado no cardápio público, sem impedir pedidos físicos.
+**Arquivos alterados:** `src/app/admin/estoque/page.tsx`, `src/components/admin/produtos/ModalFormularioProduto.tsx`, `src/components/ModalCarrinho.tsx`, `src/lib/server/pagamento-online.ts`, `src/app/admin/pedidos/novo/page.tsx`, `src/app/garcom/novo/page.tsx`, `supabase/migrations/20260821192101_estoque_bloqueio_apenas_site.sql`, `tests/estoque-migration.test.mjs`, `PRD.md`, `UI.md`, `Progress.md`.
+**O que foi feito:** `/admin/estoque` ganhou o `Interruptor` “Esgotado no site” em cards e tabela, com atualização otimista, rollback e feedback. Checkout comum/PIX gravam `pedidos.origem = site`; Admin/Garçom gravam seus canais físicos. A trigger continua consumindo o saldo disponível em todos os canais, mas só rejeita saldo insuficiente para origem `site`. O texto equivalente no formulário de produto foi alinhado à mesma regra.
+**Decisões tomadas:** reutilizado o campo `produtos.bloquear_venda_sem_estoque`, a coluna `pedidos.origem` e o componente `Interruptor`; nenhuma tabela, dependência ou sistema paralelo foi criado. Pedidos físicos sem saldo registram consumo zero e continuam vendáveis, sem quantidade negativa.
+**Verificação:** regressão TDD vermelho→verde ✓ · suíte Node 46/46 ✓ · `npx tsc --noEmit --incremental false` 0 erros ✓ · build 48/48 ✓ · migration aplicada pela Management API e cenário remoto site-bloqueado/admin-permitido validado com rollback ✓ · `git diff --check` ✓ · bug-hunter ✓ · verification-before-completion ✓. `npm run lint` foi executado e permanece indisponível: o script legado `next lint` é interpretado como diretório pelo Next 16.
+**Pendências / próximos passos:** corrigir o script global de lint em tarefa própria; cadastrar os saldos reais para que o toggle reflita a operação.
+**Armadilhas descobertas:** o campo `pedidos.origem` já existia, mas nenhum dos criadores web o preenchia; inferir o canal pelo status temporário quebraria edições futuras de pedidos físicos.
+
 ## [2026-08-20] Estoque, lucro e Central de Notificações espelhados da Edienai
 
 **Agente/Modelo:** Codex GPT-5.6 SOL

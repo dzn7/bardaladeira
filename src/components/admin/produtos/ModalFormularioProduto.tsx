@@ -527,13 +527,13 @@ export const ModalFormularioProduto = ({
               </div>
               <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-3">
                 <div>
-                  <p className="text-sm font-medium text-foreground">Bloquear venda quando acabar</p>
-                  <p className="text-xs text-muted-foreground">Esgotado continua visível no cardápio</p>
+                  <p className="text-sm font-medium text-foreground">Esgotado no site quando acabar</p>
+                  <p className="text-xs text-muted-foreground">O pedido físico continua permitido</p>
                 </div>
                 <Checkbox
                   checked={bloquearVendaSemEstoque}
                   onCheckedChange={(valor) => setBloquearVendaSemEstoque(valor === true)}
-                  aria-label="Bloquear venda quando acabar"
+                  aria-label="Mostrar como esgotado no site quando acabar"
                 />
               </div>
             </div>

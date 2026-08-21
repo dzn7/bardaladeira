@@ -881,6 +881,7 @@ function GarcomNovoPedidoContent() {
           mesa_id: tipoEntrega === 'local' ? pontoSalaoSelecionado?.id || null : null,
           garcom_id: garcomId,
           cliente_id: clienteSelecionado?.id || null,
+          origem: 'garcom',
         })
         .select()
         .single()

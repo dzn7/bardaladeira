@@ -6,6 +6,10 @@ const migrationPath = new URL(
   '../supabase/migrations/20260820140153_estoque_produtos.sql',
   import.meta.url,
 )
+const migrationBloqueioSitePath = new URL(
+  '../supabase/migrations/20260821192101_estoque_bloqueio_apenas_site.sql',
+  import.meta.url,
+)
 
 test('migration e aditiva, idempotente e preserva SECURITY INVOKER', async () => {
   const sql = await readFile(migrationPath, 'utf8')
@@ -37,4 +41,36 @@ test('os dois fluxos administrativos usam o vinculo compartilhado', async () => 
   assert.match(editarPedido, /produto_id: item\.produto_id \|\| null/)
   assert.match(editarPedido, /bebida_id: item\.bebida_id \|\| null/)
   assert.match(editarPedido, /combo_id: item\.combo_id \|\| null/)
+})
+
+test('bloqueio de saldo insuficiente pertence somente ao pedido do site', async () => {
+  const sql = await readFile(migrationBloqueioSitePath, 'utf8')
+  assert.match(sql, /select p\.status, p\.origem[\s\S]+into v_status, v_origem/i)
+  assert.match(sql, /v_bloquear and v_origem = 'site' and new\.quantidade > v_estoque/i)
+  assert.match(sql, /v_bloquear and v_origem = 'site' and v_item\.quantidade > v_estoque/i)
+  assert.match(sql, /security invoker/gi)
+  assert.doesNotMatch(sql, /security definer/i)
+})
+
+test('criadores de pedido declaram a origem do canal', async () => {
+  const [checkout, pagamentoOnline, novoAdmin, novoGarcom] = await Promise.all([
+    readFile(new URL('../src/components/ModalCarrinho.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/lib/server/pagamento-online.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/admin/pedidos/novo/page.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/garcom/novo/page.tsx', import.meta.url), 'utf8'),
+  ])
+  assert.match(checkout, /\.from\('pedidos'\)[\s\S]{0,1800}origem: 'site'/)
+  assert.match(pagamentoOnline, /\.from\('pedidos'\)[\s\S]{0,1800}origem: 'site'/)
+  assert.match(novoAdmin, /\.from\('pedidos'\)[\s\S]{0,1800}origem: 'admin'/)
+  assert.match(novoGarcom, /\.from\('pedidos'\)[\s\S]{0,1800}origem: 'garcom'/)
+})
+
+test('tela de estoque expoe o toggle de esgotado no site', async () => {
+  const paginaEstoque = await readFile(
+    new URL('../src/app/admin/estoque/page.tsx', import.meta.url),
+    'utf8',
+  )
+  assert.match(paginaEstoque, /<Interruptor/)
+  assert.match(paginaEstoque, /bloquear_venda_sem_estoque/)
+  assert.match(paginaEstoque, /Esgotado no site/)
 })

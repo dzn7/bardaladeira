@@ -463,6 +463,7 @@ export async function criarPedidoPixOnline(
         pagamento_online: true,
         pagamento_online_status: 'aguardando_pagamento',
         pagamento_online_gateway: 'mercado_pago',
+        origem: 'site',
       })
       .select(
         'id, numero_pedido, nome_cliente, tipo_entrega, total, mesa, bairro, referencia, observacoes, telefone, status'

@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
+import Interruptor from '@/components/admin/Interruptor'
 import { ControleEstoqueProduto } from '@/components/admin/estoque/ControleEstoqueProduto'
 import { FiltroEstoqueAdmin } from '@/components/admin/estoque/FiltroEstoqueAdmin'
 import { CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
@@ -65,6 +67,7 @@ const PainelEstoque = () => {
   const [pagina, setPagina] = useState(1)
   const [itensPorPagina, setItensPorPagina] = useState<number>(LIMITE_PADRAO)
   const [produtoDestacado, setProdutoDestacado] = useState<string | null>(null)
+  const [produtoSalvandoBloqueio, setProdutoSalvandoBloqueio] = useState<string | null>(null)
   const canalIdRef = useRef(`estoque-produtos-${Math.random().toString(36).slice(2)}`)
   const deepLinkAplicadoRef = useRef<string | null>(null)
 
@@ -202,6 +205,36 @@ const PainelEstoque = () => {
     )
   }
 
+  const handleBloqueioSite = async (produto: ProdutoComEstoque, bloquear: boolean) => {
+    if (produtoSalvandoBloqueio) return
+    setProdutoSalvandoBloqueio(produto.id)
+    setProdutos((atual) =>
+      atual.map((item) =>
+        item.id === produto.id ? { ...item, bloquear_venda_sem_estoque: bloquear } : item,
+      ),
+    )
+    try {
+      const { error } = await supabase
+        .from('produtos')
+        .update({ bloquear_venda_sem_estoque: bloquear })
+        .eq('id', produto.id)
+      if (error) throw error
+      toast.success(bloquear ? 'Esgotado automático ativado no site.' : 'Esgotado automático desativado no site.')
+    } catch (falha) {
+      setProdutos((atual) =>
+        atual.map((item) =>
+          item.id === produto.id
+            ? { ...item, bloquear_venda_sem_estoque: produto.bloquear_venda_sem_estoque }
+            : item,
+        ),
+      )
+      console.error('[Estoque] Falha ao alterar bloqueio no site:', falha)
+      toast.error('Não foi possível alterar a exibição de esgotado no site.')
+    } finally {
+      setProdutoSalvandoBloqueio(null)
+    }
+  }
+
   const chips: ChipFiltroAtivo[] = []
   if (busca.trim()) chips.push({ key: 'busca', label: 'Busca', value: busca.trim() })
   if (filtroSituacao !== 'todos') {
@@ -223,6 +256,19 @@ const PainelEstoque = () => {
       nomeProduto={produto.nome}
       onQuantidadeConfirmada={(quantidade) => handleQuantidadeConfirmada(produto.id, quantidade)}
     />
+  )
+
+  const renderBloqueioSite = (produto: ProdutoComEstoque) => (
+    <div className="flex items-center gap-2">
+      <Interruptor
+        ativado={produto.bloquear_venda_sem_estoque}
+        aoAlternar={(bloquear) => void handleBloqueioSite(produto, bloquear)}
+        desabilitado={produtoSalvandoBloqueio !== null}
+        tamanho="md"
+        aria-label={`${produto.bloquear_venda_sem_estoque ? 'Desativar' : 'Ativar'} esgotado automático no site para ${produto.nome}`}
+      />
+      <span className="text-xs text-muted-foreground">Esgotado no site</span>
+    </div>
   )
 
   return (
@@ -385,6 +431,7 @@ const PainelEstoque = () => {
                         <dd className="font-medium text-foreground tabular-nums">{produto.estoque_minimo}</dd>
                       </div>
                     </dl>
+                    <div className="mt-3 border-t border-border/60 pt-3">{renderBloqueioSite(produto)}</div>
                     <div className="mt-3">{renderControles(produto)}</div>
                   </article>
                 )
@@ -402,6 +449,7 @@ const PainelEstoque = () => {
                     <TableHead>Quantidade</TableHead>
                     <TableHead>Mínimo</TableHead>
                     <TableHead>Estado</TableHead>
+                    <TableHead>Site</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -424,6 +472,7 @@ const PainelEstoque = () => {
                         <TableCell>
                           <BadgeSituacao situacao={situacao} />
                         </TableCell>
+                        <TableCell>{renderBloqueioSite(produto)}</TableCell>
                         <TableCell>{renderControles(produto)}</TableCell>
                       </TableRow>
                     )

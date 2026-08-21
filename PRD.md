@@ -190,9 +190,9 @@ Há ainda páginas de detalhes/edição de pedido, relatórios e saldos de caixa
 
 ### 7.1 Estoque e notificações administrativas
 
-- `/admin/estoque` consulta somente produtos finais e oferece busca, estado, categoria, paginação e ajuste rápido por RPC atômica.
+- `/admin/estoque` consulta somente produtos finais e oferece busca, estado, categoria, paginação, ajuste rápido por RPC atômica e toggle “Esgotado no site” por produto.
 - `itens_pedido.produto_id` reserva saldo ao inserir/alterar item e restaura exatamente o consumo ao excluir, cancelar ou reabrir um pedido.
-- Quando o bloqueio está ativo, saldo insuficiente rejeita a venda; sem bloqueio, o sistema consome apenas o saldo disponível e registra quanto foi efetivamente reservado.
+- Quando o bloqueio está ativo, saldo insuficiente rejeita somente pedidos de origem `site`; pedidos físicos de origem `admin`/`garcom` continuam permitidos. Sem saldo, esses canais registram consumo zero e nunca deixam quantidade negativa.
 - A Central usa route handlers autenticados e service role para suas relações privadas. O estoque operacional legado continua acessado pelo client anon, risco conhecido que esta task não amplia.
 
 ### 8. WhatsApp
@@ -274,7 +274,7 @@ Outros triggers importantes atualizam snapshots de itens/fila, saldo do crediár
 | Temas | Variáveis CSS semânticas + Tailwind; `next-themes` | Claro/escuro compartilham os mesmos componentes | 2026-07-12 |
 | UI compartilhada | Primitivos shadcn/Radix em `src/components/ui` e Kibo UI em `src/components/kibo-ui` | Novas telas devem reutilizar essas bases | 2026-07-12 |
 | Arquivos | Backblaze B2 via API compatível com S3 | URLs públicas ficam salvas nas entidades | 2026-07-12 |
-| Estoque de produtos | Postgres reserva/restaura por `itens_pedido.produto_id`; ajustes usam RPC `SECURITY INVOKER` | Cobre todos os produtores de pedido sem copiar produtos da base Edienai | 2026-08-20 |
+| Estoque de produtos | Postgres reserva/restaura por `itens_pedido.produto_id`; bloqueio de saldo vale para `pedidos.origem = site`; ajustes usam RPC `SECURITY INVOKER` | O site respeita “Esgotado”, enquanto Admin/Garçom preservam a venda física | 2026-08-21 |
 
 ## Hotspots e dependências sensíveis
 

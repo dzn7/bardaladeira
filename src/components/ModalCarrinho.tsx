@@ -1296,6 +1296,7 @@ export default function ModalCarrinho({ aberto, onFechar, lojaFechada = false }:
           total: totalComTaxaPagamentoConfirmado,
           observacoes: observacoes || null,
           status: 'confirmado',
+          origem: 'site',
           troco_para: valorTrocoPara,
           mesa: tipoEntrega === 'local' ? mesaSelecionada : null,
           mesa_id: tipoEntrega === 'local' ? pontoLocalSelecionado?.id || null : null,

@@ -1010,6 +1010,7 @@ function NovoPedidoContent() {
           comanda: tipoEntrega === 'local' && modoSalao === 'comanda' ? comandaSelecionada : null,
           mesa_id: tipoEntrega === 'local' ? pontoSalaoSelecionado?.id || null : null,
           cliente_id: clienteSelecionado?.id || null,
+          origem: 'admin',
         })
         .select()
         .single()

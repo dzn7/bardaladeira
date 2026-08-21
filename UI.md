@@ -145,7 +145,7 @@ Primitivos Kibo UI disponíveis:
 | `FiltroProdutosAdmin` | `src/components/admin/produtos/FiltroProdutosAdmin.tsx` | Status / tipo / foto / categoria — `/admin/produtos` |
 | `ModalFormularioProduto` | `src/components/admin/produtos/ModalFormularioProduto.tsx` | Criar/editar produto em Dialog; produtos finais incluem custo, quantidade, mínimo e bloqueio de venda; bebidas preservam o contrato anterior |
 | `ControleEstoqueProduto` | `src/components/admin/estoque/ControleEstoqueProduto.tsx` | `−` / input / `+` / Zerar; RPC atômica, otimista, rollback e lock por linha |
-| `/admin/estoque` | `src/app/admin/estoque/page.tsx` | KPIs inline, busca, pills de estado, categoria, tabela/cards, paginação e deep-link `?produto=` |
+| `/admin/estoque` | `src/app/admin/estoque/page.tsx` | KPIs inline, busca, pills de estado, categoria, toggle “Esgotado no site”, tabela/cards, paginação e deep-link `?produto=` |
 | `FiltroEstoqueAdmin` | `src/components/admin/estoque/FiltroEstoqueAdmin.tsx` | Categoria via `FiltroAvancado` na tela de estoque |
 | `FiltroFuncionariosAdmin` | `src/components/admin/funcionarios/FiltroFuncionariosAdmin.tsx` | Função + status — `/admin/funcionarios` |
 | `FiltroPedidosGarcom` | `src/components/admin/garcons/FiltroPedidosGarcom.tsx` | Abas Geral / Pagamento / Período para monitoramento de pedidos do garçom |
@@ -214,6 +214,7 @@ Primitivos Kibo UI disponíveis:
 - Shell `max-w-6xl`; resumo inline Em estoque / Estoque baixo / Esgotados, sem grid de metric cards.
 - Busca normaliza acento/caixa; pills de estado + `FiltroAvancado` de categoria; tabela semântica desktop e cards mobile.
 - Ajuste rápido (`−` / input / `+` / Zerar): Enter confirma, Escape restaura, blur vazio restaura, lock somente na linha e alvos de 44px.
+- Cada produto mostra o `Interruptor` “Esgotado no site”: ligado + quantidade zero desabilita o item apenas no cardápio público; o pedido físico continua permitido.
 - Paginação 15/30/50/100; deep-link `?produto=<uuid>` destaca o produto; mutation reconcilia somente a linha alterada.
 - Quantidade do modal de produto nunca entra no `insert`/`update` geral: ela passa exclusivamente por `ajustarEstoqueProduto`.
 
