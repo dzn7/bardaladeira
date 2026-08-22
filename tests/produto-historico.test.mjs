@@ -76,3 +76,12 @@ test('Dialog e rota administrativa usam dados agregados e paginação cursor', a
   assert.match(rota, /obterSupabaseAdmin\(\{ exigirServiceRole: true \}\)/i)
   assert.match(rota, /CURSOR_INVALIDO|cursor/i)
 })
+
+test('Vercel não redireciona APIs do Next para localhost', async () => {
+  const configuracao = JSON.parse(await readFile(caminho('vercel.json'), 'utf8'))
+
+  assert.ok(
+    !(configuracao.rewrites || []).some((regra) => regra.source === '/api/:path*' && /localhost/i.test(regra.destination)),
+    'rotas /api devem ser atendidas pelos route handlers publicados, não por localhost',
+  )
+})

@@ -34,3 +34,4 @@ bar-da-ladeira-bot
 .vercel
 .npm-cache
 .next
+.env*
