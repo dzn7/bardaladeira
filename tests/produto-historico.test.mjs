@@ -85,3 +85,14 @@ test('Vercel não redireciona APIs do Next para localhost', async () => {
     'rotas /api devem ser atendidas pelos route handlers publicados, não por localhost',
   )
 })
+
+test('sessão administrativa envia o UUID real ao histórico do produto', async () => {
+  const [contexto, pdv] = await Promise.all([
+    readFile(caminho('src/contexts/AdminAuthContext.tsx'), 'utf8'),
+    readFile(caminho('src/app/admin/pdv/page.tsx'), 'utf8'),
+  ])
+
+  assert.match(pdv, /admin-supabase-\$\{resultado\.usuario\.id\}/)
+  assert.doesNotMatch(pdv, /admin-supabase-\$\{Date\.now\(\)\}/)
+  assert.match(contexto, /admin-supabase-\$\{sessaoSalva\.id\}/)
+})

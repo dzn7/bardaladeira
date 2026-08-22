@@ -39,6 +39,10 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
     const sessaoSalva = obterSessao()
     if (sessaoSalva && sessaoSalva.papel === 'admin') {
+      const tokenDaSessao = `admin-supabase-${sessaoSalva.id}`
+      if (!TOKENS_VALIDOS.includes(adminToken || '') && adminToken !== tokenDaSessao) {
+        localStorage.setItem('adminToken', tokenDaSessao)
+      }
       setUsuarioAtual(sessaoSalva)
       setIsAuthenticated(true)
     }
@@ -106,4 +110,3 @@ export function useAdminAuth() {
   }
   return context
 }
-

@@ -903,7 +903,7 @@ export default function PdvAdminPage() {
       }
 
       if (resultado.usuario.papel === 'admin') {
-        localStorage.setItem('adminToken', `admin-supabase-${Date.now()}`)
+        localStorage.setItem('adminToken', `admin-supabase-${resultado.usuario.id}`)
       } else {
         localStorage.setItem('garcomToken', resultado.usuario.id)
       }
