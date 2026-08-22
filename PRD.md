@@ -25,7 +25,7 @@ Centralizar a operação digital e presencial do Bar da Ladeira: exposição do 
 - Painel administrativo com dashboard, Kanban de produção, PDV, histórico/listagem de pedidos e edição detalhada.
 - Gestão de salão: mesas, comandas, locais externos, ocupação, tempo limite e liberação.
 - Gestão de entregas, entregadores e repasses.
-- Catálogo: produtos, bebidas, combos, adicionais, categorias, ordenação, imagens e disponibilidade.
+- Catálogo: produtos, bebidas, combos, adicionais, categorias, ordenação, imagens e disponibilidade. Produtos finais possuem histórico operacional/comercial auditável, acessível no admin.
 - Estoque operacional de produtos finais: custo opcional, quantidade, mínimo, bloqueio de venda e reserva/restauração atômica pelos itens do pedido. Bebidas, combos, adicionais e insumos ficam fora desse controle.
 - Caixa, movimentações, categorias financeiras, saldos, salários, crediário, relatórios e fechamento anual.
 - A Central do Admin mantém ocorrências persistentes de estoque baixo/esgotado, pedidos novos e pagamentos mensais da equipe, com preferências por administrador, deduplicação e resolução automática.
@@ -195,6 +195,14 @@ Há ainda páginas de detalhes/edição de pedido, relatórios e saldos de caixa
 - Quando o bloqueio está ativo, saldo insuficiente rejeita somente pedidos de origem `site`; pedidos físicos de origem `admin`/`garcom` continuam permitidos. Sem saldo, esses canais registram consumo zero e nunca deixam quantidade negativa.
 - A Central usa route handlers autenticados e service role para suas relações privadas. O estoque operacional legado continua acessado pelo client anon, risco conhecido que esta task não amplia.
 
+### 7.2 Histórico e inteligência de produto
+
+- O estado atual continua em `produtos`; `produto_historico_eventos` é um audit trail append-only e `produto_promocoes_historico` identifica cada episódio promocional a partir de 22/08/2026. Não há auditoria administrativa retroativa inventada.
+- Triggers registram alterações relevantes de catálogo, visibilidade e estoque. As rotinas já existentes de estoque acrescentam contexto causal para ajuste, reserva por pedido, cancelamento e reabertura, sem duplicar movimentos.
+- `itens_pedido` congela o episódio, preço normal e preço promocional quando a venda coincide com a promoção ativa. Métricas usam o item/pedido histórico e excluem `cancelado`, `aguardando_pagamento` e `pendente`; não derivam faturamento do preço atual.
+- O Dialog de produto consome funções agregadas exclusivamente por route handlers administrativos com service role. Timeline usa cursor de 25 eventos e relatórios aceitam no máximo 366 dias por consulta.
+- O login atual ainda é local/client-side; por isso eventos originados por escrita direta no legado registram ator `Sistema` e origem técnica verificável, sem atribuir falsamente um funcionário. Sessão administrativa server-side é uma evolução separada.
+
 ### 8. WhatsApp
 
 - O Electron de WhatsApp (quando presente como app desktop irmão) oferece atendimento manual: detecta o contato aberto, monta um pedido e envia o resumo no chat.
@@ -229,7 +237,7 @@ O `.env.local` da aplicação principal aponta para esse projeto (`NEXT_PUBLIC_S
 | Pedido e pagamento | `pedidos`, `itens_pedido`, `item_adicionais`, `formas_pagamento`, `pagamentos_pedido`, `pagamentos_online`, `cupons`, `cupons_usos` |
 | Operação e identidade | `configuracoes_loja`, `bairros`, `mesas`, `entregas`, `fila_impressao`, `atividade_garcom`, `funcionarios`, `usuarios_sistema`, `usuarios_cliente`, `notification_preferences`, `anotacoes_painel` |
 | Financeiro | `caixas`, `caixa_automacao_config`, `categorias_caixa`, `movimentacoes_caixa`, `pagamentos_entregadores`, `crediario_contas`, `crediario_movimentos` |
-| Estoque e alertas | campos de estoque em `produtos`/`itens_pedido`; `custos_itens_pedido_admin`, `notificacoes_admin`, `notificacoes_admin_leituras`, `notificacoes_admin_preferencias`, `funcionarios_pagamento_config`, `funcionarios_pagamentos` |
+| Estoque, alertas e histórico de produto | campos de estoque em `produtos`/`itens_pedido`; `produto_historico_eventos`, `produto_promocoes_historico`, `custos_itens_pedido_admin`, `notificacoes_admin`, `notificacoes_admin_leituras`, `notificacoes_admin_preferencias`, `funcionarios_pagamento_config`, `funcionarios_pagamentos` |
 | Produtividade | `produtividade_config` (pesos/metas; fechada para `anon`) + funções `produtividade_*` |
 | Histórico | `historico_caixas`, `historico_entregas`, `historico_item_adicionais`, `historico_itens_pedido`, `historico_movimentacoes_caixa`, `historico_pedidos`, `resumo_anual` |
 | WhatsApp | `whatsapp_conversations`, `whatsapp_customer_memory`, `whatsapp_messages`, `whatsapp_order_drafts`, `whatsapp_order_notifications`, `whatsapp_outbox`, `whatsapp_product_aliases`, `whatsapp_product_lookup_misses`, `whatsapp_session` |
@@ -275,6 +283,7 @@ Outros triggers importantes atualizam snapshots de itens/fila, saldo do crediár
 | UI compartilhada | Primitivos shadcn/Radix em `src/components/ui` e Kibo UI em `src/components/kibo-ui` | Novas telas devem reutilizar essas bases | 2026-07-12 |
 | Arquivos | Backblaze B2 via API compatível com S3 | URLs públicas ficam salvas nas entidades | 2026-07-12 |
 | Estoque de produtos | Postgres reserva/restaura por `itens_pedido.produto_id`; bloqueio de saldo vale para `pedidos.origem = site`; ajustes usam RPC `SECURITY INVOKER` | O site respeita “Esgotado”, enquanto Admin/Garçom preservam a venda física | 2026-08-21 |
+| Histórico de produto | Audit trail append-only por trigger, episódios promocionais identificados e snapshot em `itens_pedido`; leitura somente pelo route handler admin | Alterações não dependem da UI e métricas não usam preço atual; histórico administrativo começa na migration | 2026-08-22 |
 
 ## Hotspots e dependências sensíveis
 

@@ -1,5 +1,23 @@
 # Progress
 
+## [2026-08-22] Histórico, timeline e inteligência de produtos
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** tornar cada produto final auditável e analisável, sem reconstruir o estado atual por eventos nem inventar passado.
+**Arquivos alterados:** `SPEC-produto-historico.md`, `supabase/migrations/20260822155525_produto_historico.sql`, `supabase/migrations/20260822160210_produto_historico_permissoes.sql`, `src/app/api/admin/produtos/[id]/historico/route.ts`, `src/app/api/admin/produtos/[id]/inteligencia/route.ts`, `src/components/admin/produtos/DialogHistoricoProduto.tsx`, `src/app/admin/produtos/page.tsx`, `tests/produto-historico.test.mjs`, `PRD.md`, `UI.md`, `Progress.md`.
+**O que foi feito:**
+
+- Mapeamento completo dos caminhos de escrita de `produtos`, estoque, itens/pedidos e promoção foi consolidado na SPEC; não havia ledger anterior, `itens_pedido` de produto nem promoções ativas para reconstruir auditoria comercial passada.
+- Criado audit trail append-only com before/after, ator/origem, referências de pedido e episódios promocionais. Triggers cobrem produto, estoque e snapshot de venda; cancelamento restaura estoque sem duplicar a ocorrência comercial.
+- Métricas agregadas no Postgres calculam pedidos, unidades, faturamento, preços realizados, desconto promocional, estoque, esgotamento, visibilidade, preços e episódios. Status não realizados não entram em receita.
+- O card de produto final ganhou ação com Tooltip e Dialog responsivo: duas colunas no desktop, tabs no mobile, Timeline cursor-paginada, filtros independentes, skeleton e painel de desempenho sem N+1.
+- As rotas administrativas usam `autorizarAdminLegado` e service role; RLS, grants e execução das funções foram fechados para `anon`/`authenticated`.
+
+**Decisões tomadas:** estado corrente permanece em `produtos`; eventos são trilha de auditoria. Como o login administrativo atual é local/client-side, alterações diretas legadas são identificadas honestamente como `Sistema`/origem técnica — não se atribui um funcionário sem sessão server-side verificável. Bebidas permanecem fora deste recorte, pois não pertencem ao domínio de estoque final `produtos`.
+**Verificação:** TDD estrutural RED→GREEN 5/5 ✓ · cenário SQL remoto pré e pós-aplicação com rollback (preço, promoção, idempotência, venda, snapshot, analytics, cancelamento e append-only) ✓ · schema/RLS/grants/triggers/índices remotos ✓ · `npx tsc --noEmit` ✓ · build 48/48 ✓ · `npm run lint` executado, mas o script legado `next lint` é incompatível com Next 16 e falha antes de lintar · `git diff --check` ✓ · bug-hunter ✓ · verification-before-completion ✓.
+**Pendências / próximos passos:** uma autenticação server-side deve propagar o ator humano ao contexto da transação para substituir `Sistema` nas escritas diretas legadas; comparar vendas antes/durante/depois de promoção fica para quando houver volume histórico suficiente e janela de negócio definida.
+**Armadilhas descobertas:** grants antigos do template mantinham `anon` com execução de função mesmo após revogar `PUBLIC`; a segunda migration revoga explicitamente `anon` e `authenticated`. O workspace não tinha `.env.local`; o build foi validado com valores inertes temporários, sem persistir segredo.
+
 ## [2026-08-21] Toggle de esgotado exclusivo do site
 
 **Agente/Modelo:** Codex GPT-5.6 SOL

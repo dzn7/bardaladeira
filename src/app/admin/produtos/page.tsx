@@ -15,6 +15,7 @@ import {
   Tag,
   GripVertical,
   Search,
+  History,
 } from 'lucide-react'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
@@ -24,6 +25,7 @@ import {
   ModalFormularioProduto,
   type DadosSalvarProduto,
 } from '@/components/admin/produtos/ModalFormularioProduto'
+import { DialogHistoricoProduto } from '@/components/admin/produtos/DialogHistoricoProduto'
 import { ajustarEstoqueProduto, ErroEstoque } from '@/lib/estoque'
 import {
   camposEstoqueParaCatalogo,
@@ -58,6 +60,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -171,6 +174,7 @@ export default function ProdutosPage() {
   const [recorteNovoProduto, setRecorteNovoProduto] = useState(false)
   const [imagemParaRecorte, setImagemParaRecorte] = useState('')
   const [produtoEmEdicaoId, setProdutoEmEdicaoId] = useState<string | null>(null)
+  const [produtoHistoricoId, setProdutoHistoricoId] = useState<string | null>(null)
 
   const [categoriasCardapio, setCategoriasCardapio] = useState<CategoriaCardapio[]>([])
   const [categoriasReais, setCategoriasReais] = useState<string[]>([])
@@ -1440,6 +1444,10 @@ export default function ProdutosPage() {
     () => (produtoEmEdicaoId ? produtos.find((item) => item.id === produtoEmEdicaoId) ?? null : null),
     [produtoEmEdicaoId, produtos]
   )
+  const produtoHistorico = useMemo(
+    () => (produtoHistoricoId ? produtos.find((item) => item.id === produtoHistoricoId) ?? null : null),
+    [produtoHistoricoId, produtos],
+  )
   const descricaoTipoOrdenacao =
     tipoOrdenacaoSite === 'manual'
       ? 'Manual'
@@ -1873,17 +1881,36 @@ export default function ProdutosPage() {
                               </div>
                             </div>
 
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setProdutoEmEdicaoId(produto.id)}
-                              className="h-9 shrink-0 gap-1.5 shadow-none"
-                              aria-label={`Editar ${produto.nome}`}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              <span className="hidden sm:inline">Editar</span>
-                            </Button>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              {produto.tabela !== 'bebidas' ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => setProdutoHistoricoId(produto.id)}
+                                      className="size-9 shadow-none"
+                                      aria-label={`Histórico de ${produto.nome}`}
+                                    >
+                                      <History className="size-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Histórico do produto</TooltipContent>
+                                </Tooltip>
+                              ) : null}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setProdutoEmEdicaoId(produto.id)}
+                                className="h-9 gap-1.5 shadow-none"
+                                aria-label={`Editar ${produto.nome}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">Editar</span>
+                              </Button>
+                            </div>
                           </motion.div>
                         ))}
 
@@ -1998,6 +2025,14 @@ export default function ProdutosPage() {
             const nome = produtoEmEdicao.nome
             setProdutoEmEdicaoId(null)
             void excluirProduto(id, tabela, nome)
+          }}
+        />
+
+        <DialogHistoricoProduto
+          aberto={Boolean(produtoHistorico)}
+          produto={produtoHistorico}
+          onAbertoChange={(aberto) => {
+            if (!aberto) setProdutoHistoricoId(null)
           }}
         />
 
