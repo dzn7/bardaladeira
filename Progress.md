@@ -1,5 +1,16 @@
 # Progress
 
+## [2026-08-22] Histórico de produto — resposta 404 da publicação
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** impedir que a Timeline tente interpretar a página 404 da Vercel como JSON.
+**Arquivos alterados:** `src/components/admin/produtos/DialogHistoricoProduto.tsx`, `tests/produto-historico.test.mjs`, `Progress.md`.
+**O que foi feito:** o Dialog passa a ler texto, validar JSON e devolver mensagem operacional quando a resposta é HTML/texto. A UI deixa de exibir `Unexpected token`.
+**Decisões tomadas:** não simulei dados nem escondi a indisponibilidade. A mensagem informa que a publicação precisa conter as rotas de histórico.
+**Verificação:** reprodução remota ✓ — as duas rotas de produto retornaram 404/texto, enquanto `/api/admin/notificacoes` retornou JSON 401; teste TDD RED→GREEN 5/5 ✓ · `npx tsc --noEmit` ✓ · `git diff --check` ✓.
+**Pendências / próximos passos:** publicar o código que contém `src/app/api/admin/produtos/[id]/historico/route.ts` e `inteligencia/route.ts` na Vercel; a publicação hoje acessada não possui essas rotas.
+**Armadilhas descobertas:** chamar `Response.json()` direto em uma rota que pode retornar página de erro transforma um 404 diagnosticável em erro de parser sem contexto.
+
 ## [2026-08-22] Histórico, timeline e inteligência de produtos
 
 **Agente/Modelo:** Codex GPT-5

@@ -70,6 +70,8 @@ test('Dialog e rota administrativa usam dados agregados e paginação cursor', a
   assert.match(dialog, /Histórico do produto/i)
   assert.match(dialog, /Carregar mais/i)
   assert.match(dialog, /Promise\.all/i)
+  assert.match(dialog, /resposta\.text\(\)/i)
+  assert.match(dialog, /Histórico indisponível no servidor/i)
   assert.match(rota, /autorizarAdminLegado/i)
   assert.match(rota, /obterSupabaseAdmin\(\{ exigirServiceRole: true \}\)/i)
   assert.match(rota, /CURSOR_INVALIDO|cursor/i)

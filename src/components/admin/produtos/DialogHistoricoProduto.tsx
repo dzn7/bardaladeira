@@ -231,6 +231,23 @@ const periodoInicial = (periodo: Periodo) => {
 
 const tokenAdmin = () => typeof window === 'undefined' ? '' : localStorage.getItem('adminToken') || ''
 
+const lerRespostaHistorico = async <T extends { sucesso?: boolean; erro?: string }>(resposta: Response) => {
+  const texto = await resposta.text()
+  let corpo: T
+
+  try {
+    corpo = JSON.parse(texto) as T
+  } catch {
+    throw new Error('Histórico indisponível no servidor. Atualize a publicação para incluir as rotas de histórico do produto.')
+  }
+
+  if (!resposta.ok || corpo.sucesso !== true) {
+    throw new Error(corpo.erro || 'Não foi possível carregar os dados do produto.')
+  }
+
+  return corpo
+}
+
 function ConteudoTimeline({
   carregando,
   erro,
@@ -437,16 +454,12 @@ export function DialogHistoricoProduto({ aberto, onAbertoChange, produto }: Prop
 
   const lerHistorico = useCallback(async (cursor?: string | null) => {
     const resposta = await fetch(urlTimeline(cursor), { headers: { 'x-admin-token': tokenAdmin() } })
-    const corpo = await resposta.json() as RespostaHistorico
-    if (!resposta.ok || !corpo.sucesso) throw new Error(corpo.erro || 'Não foi possível carregar o histórico.')
-    return corpo
+    return lerRespostaHistorico<RespostaHistorico>(resposta)
   }, [urlTimeline])
 
   const lerInteligencia = useCallback(async () => {
     const resposta = await fetch(urlInteligencia(), { headers: { 'x-admin-token': tokenAdmin() } })
-    const corpo = await resposta.json() as RespostaInteligencia
-    if (!resposta.ok || !corpo.sucesso) throw new Error(corpo.erro || 'Não foi possível carregar os relatórios.')
-    return corpo
+    return lerRespostaHistorico<RespostaInteligencia>(resposta)
   }, [urlInteligencia])
 
   useEffect(() => {
