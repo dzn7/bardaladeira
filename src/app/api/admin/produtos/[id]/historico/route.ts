@@ -86,7 +86,7 @@ export async function GET(
       p_limite: limite + 1,
     })
     if (error) {
-      return NextResponse.json({ sucesso: true, eventos: [], cursorProximo: null })
+      return NextResponse.json({ sucesso: false, erro: 'Não foi possível carregar o histórico.' }, { status: 500 })
     }
 
     const linhas = (Array.isArray(data) ? data : []) as EventoHistorico[]
@@ -100,6 +100,6 @@ export async function GET(
       cursorProximo: possuiProximaPagina && ultimoEvento ? codificarCursor(ultimoEvento) : null,
     })
   } catch {
-    return NextResponse.json({ sucesso: true, eventos: [], cursorProximo: null })
+    return NextResponse.json({ sucesso: false, erro: 'Não foi possível carregar o histórico.' }, { status: 500 })
   }
 }

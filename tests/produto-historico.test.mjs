@@ -5,12 +5,18 @@ import { readdir, readFile } from 'node:fs/promises'
 const raiz = new URL('..', import.meta.url)
 const caminho = (relativo) => new URL(relativo, raiz)
 
-const lerMigration = async () => {
-  const arquivos = await readdir(caminho('supabase/migrations'))
-  const nome = arquivos.find((arquivo) => /produto_historico/i.test(arquivo))
-  assert.ok(nome, 'a migration produto_historico deve existir')
-  return readFile(caminho(`supabase/migrations/${nome}`), 'utf8')
+const lerMigrationsHistorico = async () => {
+  const arquivos = (await readdir(caminho('supabase/migrations')))
+    .filter((arquivo) => /produto_historico/i.test(arquivo))
+    .sort()
+  assert.ok(arquivos.length > 0, 'a migration produto_historico deve existir')
+  const textos = await Promise.all(
+    arquivos.map((arquivo) => readFile(caminho(`supabase/migrations/${arquivo}`), 'utf8')),
+  )
+  return textos.join('\n')
 }
+
+const lerMigration = lerMigrationsHistorico
 
 test('audit trail de produto é privado, append-only e indexado para cursor', async () => {
   const sql = await lerMigration()
@@ -70,13 +76,22 @@ test('Dialog e rota administrativa usam dados agregados e paginação cursor', a
   assert.match(dialog, /Histórico do produto/i)
   assert.match(dialog, /Carregar mais/i)
   assert.match(dialog, /Promise\.all/i)
-  assert.match(dialog, /resposta\.text\(\)/i)
-  assert.match(dialog, /Histórico indisponível no servidor/i)
+  assert.match(dialog, /supabase\.rpc\('listar_historico_produto'/)
+  assert.match(dialog, /supabase\.rpc\('obter_inteligencia_produto'/)
   assert.match(rota, /autorizarAdminLegado/i)
   assert.match(rota, /obterSupabaseAdmin\(/)
   assert.doesNotMatch(rota, /exigirServiceRole:\s*true/)
-  assert.match(rota, /eventos:\s*\[\]/)
+  assert.doesNotMatch(rota, /eventos:\s*\[\],\s*cursorProximo:\s*null/)
   assert.match(rota, /CURSOR_INVALIDO|cursor/i)
+})
+
+test('leitura do histórico é executável pelo mesmo anon do admin', async () => {
+  const sql = await lerMigrationsHistorico()
+
+  assert.match(sql, /alter function public\.listar_historico_produto[\s\S]*security definer/i)
+  assert.match(sql, /alter function public\.obter_inteligencia_produto[\s\S]*security definer/i)
+  assert.match(sql, /grant execute on function public\.listar_historico_produto[\s\S]*to anon/i)
+  assert.match(sql, /grant execute on function public\.obter_inteligencia_produto[\s\S]*to anon/i)
 })
 
 test('login de admin do sistema autoriza o histórico sem consultar usuarios_sistema', async () => {
@@ -141,12 +156,13 @@ test('estado administrativo corrompido se auto-repara em vez de travar em Não a
   assert.match(protegida, /tokenAdminEhValido/)
 })
 
-test('401 no histórico orienta novo login em vez de exibir apenas Não autorizado', async () => {
+test('histórico do produto não depende da rota server-side para listar eventos', async () => {
   const dialog = await readFile(
     caminho('src/components/admin/produtos/DialogHistoricoProduto.tsx'),
     'utf8',
   )
 
-  assert.match(dialog, /resposta\.status === 401/)
-  assert.match(dialog, /Faça login novamente/)
+  assert.doesNotMatch(dialog, /\/api\/admin\/produtos\/\$\{produto\.id\}\/historico/)
+  assert.doesNotMatch(dialog, /x-admin-token/)
+  assert.match(dialog, /from '@\/lib\/supabase'/)
 })

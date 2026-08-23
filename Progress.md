@@ -1,5 +1,20 @@
 # Progress
 
+## [2026-08-22] Histórico de produto — Timeline vazia com eventos reais no banco
+
+**Agente/Modelo:** Cursor Grok 4.6
+**Objetivo:** o Dialog mostrar as alterações que o trigger já gravou, sem depender de env na Vercel.
+**Arquivos alterados:** `supabase/migrations/20260823023000_produto_historico_leitura_anon.sql`, `src/components/admin/produtos/DialogHistoricoProduto.tsx`, `src/app/api/admin/produtos/[id]/historico/route.ts`, `src/app/api/admin/produtos/[id]/inteligencia/route.ts`, `tests/produto-historico.test.mjs`, `Progress.md`.
+**O que foi feito:**
+- Management API no projeto `bardaladeira` (`olkzbualikbyudupizxz`): `produto teste` tem 6 eventos (criação, estoque, promoções e a alteração 45/50 → 49,50/55 às 02:14 UTC). O trigger grava. A publicação respondia 200 com lista vazia.
+- Causa: a Vercel do site não tem env; a rota caía no `anon` sem `EXECUTE`, a RPC falhava e o handler devolvia sucesso vazio. A tabela continua com RLS e sem policy — só `service_role` lia.
+- Apliquei no banco `SECURITY DEFINER` + `GRANT EXECUTE` a `anon`/`authenticated` nas RPCs de leitura. PostgREST com a anon key passou a devolver os 6 eventos e a inteligência (5 pontos de preço, 3 episódios).
+- O Dialog passou a chamar as mesmas RPCs pelo client supabase do admin, igual ao restante do painel. As rotas administrativas deixam de esconder erro como lista vazia.
+**Decisões tomadas:** não abri a tabela no PostgREST (RLS + revoke de SELECT no `anon` permanecem). A leitura pública é só pelas duas RPCs, o mesmo nível do catálogo. Sem service role na Vercel.
+**Verificação:** Management API ✓ · PostgREST anon 6 eventos / inteligência com preço e promoções ✓ · TDD 12/12 ✓ · `./node_modules/.bin/tsc --noEmit --incremental false` 0 erros ✓ · a API publicada ainda devolve lista vazia até este Dialog ir para a `main`.
+**Pendências / próximos passos:** publicar esta correção na `main`. Depois do deploy, um refresh em `/admin/produtos` no produto `teste` deve listar as 6 ocorrências.
+**Armadilhas descobertas:** `set role anon` na Management API não prova o PostgREST — o cache do `pgrst` precisa de `NOTIFY pgrst, 'reload schema'` depois de `ALTER FUNCTION`/`GRANT`. Env da Vercel deste site está zerada; `NEXT_PUBLIC_*` no bundle do browser não chega no route handler.
+
 ## [2026-08-22] Histórico de produto — 401 persistia no login edienai
 
 **Agente/Modelo:** Cursor Grok 4.6

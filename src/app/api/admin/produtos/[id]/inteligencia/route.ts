@@ -44,11 +44,11 @@ export async function GET(
       p_fim: fim.toISOString(),
     })
     if (error) {
-      return NextResponse.json({ sucesso: true, inteligencia: {} })
+      return NextResponse.json({ sucesso: false, erro: 'Não foi possível carregar o desempenho.' }, { status: 500 })
     }
 
     return NextResponse.json({ sucesso: true, inteligencia: data || {} })
   } catch {
-    return NextResponse.json({ sucesso: true, inteligencia: {} })
+    return NextResponse.json({ sucesso: false, erro: 'Não foi possível carregar o desempenho.' }, { status: 500 })
   }
 }

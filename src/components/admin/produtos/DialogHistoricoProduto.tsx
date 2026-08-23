@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { lerTokenAdmin } from '@/lib/token-admin'
+import { supabase } from '@/lib/supabase'
 
 ChartJS.register(CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, ChartTooltip)
 
@@ -108,17 +108,14 @@ type InteligenciaProduto = {
   promocoes?: PromocaoHistorica[]
 }
 
-type RespostaHistorico = {
-  sucesso: boolean
-  eventos?: EventoHistorico[]
-  cursorProximo?: string | null
-  erro?: string
+type CursorHistorico = {
+  ocorreuEm: string
+  id: string
 }
 
-type RespostaInteligencia = {
-  sucesso: boolean
-  inteligencia?: InteligenciaProduto
-  erro?: string
+type PaginaHistorico = {
+  eventos: EventoHistorico[]
+  cursorProximo: CursorHistorico | null
 }
 
 type Props = {
@@ -230,25 +227,43 @@ const periodoInicial = (periodo: Periodo) => {
   return { inicio, fim }
 }
 
-const lerRespostaHistorico = async <T extends { sucesso?: boolean; erro?: string }>(resposta: Response) => {
-  const texto = await resposta.text()
-  let corpo: T
+const LIMITE_PAGINA = 25
 
-  try {
-    corpo = JSON.parse(texto) as T
-  } catch {
-    throw new Error('Histórico indisponível no servidor. Atualize a publicação para incluir as rotas de histórico do produto.')
+const buscarHistoricoProduto = async (
+  produtoId: string,
+  categoria: CategoriaTimeline,
+  cursor?: CursorHistorico | null,
+): Promise<PaginaHistorico> => {
+  const { data, error } = await supabase.rpc('listar_historico_produto', {
+    p_produto_id: produtoId,
+    p_categoria: categoria,
+    p_ocorreu_antes: cursor?.ocorreuEm || null,
+    p_id_antes: cursor?.id || null,
+    p_limite: LIMITE_PAGINA + 1,
+  })
+  if (error) throw new Error('Não foi possível carregar o histórico do produto.')
+
+  const linhas = (Array.isArray(data) ? data : []) as EventoHistorico[]
+  const possuiProximaPagina = linhas.length > LIMITE_PAGINA
+  const eventos = possuiProximaPagina ? linhas.slice(0, LIMITE_PAGINA) : linhas
+  const ultimoEvento = eventos.at(-1)
+
+  return {
+    eventos,
+    cursorProximo: possuiProximaPagina && ultimoEvento
+      ? { ocorreuEm: ultimoEvento.ocorreu_em, id: ultimoEvento.id }
+      : null,
   }
+}
 
-  if (resposta.status === 401) {
-    throw new Error('Sessão expirada ou inválida. Faça login novamente para ver o histórico.')
-  }
-
-  if (!resposta.ok || corpo.sucesso !== true) {
-    throw new Error(corpo.erro || 'Não foi possível carregar os dados do produto.')
-  }
-
-  return corpo
+const buscarInteligenciaProduto = async (produtoId: string, inicio: Date, fim: Date) => {
+  const { data, error } = await supabase.rpc('obter_inteligencia_produto', {
+    p_produto_id: produtoId,
+    p_inicio: inicio.toISOString(),
+    p_fim: fim.toISOString(),
+  })
+  if (error) throw new Error('Não foi possível carregar o desempenho do produto.')
+  return (data || {}) as InteligenciaProduto
 }
 
 function ConteudoTimeline({
@@ -262,7 +277,7 @@ function ConteudoTimeline({
   carregando: boolean
   erro: string | null
   eventos: EventoHistorico[]
-  cursorProximo: string | null
+  cursorProximo: CursorHistorico | null
   aoCarregarMais: () => void
   carregandoMais: boolean
 }) {
@@ -423,7 +438,7 @@ export function DialogHistoricoProduto({ aberto, onAbertoChange, produto }: Prop
   const [inicioPersonalizado, setInicioPersonalizado] = useState('')
   const [fimPersonalizado, setFimPersonalizado] = useState('')
   const [eventos, setEventos] = useState<EventoHistorico[]>([])
-  const [cursorProximo, setCursorProximo] = useState<string | null>(null)
+  const [cursorProximo, setCursorProximo] = useState<CursorHistorico | null>(null)
   const [inteligencia, setInteligencia] = useState<InteligenciaProduto | null>(null)
   const [carregando, setCarregando] = useState(false)
   const [carregandoMais, setCarregandoMais] = useState(false)
@@ -441,29 +456,17 @@ export function DialogHistoricoProduto({ aberto, onAbertoChange, produto }: Prop
     return { inicio, fim }
   }, [fimPersonalizado, inicioPersonalizado, periodo])
 
-  const urlTimeline = useCallback((cursor?: string | null) => {
-    if (!produto) return ''
-    const parametros = new URLSearchParams({ categoria, limite: '25' })
-    if (cursor) parametros.set('cursor', cursor)
-    return `/api/admin/produtos/${produto.id}/historico?${parametros.toString()}`
-  }, [categoria, produto])
-
-  const urlInteligencia = useCallback(() => {
-    if (!produto) return ''
-    const parametros = new URLSearchParams({ inicio: intervalo.inicio.toISOString(), fim: intervalo.fim.toISOString() })
-    return `/api/admin/produtos/${produto.id}/inteligencia?${parametros.toString()}`
-  }, [intervalo.fim, intervalo.inicio, produto])
   const chavePeriodo = `${intervalo.inicio.toISOString()}:${intervalo.fim.toISOString()}`
 
-  const lerHistorico = useCallback(async (cursor?: string | null) => {
-    const resposta = await fetch(urlTimeline(cursor), { headers: { 'x-admin-token': lerTokenAdmin() } })
-    return lerRespostaHistorico<RespostaHistorico>(resposta)
-  }, [urlTimeline])
+  const lerHistorico = useCallback(async (cursor?: CursorHistorico | null) => {
+    if (!produto) return { eventos: [], cursorProximo: null }
+    return buscarHistoricoProduto(produto.id, categoria, cursor)
+  }, [categoria, produto])
 
   const lerInteligencia = useCallback(async () => {
-    const resposta = await fetch(urlInteligencia(), { headers: { 'x-admin-token': lerTokenAdmin() } })
-    return lerRespostaHistorico<RespostaInteligencia>(resposta)
-  }, [urlInteligencia])
+    if (!produto) return {}
+    return buscarInteligenciaProduto(produto.id, intervalo.inicio, intervalo.fim)
+  }, [intervalo.fim, intervalo.inicio, produto])
 
   useEffect(() => {
     if (!aberto || !produto) {
@@ -482,7 +485,7 @@ export function DialogHistoricoProduto({ aberto, onAbertoChange, produto }: Prop
       if (!ativo) return
       setEventos(historico.eventos || [])
       setCursorProximo(historico.cursorProximo || null)
-      setInteligencia(dados.inteligencia || {})
+      setInteligencia(dados || {})
     }).catch((erro: unknown) => {
       if (!ativo) return
       const mensagem = erro instanceof Error ? erro.message : 'Não foi possível carregar os dados do produto.'
@@ -523,7 +526,7 @@ export function DialogHistoricoProduto({ aberto, onAbertoChange, produto }: Prop
     setCarregandoInteligencia(true)
     setErroInteligencia(null)
     void lerInteligencia().then((dados) => {
-      if (ativo) setInteligencia(dados.inteligencia || {})
+      if (ativo) setInteligencia(dados || {})
     }).catch((erro: unknown) => {
       if (ativo) setErroInteligencia(erro instanceof Error ? erro.message : 'Não foi possível carregar os relatórios.')
     }).finally(() => {
