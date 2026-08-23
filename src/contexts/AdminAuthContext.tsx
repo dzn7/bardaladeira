@@ -8,6 +8,7 @@ import {
   limparSessao,
   type UsuarioSistema,
 } from '@/lib/autenticacao'
+import { tokenAdminEhValido } from '@/lib/token-admin'
 
 type AdminAuthContextType = {
   isAuthenticated: boolean
@@ -17,11 +18,6 @@ type AdminAuthContextType = {
   logout: () => void
   loading: boolean
 }
-
-const TOKENS_VALIDOS = [
-  'admin-authenticated-bar-da-ladeira',
-  'admin-authenticated-dzndev',
-]
 
 const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined)
 
@@ -33,18 +29,29 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const adminToken = localStorage.getItem('adminToken')
-    if (adminToken && TOKENS_VALIDOS.includes(adminToken)) {
+    if (adminToken && !tokenAdminEhValido(adminToken)) {
+      localStorage.removeItem('adminToken')
+    }
+
+    if (tokenAdminEhValido(localStorage.getItem('adminToken'))) {
       setIsAuthenticated(true)
     }
 
     const sessaoSalva = obterSessao()
     if (sessaoSalva && sessaoSalva.papel === 'admin') {
       const tokenDaSessao = `admin-supabase-${sessaoSalva.id}`
-      if (!TOKENS_VALIDOS.includes(adminToken || '') && adminToken !== tokenDaSessao) {
-        localStorage.setItem('adminToken', tokenDaSessao)
+      if (!tokenAdminEhValido(tokenDaSessao)) {
+        limparSessao()
+      } else {
+        const tokenAtual = localStorage.getItem('adminToken') || ''
+        const preservarLocal = tokenAtual === 'admin-authenticated-bar-da-ladeira'
+          || tokenAtual === 'admin-authenticated-dzndev'
+        if (!preservarLocal && tokenAtual !== tokenDaSessao) {
+          localStorage.setItem('adminToken', tokenDaSessao)
+        }
+        setUsuarioAtual(sessaoSalva)
+        setIsAuthenticated(true)
       }
-      setUsuarioAtual(sessaoSalva)
-      setIsAuthenticated(true)
     }
 
     setLoading(false)

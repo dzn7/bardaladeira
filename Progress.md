@@ -1,5 +1,20 @@
 # Progress
 
+## [2026-08-22] Histórico de produto — 401 Não autorizado por token client podre
+
+**Agente/Modelo:** Cursor Grok 4.6
+**Objetivo:** o Dialog de histórico deixar de travar em "Não autorizado." quando o browser guarda um `adminToken` que o servidor rejeita.
+**Arquivos alterados:** `src/lib/token-admin.ts` (novo), `src/contexts/AdminAuthContext.tsx`, `src/components/admin/ProtectedRoute.tsx`, `src/components/admin/produtos/DialogHistoricoProduto.tsx`, `tests/produto-historico.test.mjs`, `Progress.md`.
+**O que foi feito:**
+- Helper client `token-admin.ts` espelha os tokens locais e o regex UUID do `autorizacao-admin-legada.ts`.
+- No load, token malformado (`admin-supabase-<Date.now()>` e afins) é removido; sessão admin só regrava token se o id produzir um token aceito pelo servidor; token local hardcoded é preservado.
+- `ProtectedRoute` deixa de aceitar qualquer prefixo `admin-*` e manda ao login quando o token não passa na mesma regra do servidor.
+- 401 no Dialog passa a orientar novo login em vez de ecoar `Não autorizado.`
+**Decisões tomadas:** a validação server-side não foi relaxada — o client é que estava mentindo o estado autenticado. Sem mudança de RLS, grants ou contrato das rotas.
+**Verificação:** TDD estrutural 10/10 ✓ · `./node_modules/.bin/tsc --noEmit --incremental false` 0 erros ✓ · IDE diagnostics nos arquivos editados 0 ✓ · `npm run lint` permanece indisponível (`next lint` resolve o diretório `lint`) · sem verificação no browser nesta sessão.
+**Pendências / próximos passos:** recarregar o admin (ou sair e entrar de novo) para o auto-reparo rodar no localStorage; se o 401 continuar após login fresco com usuário admin ativo, o próximo alvo é o lookup em `usuarios_sistema` via service role.
+**Armadilhas descobertas:** `ProtectedRoute` tratava `admin-supabase-*` como sessão válida, enquanto o servidor exige UUID RFC; quem já tinha o token antigo do PDV (`Date.now()`) ficava "logado" na UI e tomava 401 em toda API administrativa. `npx tsc` neste worktree cai no stub do npm sem `node_modules` prévio — usar o binário local.
+
 ## [2026-08-22] Histórico de produto — resposta 404 da publicação
 
 **Agente/Modelo:** Codex GPT-5

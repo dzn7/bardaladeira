@@ -96,3 +96,41 @@ test('sessão administrativa envia o UUID real ao histórico do produto', async 
   assert.doesNotMatch(pdv, /admin-supabase-\$\{Date\.now\(\)\}/)
   assert.match(contexto, /admin-supabase-\$\{sessaoSalva\.id\}/)
 })
+
+test('token administrativo client espelha as mesmas regras do servidor', async () => {
+  const [helper, servidor] = await Promise.all([
+    readFile(caminho('src/lib/token-admin.ts'), 'utf8'),
+    readFile(caminho('src/lib/server/autorizacao-admin-legada.ts'), 'utf8'),
+  ])
+
+  assert.match(helper, /admin-authenticated-bar-da-ladeira/)
+  assert.match(helper, /admin-authenticated-dzndev/)
+  assert.match(helper, /export function tokenAdminEhValido/)
+  assert.match(helper, /export function lerTokenAdmin/)
+
+  const padraoUuidServidor = servidor.match(/\/\^admin-supabase-[^/]+\//)?.[0]
+  const padraoUuidCliente = helper.match(/\/\^admin-supabase-[^/]+\//)?.[0]
+  assert.ok(padraoUuidServidor, 'servidor define o padrão do token supabase')
+  assert.equal(padraoUuidCliente, padraoUuidServidor, 'cliente usa o mesmo padrão do servidor')
+})
+
+test('estado administrativo corrompido se auto-repara em vez de travar em Não autorizado', async () => {
+  const [contexto, protegida] = await Promise.all([
+    readFile(caminho('src/contexts/AdminAuthContext.tsx'), 'utf8'),
+    readFile(caminho('src/components/admin/ProtectedRoute.tsx'), 'utf8'),
+  ])
+
+  assert.match(contexto, /tokenAdminEhValido/)
+  assert.match(contexto, /localStorage\.removeItem\('adminToken'\)/)
+  assert.match(protegida, /tokenAdminEhValido/)
+})
+
+test('401 no histórico orienta novo login em vez de exibir apenas Não autorizado', async () => {
+  const dialog = await readFile(
+    caminho('src/components/admin/produtos/DialogHistoricoProduto.tsx'),
+    'utf8',
+  )
+
+  assert.match(dialog, /resposta\.status === 401/)
+  assert.match(dialog, /Faça login novamente/)
+})

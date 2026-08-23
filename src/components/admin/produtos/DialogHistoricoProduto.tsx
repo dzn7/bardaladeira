@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { lerTokenAdmin } from '@/lib/token-admin'
 
 ChartJS.register(CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, ChartTooltip)
 
@@ -229,8 +230,6 @@ const periodoInicial = (periodo: Periodo) => {
   return { inicio, fim }
 }
 
-const tokenAdmin = () => typeof window === 'undefined' ? '' : localStorage.getItem('adminToken') || ''
-
 const lerRespostaHistorico = async <T extends { sucesso?: boolean; erro?: string }>(resposta: Response) => {
   const texto = await resposta.text()
   let corpo: T
@@ -239,6 +238,10 @@ const lerRespostaHistorico = async <T extends { sucesso?: boolean; erro?: string
     corpo = JSON.parse(texto) as T
   } catch {
     throw new Error('Histórico indisponível no servidor. Atualize a publicação para incluir as rotas de histórico do produto.')
+  }
+
+  if (resposta.status === 401) {
+    throw new Error('Sessão expirada ou inválida. Faça login novamente para ver o histórico.')
   }
 
   if (!resposta.ok || corpo.sucesso !== true) {
@@ -453,12 +456,12 @@ export function DialogHistoricoProduto({ aberto, onAbertoChange, produto }: Prop
   const chavePeriodo = `${intervalo.inicio.toISOString()}:${intervalo.fim.toISOString()}`
 
   const lerHistorico = useCallback(async (cursor?: string | null) => {
-    const resposta = await fetch(urlTimeline(cursor), { headers: { 'x-admin-token': tokenAdmin() } })
+    const resposta = await fetch(urlTimeline(cursor), { headers: { 'x-admin-token': lerTokenAdmin() } })
     return lerRespostaHistorico<RespostaHistorico>(resposta)
   }, [urlTimeline])
 
   const lerInteligencia = useCallback(async () => {
-    const resposta = await fetch(urlInteligencia(), { headers: { 'x-admin-token': tokenAdmin() } })
+    const resposta = await fetch(urlInteligencia(), { headers: { 'x-admin-token': lerTokenAdmin() } })
     return lerRespostaHistorico<RespostaInteligencia>(resposta)
   }, [urlInteligencia])
 

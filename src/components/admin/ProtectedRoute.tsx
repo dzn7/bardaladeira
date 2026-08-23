@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminAuth } from '@/contexts/AdminAuthContext'
+import { tokenAdminEhValido } from '@/lib/token-admin'
 import { Loader2 } from 'lucide-react'
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -10,11 +11,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      const token = localStorage.getItem('adminToken')
-      if (!token || (!token.startsWith('admin-authenticated-') && !token.startsWith('admin-supabase-'))) {
-        router.push('/admin/login')
-      }
+    if (!loading && (!isAuthenticated || !tokenAdminEhValido(localStorage.getItem('adminToken')))) {
+      router.push('/admin/login')
     }
   }, [isAuthenticated, loading, router])
 
