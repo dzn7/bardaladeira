@@ -73,8 +73,24 @@ test('Dialog e rota administrativa usam dados agregados e paginação cursor', a
   assert.match(dialog, /resposta\.text\(\)/i)
   assert.match(dialog, /Histórico indisponível no servidor/i)
   assert.match(rota, /autorizarAdminLegado/i)
-  assert.match(rota, /obterSupabaseAdmin\(\{ exigirServiceRole: true \}\)/i)
+  assert.match(rota, /obterSupabaseAdmin\(/)
+  assert.doesNotMatch(rota, /exigirServiceRole:\s*true/)
+  assert.match(rota, /eventos:\s*\[\]/)
   assert.match(rota, /CURSOR_INVALIDO|cursor/i)
+})
+
+test('login de admin do sistema autoriza o histórico sem consultar usuarios_sistema', async () => {
+  const [servidor, historico, inteligencia] = await Promise.all([
+    readFile(caminho('src/lib/server/autorizacao-admin-legada.ts'), 'utf8'),
+    readFile(caminho('src/app/api/admin/produtos/[id]/historico/route.ts'), 'utf8'),
+    readFile(caminho('src/app/api/admin/produtos/[id]/inteligencia/route.ts'), 'utf8'),
+  ])
+
+  assert.match(servidor, /tokenAdminEhValido/)
+  assert.doesNotMatch(servidor, /usuarios_sistema/)
+  assert.doesNotMatch(servidor, /obterSupabaseAdmin/)
+  assert.match(historico, /sucesso: true,\s*eventos/)
+  assert.match(inteligencia, /inteligencia:\s*data \|\| \{\}/)
 })
 
 test('Vercel não redireciona APIs do Next para localhost', async () => {

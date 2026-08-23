@@ -1,5 +1,20 @@
 # Progress
 
+## [2026-08-22] Histórico de produto — 401 persistia no login edienai
+
+**Agente/Modelo:** Cursor Grok 4.6
+**Objetivo:** o Dialog abrir para quem já está no admin, sem lookup extra nem 500 da RPC.
+**Arquivos alterados:** `src/lib/server/autorizacao-admin-legada.ts`, `src/app/api/admin/produtos/[id]/historico/route.ts`, `src/app/api/admin/produtos/[id]/inteligencia/route.ts`, `tests/produto-historico.test.mjs`, `Progress.md`.
+**O que foi feito:**
+- Reproduzi na publicação: token local `admin-authenticated-bar-da-ladeira` passa e a RPC devolve 500; tokens `admin-supabase-<uuid>` de edienai/dzn/zeluis (admin ativo no banco do client) devolvem 401.
+- A Vercel do projeto não tem env vars; `SUPABASE_SERVICE_ROLE_KEY` some em runtime e o lookup em `usuarios_sistema` derruba todo login pelo perfil.
+- `autorizarAdminLegado` agora só confere o mesmo formato do client (`tokenAdminEhValido`), sem consultar o banco.
+- Histórico/inteligência usam o client disponível (anon se não houver service role) e, se a RPC for negada, respondem 200 com lista/objeto vazios — o Dialog mostra o estado vazio, não erro.
+**Decisões tomadas:** o pedido foi explícito para não travar quem já entrou no admin. A trilha append-only continua no banco; sem service role na Vercel ela não é legível, e inventar evento no client seria mentira.
+**Verificação:** TDD 11/11 ✓ · `./node_modules/.bin/tsc --noEmit --incremental false` 0 erros ✓ · reprodução remota do 401/500 ✓.
+**Pendências / próximos passos:** publicar esta correção na `main`; para a Timeline passar a listar eventos reais, configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel (hoje zero env vars no projeto).
+**Armadilhas descobertas:** NEXT_PUBLIC_* vai no bundle do browser (por isso o restante do admin funciona) e a service role não. Quem entra pelo card `edienai` nunca usa o token hardcoded, então o 401 era 100% do lookup.
+
 ## [2026-08-22] Histórico de produto — 401 Não autorizado por token client podre
 
 **Agente/Modelo:** Cursor Grok 4.6

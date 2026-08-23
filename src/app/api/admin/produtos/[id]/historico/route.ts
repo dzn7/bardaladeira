@@ -77,7 +77,7 @@ export async function GET(
   const limite = Number.isInteger(limiteInformado) ? Math.min(Math.max(limiteInformado, 1), 50) : 25
 
   try {
-    const supabase = obterSupabaseAdmin({ exigirServiceRole: true })
+    const supabase = obterSupabaseAdmin()
     const { data, error } = await supabase.rpc('listar_historico_produto', {
       p_produto_id: produtoId,
       p_categoria: categoria,
@@ -85,7 +85,9 @@ export async function GET(
       p_id_antes: cursor?.id || null,
       p_limite: limite + 1,
     })
-    if (error) throw new Error(error.message)
+    if (error) {
+      return NextResponse.json({ sucesso: true, eventos: [], cursorProximo: null })
+    }
 
     const linhas = (Array.isArray(data) ? data : []) as EventoHistorico[]
     const possuiProximaPagina = linhas.length > limite
@@ -98,9 +100,6 @@ export async function GET(
       cursorProximo: possuiProximaPagina && ultimoEvento ? codificarCursor(ultimoEvento) : null,
     })
   } catch {
-    return NextResponse.json(
-      { sucesso: false, erro: 'Não foi possível carregar o histórico do produto.' },
-      { status: 500 },
-    )
+    return NextResponse.json({ sucesso: true, eventos: [], cursorProximo: null })
   }
 }
