@@ -32,7 +32,11 @@ import { buscarProximoNumeroPedidoDiario, normalizarNumeroPedido, sincronizarNum
 import PainelCategoriasProduto from '@/components/admin/pedidos/novo/PainelCategoriasProduto'
 import PainelTicketPedido from '@/components/admin/pedidos/novo/PainelTicketPedido'
 import ModalItemPedidoAdmin, { type ItemPedidoModalDadosAdmin } from '@/components/admin/pedidos/novo/ModalItemPedidoAdmin'
-import { CategoriaCatalogoPedido, ItemCatalogoPedido } from '@/components/admin/pedidos/novo/tipos'
+import {
+  CategoriaCatalogoPedido,
+  ItemCatalogoPedido,
+  TipoItemCatalogoPedido,
+} from '@/components/admin/pedidos/novo/tipos'
 import { cn } from '@/lib/utils'
 import { normalizarNomeCategoria } from '@/lib/categoriasCardapio'
 import { nomeClienteParaPedido, nomeClienteParaPontoSalao } from '@/lib/nome-cliente-local.mjs'
@@ -47,7 +51,7 @@ type ProdutoSelecionado = {
   observacoes: string
   adicionais: Adicional[]
   descontoManualInput: string
-  tipo: 'produto' | 'combo'
+  tipo: TipoItemCatalogoPedido
 }
 
 type Produto = {
@@ -55,6 +59,7 @@ type Produto = {
   nome: string
   preco: number
   categoria: string
+  tipo: Exclude<TipoItemCatalogoPedido, 'combo'>
 }
 
 type ComboType = {
@@ -432,6 +437,7 @@ function NovoPedidoContent() {
         nome: p.nome,
         preco: Number(p.preco),
         categoria: p.categoria,
+        tipo: 'produto' as const,
       }))
 
       const bebidasFormatadas = (bebidasData || []).map((b) => ({
@@ -439,6 +445,7 @@ function NovoPedidoContent() {
         nome: b.nome,
         preco: Number(b.preco),
         categoria: normalizarNomeCategoria(b.categoria),
+        tipo: 'bebida' as const,
       }))
 
       const todosProdutos = [...produtosFormatados, ...bebidasFormatadas]
@@ -1284,7 +1291,7 @@ function NovoPedidoContent() {
         nome: produto.nome,
         preco: produto.preco,
         categoria: normalizarNomeCategoria(produto.categoria),
-        tipo: 'produto' as const,
+        tipo: produto.tipo,
       })),
       ...combos.map((combo) => ({
         id: combo.id,

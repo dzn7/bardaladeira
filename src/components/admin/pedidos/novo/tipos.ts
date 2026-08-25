@@ -1,4 +1,4 @@
-export type TipoItemCatalogoPedido = 'produto' | 'combo'
+export type TipoItemCatalogoPedido = 'produto' | 'bebida' | 'combo'
 
 export type ItemCatalogoPedido = {
   id: string

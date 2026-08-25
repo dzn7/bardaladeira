@@ -43,6 +43,23 @@ test('os dois fluxos administrativos usam o vinculo compartilhado', async () => 
   assert.match(editarPedido, /combo_id: item\.combo_id \|\| null/)
 })
 
+test('criadores de pedido preservam bebida fora de produto_id', async () => {
+  const [novoPedido, tiposNovoPedido, pdv, novoGarcom] = await Promise.all([
+    readFile(new URL('../src/app/admin/pedidos/novo/page.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/admin/pedidos/novo/tipos.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/admin/pdv/page.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/garcom/novo/page.tsx', import.meta.url), 'utf8'),
+  ])
+
+  assert.match(tiposNovoPedido, /TipoItemCatalogoPedido = 'produto' \| 'bebida' \| 'combo'/)
+  assert.match(novoPedido, /tipo: 'produto' as const,[\s\S]{0,500}tipo: 'bebida' as const/)
+  assert.match(novoPedido, /criarVinculoCatalogoItemPedido\(p\.tipo, p\.id\)/)
+
+  assert.match(pdv, /if \(item\.tipo === 'produto'\) insertItem\.produto_id = item\.catalogoId/)
+  assert.match(pdv, /if \(item\.tipo === 'bebida'\) insertItem\.bebida_id = item\.catalogoId/)
+  assert.match(novoGarcom, /produto_id: p\.produto_id,[\s\S]{0,100}bebida_id: p\.bebida_id/)
+})
+
 test('bloqueio de saldo insuficiente pertence somente ao pedido do site', async () => {
   const sql = await readFile(migrationBloqueioSitePath, 'utf8')
   assert.match(sql, /select p\.status, p\.origem[\s\S]+into v_status, v_origem/i)

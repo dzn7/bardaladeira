@@ -1,5 +1,21 @@
 # Progress
 
+## [2026-08-25] Novo pedido Admin — bebida não é mais enviada como produto
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** corrigir `23503 / PRODUTO_NAO_ENCONTRADO` ao salvar bebidas em `/admin/pedidos/novo` e auditar os demais fluxos que inserem itens de pedido.
+**Arquivos alterados:** `src/app/admin/pedidos/novo/page.tsx`, `src/components/admin/pedidos/novo/tipos.ts`, `tests/estoque-migration.test.mjs`, `Progress.md`.
+
+**Causa raiz:** a tela unia produtos e bebidas, mas removia o discriminador de origem. Todos os itens dessa lista eram marcados como `produto`; ao salvar uma bebida, seu UUID ia para `itens_pedido.produto_id` e o trigger de estoque recusava corretamente o vínculo inexistente.
+
+**O que foi feito:** produtos e bebidas agora preservam `tipo` desde a carga até o catálogo/carrinho; o tipo compartilhado inclui `bebida`, e o INSERT existente usa `criarVinculoCatalogoItemPedido` para preencher exatamente uma entre `produto_id`, `bebida_id` e `combo_id`. PDV, novo pedido do garçom e editor foram auditados e já mantinham os vínculos corretos.
+
+**Decisão tomada:** não alterar o trigger de estoque nem criar migration. O problema era exclusivamente o discriminador perdido no cliente; afrouxar a integridade do banco esconderia vínculos inválidos.
+
+**TDD e verificação:** o novo teste falhou primeiro por asserção ao encontrar apenas `produto | combo` e passou após a correção. Suíte `node --test tests/*.test.mjs` 54/54 (baseline 53/53), `npx tsc --noEmit --incremental false` 0 erros, build 48/48 páginas com valores públicos fictícios do Supabase e `git diff --check` limpo. `npm run lint` indisponível (`next lint` removido no Next 16). Revisão manual equivalente a bug-hunter/verification-before-completion concluída; as skills não estavam disponíveis nesta sessão.
+
+**Fora de escopo:** banco/Supabase, WebSocket, service worker e demais fluxos que já estavam corretos.
+
 ## [2026-08-22] Histórico de produto — Timeline vazia com eventos reais no banco
 
 **Agente/Modelo:** Cursor Grok 4.6
@@ -44,7 +60,6 @@
 **Verificação:** TDD estrutural 10/10 ✓ · `./node_modules/.bin/tsc --noEmit --incremental false` 0 erros ✓ · IDE diagnostics nos arquivos editados 0 ✓ · `npm run lint` permanece indisponível (`next lint` resolve o diretório `lint`) · sem verificação no browser nesta sessão.
 **Pendências / próximos passos:** recarregar o admin (ou sair e entrar de novo) para o auto-reparo rodar no localStorage; se o 401 continuar após login fresco com usuário admin ativo, o próximo alvo é o lookup em `usuarios_sistema` via service role.
 **Armadilhas descobertas:** `ProtectedRoute` tratava `admin-supabase-*` como sessão válida, enquanto o servidor exige UUID RFC; quem já tinha o token antigo do PDV (`Date.now()`) ficava "logado" na UI e tomava 401 em toda API administrativa. `npx tsc` neste worktree cai no stub do npm sem `node_modules` prévio — usar o binário local.
-
 ## [2026-08-22] Histórico de produto — resposta 404 da publicação
 
 **Agente/Modelo:** Codex GPT-5
