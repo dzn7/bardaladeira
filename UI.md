@@ -143,7 +143,7 @@ Primitivos Kibo UI disponíveis:
 | `FiltroPedidosAdmin` | `src/features/pedidos/components/FiltroPedidosAdmin.tsx` | Status + tipo — `/admin/pedidos` |
 | `FiltroEntregasAdmin` | `src/features/entregas/components/FiltroEntregasAdmin.tsx` | Período + status + entregador — `/admin/entregas` |
 | `FiltroProdutosAdmin` | `src/components/admin/produtos/FiltroProdutosAdmin.tsx` | Status / tipo / foto / categoria — `/admin/produtos` |
-| `ModalFormularioProduto` | `src/components/admin/produtos/ModalFormularioProduto.tsx` | Criar/editar produto em Dialog; produtos finais incluem custo, quantidade, mínimo e bloqueio de venda; bebidas preservam o contrato anterior |
+| `ModalFormularioProduto` | `src/components/admin/produtos/ModalFormularioProduto.tsx` | Criar/editar produto ou bebida em Dialog; ambos incluem custo, quantidade, mínimo e bloqueio de venda |
 | `DialogHistoricoProduto` | `src/components/admin/produtos/DialogHistoricoProduto.tsx` | Ícone discreto no card de produto final; desktop com Timeline e desempenho em duas colunas, filtros independentes, cursor e gráfico Chart.js; mobile usa abas Timeline/Relatórios no Drawer responsivo |
 | `ControleEstoqueProduto` | `src/components/admin/estoque/ControleEstoqueProduto.tsx` | `−` / input / `+` / Zerar; RPC atômica, otimista, rollback e lock por linha |
 | `/admin/estoque` | `src/app/admin/estoque/page.tsx` | KPIs inline, busca, pills de estado, categoria, toggle “Esgotado no site”, tabela/cards, paginação e deep-link `?produto=` |
@@ -215,9 +215,9 @@ Primitivos Kibo UI disponíveis:
 - Shell `max-w-6xl`; resumo inline Em estoque / Estoque baixo / Esgotados, sem grid de metric cards.
 - Busca normaliza acento/caixa; pills de estado + `FiltroAvancado` de categoria; tabela semântica desktop e cards mobile.
 - Ajuste rápido (`−` / input / `+` / Zerar): Enter confirma, Escape restaura, blur vazio restaura, lock somente na linha e alvos de 44px.
-- Cada produto mostra o `Interruptor` “Esgotado no site”: ligado + quantidade zero desabilita o item apenas no cardápio público; o pedido físico continua permitido.
+- Cada produto ou bebida mostra o `Interruptor` “Esgotado no site”: ligado + quantidade zero desabilita o item apenas no cardápio público; o pedido físico continua permitido.
 - Paginação 15/30/50/100; deep-link `?produto=<uuid>` destaca o produto; mutation reconcilia somente a linha alterada.
-- Quantidade do modal de produto nunca entra no `insert`/`update` geral: ela passa exclusivamente por `ajustarEstoqueProduto`.
+- Quantidade do modal nunca entra no `insert`/`update` geral: ela passa exclusivamente pela RPC atômica correspondente a produto ou bebida.
 - Histórico de produto: abrir pelo ícone `History` com `Tooltip`; não oferecer edição/exclusão de eventos. Desktop mantém Timeline (~55%) e desempenho (~45%) em colunas com cabeçalho persistente; mobile usa as abas do `Dialog` responsivo. Skeleton inicial não bloqueia a leitura do cabeçalho do produto.
 
 ### Administração mobile

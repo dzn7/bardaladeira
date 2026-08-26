@@ -16,7 +16,7 @@ import ModalPedidosCliente from '@/components/ModalPedidosCliente'
 import { AjudaPedidoPublica } from '@/components/AjudaPedidoPublica'
 import { Produto, Bebida, Combo, supabase } from '@/lib/supabase'
 import type { CategoriaCardapio } from '@/lib/supabase'
-import { COLUNAS_ESTOQUE_PUBLICO } from '@/lib/estoque'
+import { COLUNAS_ESTOQUE_BEBIDAS_PUBLICO, COLUNAS_ESTOQUE_PUBLICO } from '@/lib/estoque'
 import {
   avaliarCompraProduto,
   mensagemAvaliacaoCompra,
@@ -190,7 +190,7 @@ export default function Home() {
     try {
       let consulta = supabase
         .from('bebidas')
-        .select('*')
+        .select(COLUNAS_ESTOQUE_BEBIDAS_PUBLICO)
         .eq('disponivel', true)
 
       if (modoOrdenacao === 'manual') {

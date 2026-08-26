@@ -193,37 +193,35 @@ export const ModalFormularioProduto = ({
       proximosErros.preco = 'Informe um preço de venda válido.'
     }
 
-    if (!ehBebida) {
-      try {
-        normalizarDinheiro(custoUnitario, { opcional: true })
-      } catch {
-        proximosErros.custo = 'Informe um custo válido ou deixe em branco.'
-      }
+    try {
+      normalizarDinheiro(custoUnitario, { opcional: true })
+    } catch {
+      proximosErros.custo = 'Informe um custo válido ou deixe em branco.'
+    }
 
-      try {
-        normalizarConfiguracaoEstoque({
-          quantidade: quantidadeEstoque,
-          minimo: estoqueMinimo,
-          bloquear: bloquearVendaSemEstoque,
-        })
-      } catch {
-        if (quantidadeEstoque.trim() === '') {
-          proximosErros.quantidade = 'Informe a quantidade. Zero é válido; vazio não zera.'
-        } else {
-          try {
-            normalizarConfiguracaoEstoque({ quantidade: quantidadeEstoque, minimo: 0 })
-          } catch {
-            proximosErros.quantidade = 'Quantidade deve ser um inteiro não negativo.'
-          }
+    try {
+      normalizarConfiguracaoEstoque({
+        quantidade: quantidadeEstoque,
+        minimo: estoqueMinimo,
+        bloquear: bloquearVendaSemEstoque,
+      })
+    } catch {
+      if (quantidadeEstoque.trim() === '') {
+        proximosErros.quantidade = 'Informe a quantidade. Zero é válido; vazio não zera.'
+      } else {
+        try {
+          normalizarConfiguracaoEstoque({ quantidade: quantidadeEstoque, minimo: 0 })
+        } catch {
+          proximosErros.quantidade = 'Quantidade deve ser um inteiro não negativo.'
         }
-        if (estoqueMinimo.trim() === '') {
-          proximosErros.minimo = 'Informe o estoque mínimo. Zero é válido.'
-        } else {
-          try {
-            normalizarConfiguracaoEstoque({ quantidade: 0, minimo: estoqueMinimo })
-          } catch {
-            proximosErros.minimo = 'Estoque mínimo deve ser um inteiro não negativo.'
-          }
+      }
+      if (estoqueMinimo.trim() === '') {
+        proximosErros.minimo = 'Informe o estoque mínimo. Zero é válido.'
+      } else {
+        try {
+          normalizarConfiguracaoEstoque({ quantidade: 0, minimo: estoqueMinimo })
+        } catch {
+          proximosErros.minimo = 'Estoque mínimo deve ser um inteiro não negativo.'
         }
       }
     }
@@ -474,11 +472,10 @@ export const ModalFormularioProduto = ({
             ) : null}
           </div>
 
-          {!ehBebida ? (
-            <div className="space-y-3 rounded-xl border border-border/60 p-3">
+          <div className="space-y-3 rounded-xl border border-border/60 p-3">
               <div>
                 <p className="text-sm font-medium">Estoque</p>
-                <p className="text-xs text-muted-foreground">Somente produtos finais. Controle operacional, não segurança.</p>
+                <p className="text-xs text-muted-foreground">Produtos e bebidas. Controle operacional, não segurança.</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -536,8 +533,7 @@ export const ModalFormularioProduto = ({
                   aria-label="Mostrar como esgotado no site quando acabar"
                 />
               </div>
-            </div>
-          ) : null}
+          </div>
 
           {modo === 'editar' ? (
             <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-3">

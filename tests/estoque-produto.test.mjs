@@ -90,7 +90,7 @@ test('normaliza dinheiro com virgula ou ponto e arredonda em centavos', () => {
   assert.throws(() => normalizarDinheiro('NaN'), /monetário/i)
 })
 
-test('campos de custo e estoque pertencem somente a produtos', () => {
+test('campos de custo e estoque pertencem a produtos e bebidas', () => {
   const campos = camposEstoqueParaCatalogo('produto', {
     custoUnitario: '12,345',
     quantidade: '4',
@@ -103,7 +103,17 @@ test('campos de custo e estoque pertencem somente a produtos', () => {
     estoque_minimo: 1,
     bloquear_venda_sem_estoque: true,
   })
-  assert.deepEqual(camposEstoqueParaCatalogo('bebida', campos), {})
+  assert.deepEqual(camposEstoqueParaCatalogo('bebida', {
+    custoUnitario: '7,50',
+    quantidade: '12',
+    minimo: '3',
+    bloquear: true,
+  }), {
+    custo_unitario: '7.50',
+    estoque_quantidade: 12,
+    estoque_minimo: 3,
+    bloquear_venda_sem_estoque: true,
+  })
   assert.deepEqual(camposEstoqueParaCatalogo('combo', campos), {})
 })
 
@@ -121,7 +131,19 @@ test('persistencia de catalogo omite quantidade para ir via RPC', () => {
       bloquear_venda_sem_estoque: false,
     },
   )
-  assert.deepEqual(camposEstoqueParaPersistenciaCatalogo('bebida', { quantidade: 4 }), {})
+  assert.deepEqual(
+    camposEstoqueParaPersistenciaCatalogo('bebida', {
+      custoUnitario: '',
+      quantidade: 4,
+      minimo: 2,
+      bloquear: false,
+    }),
+    {
+      custo_unitario: null,
+      estoque_minimo: 2,
+      bloquear_venda_sem_estoque: false,
+    },
+  )
 })
 
 test('busca de estoque ignora acento e caixa em nome e categoria', () => {

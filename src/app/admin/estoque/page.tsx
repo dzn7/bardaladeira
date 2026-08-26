@@ -34,7 +34,7 @@ import {
   type ProdutoComEstoque,
   type SituacaoEstoque,
 } from '@/lib/estoque'
-import { produtoCorrespondeBuscaEstoque } from '@/lib/estoque-produto.mjs'
+import { combinarItensEstoque, produtoCorrespondeBuscaEstoque } from '@/lib/estoque-produto.mjs'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
@@ -68,19 +68,27 @@ const PainelEstoque = () => {
   const [itensPorPagina, setItensPorPagina] = useState<number>(LIMITE_PADRAO)
   const [produtoDestacado, setProdutoDestacado] = useState<string | null>(null)
   const [produtoSalvandoBloqueio, setProdutoSalvandoBloqueio] = useState<string | null>(null)
-  const canalIdRef = useRef(`estoque-produtos-${Math.random().toString(36).slice(2)}`)
+  const canalIdRef = useRef(`estoque-catalogo-${Math.random().toString(36).slice(2)}`)
   const deepLinkAplicadoRef = useRef<string | null>(null)
 
   const carregarProdutos = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true)
     setErro(null)
     try {
-      const { data, error } = await supabase
-        .from('produtos')
-        .select(COLUNAS_ESTOQUE_ADMIN)
-        .order('nome', { ascending: true })
-      if (error) throw error
-      setProdutos((data || []).map((linha) => mapearLinhaEstoque(linha as Record<string, unknown>)))
+      const [consultaProdutos, consultaBebidas] = await Promise.all([
+        supabase.from('produtos').select(COLUNAS_ESTOQUE_ADMIN).order('nome', { ascending: true }),
+        supabase.from('bebidas').select(COLUNAS_ESTOQUE_ADMIN).order('nome', { ascending: true }),
+      ])
+      if (consultaProdutos.error) throw consultaProdutos.error
+      if (consultaBebidas.error) throw consultaBebidas.error
+      setProdutos(combinarItensEstoque(
+        (consultaProdutos.data || []).map((linha) =>
+          mapearLinhaEstoque(linha as Record<string, unknown>, 'produtos'),
+        ),
+        (consultaBebidas.data || []).map((linha) =>
+          mapearLinhaEstoque(linha as Record<string, unknown>, 'bebidas'),
+        ),
+      ))
     } catch (falha) {
       console.error('[Estoque] Falha ao carregar produtos:', falha)
       setErro('Não foi possível carregar o estoque. Tente novamente.')
@@ -99,24 +107,36 @@ const PainelEstoque = () => {
   }, [buscaDigitada])
 
   useEffect(() => {
+    const aplicarMudanca = (payload: { eventType: string; old: unknown; new: unknown }, tabela: 'produtos' | 'bebidas') => {
+      const evento = payload.eventType
+      if (evento === 'DELETE') {
+        const idRemovido = String((payload.old as { id?: string } | null)?.id || '')
+        if (!idRemovido) return
+        setProdutos((atual) => atual.filter((produto) => !(produto.id === idRemovido && produto.tabela === tabela)))
+        return
+      }
+      const linha = payload.new as Record<string, unknown> | null
+      if (!linha?.id) return
+      const atualizado = mapearLinhaEstoque(linha, tabela)
+      setProdutos((atual) => {
+        const existe = atual.some((produto) => produto.id === atualizado.id && produto.tabela === tabela)
+        if (!existe) return combinarItensEstoque(
+          tabela === 'produtos' ? [...atual.filter((item) => item.tabela === 'produtos'), atualizado] : atual.filter((item) => item.tabela === 'produtos'),
+          tabela === 'bebidas' ? [...atual.filter((item) => item.tabela === 'bebidas'), atualizado] : atual.filter((item) => item.tabela === 'bebidas'),
+        )
+        return atual.map((produto) =>
+          produto.id === atualizado.id && produto.tabela === tabela ? { ...produto, ...atualizado } : produto,
+        )
+      })
+    }
+
     const canal = supabase
       .channel(canalIdRef.current)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, (payload) => {
-        const evento = payload.eventType
-        if (evento === 'DELETE') {
-          const idRemovido = String((payload.old as { id?: string } | null)?.id || '')
-          if (!idRemovido) return
-          setProdutos((atual) => atual.filter((produto) => produto.id !== idRemovido))
-          return
-        }
-        const linha = payload.new as Record<string, unknown> | null
-        if (!linha?.id) return
-        const atualizado = mapearLinhaEstoque(linha)
-        setProdutos((atual) => {
-          const existe = atual.some((produto) => produto.id === atualizado.id)
-          if (!existe) return [...atual, atualizado]
-          return atual.map((produto) => (produto.id === atualizado.id ? { ...produto, ...atualizado } : produto))
-        })
+        aplicarMudanca(payload, 'produtos')
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bebidas' }, (payload) => {
+        aplicarMudanca(payload, 'bebidas')
       })
       .subscribe()
 
@@ -197,10 +217,16 @@ const PainelEstoque = () => {
     }
   }, [produtoDestacado, paginaSegura, produtosPagina])
 
-  const handleQuantidadeConfirmada = (produtoId: string, quantidade: number) => {
+  const handleQuantidadeConfirmada = (
+    produtoId: string,
+    tabela: ProdutoComEstoque['tabela'],
+    quantidade: number,
+  ) => {
     setProdutos((atual) =>
       atual.map((produto) =>
-        produto.id === produtoId ? { ...produto, estoque_quantidade: quantidade } : produto,
+        produto.id === produtoId && produto.tabela === tabela
+          ? { ...produto, estoque_quantidade: quantidade }
+          : produto,
       ),
     )
   }
@@ -210,12 +236,14 @@ const PainelEstoque = () => {
     setProdutoSalvandoBloqueio(produto.id)
     setProdutos((atual) =>
       atual.map((item) =>
-        item.id === produto.id ? { ...item, bloquear_venda_sem_estoque: bloquear } : item,
+        item.id === produto.id && item.tabela === produto.tabela
+          ? { ...item, bloquear_venda_sem_estoque: bloquear }
+          : item,
       ),
     )
     try {
       const { error } = await supabase
-        .from('produtos')
+        .from(produto.tabela)
         .update({ bloquear_venda_sem_estoque: bloquear })
         .eq('id', produto.id)
       if (error) throw error
@@ -223,7 +251,7 @@ const PainelEstoque = () => {
     } catch (falha) {
       setProdutos((atual) =>
         atual.map((item) =>
-          item.id === produto.id
+          item.id === produto.id && item.tabela === produto.tabela
             ? { ...item, bloquear_venda_sem_estoque: produto.bloquear_venda_sem_estoque }
             : item,
         ),
@@ -252,9 +280,12 @@ const PainelEstoque = () => {
   const renderControles = (produto: ProdutoComEstoque) => (
     <ControleEstoqueProduto
       produtoId={produto.id}
+      tabela={produto.tabela}
       quantidade={produto.estoque_quantidade}
       nomeProduto={produto.nome}
-      onQuantidadeConfirmada={(quantidade) => handleQuantidadeConfirmada(produto.id, quantidade)}
+      onQuantidadeConfirmada={(quantidade) =>
+        handleQuantidadeConfirmada(produto.id, produto.tabela, quantidade)
+      }
     />
   )
 

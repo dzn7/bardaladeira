@@ -97,7 +97,7 @@ type Produto = {
   imagem_url?: string
   disponivel: boolean
   ordem?: number | null
-  tabela?: string
+  tabela?: 'produtos' | 'bebidas'
   custo_unitario?: number | null
   estoque_quantidade?: number
   estoque_minimo?: number
@@ -360,6 +360,10 @@ export default function ProdutosPage() {
         imagem_url: bebida.imagem_url,
         disponivel: bebida.disponivel,
         ordem: bebida.ordem,
+        custo_unitario: bebida.custo_unitario,
+        estoque_quantidade: bebida.estoque_quantidade,
+        estoque_minimo: bebida.estoque_minimo,
+        bloquear_venda_sem_estoque: bebida.bloquear_venda_sem_estoque,
         tabela: 'bebidas'
       }))
 
@@ -1161,17 +1165,14 @@ export default function ProdutosPage() {
       } catch {
         throw new Error('Informe um preço de venda válido.')
       }
-      const camposEstoque = isBebida
-        ? {}
-        : camposEstoqueParaPersistenciaCatalogo('produto', {
+      const tipoCatalogo = isBebida ? 'bebida' : 'produto'
+      const camposEstoque = camposEstoqueParaPersistenciaCatalogo(tipoCatalogo, {
             custoUnitario: dados.custoUnitario,
             quantidade: dados.quantidadeEstoque,
             minimo: dados.estoqueMinimo,
             bloquear: dados.bloquearVendaSemEstoque,
           })
-      const quantidadeInicial = isBebida
-        ? null
-        : camposEstoqueParaCatalogo('produto', {
+      const quantidadeInicial = camposEstoqueParaCatalogo(tipoCatalogo, {
             custoUnitario: dados.custoUnitario,
             quantidade: dados.quantidadeEstoque,
             minimo: dados.estoqueMinimo,
@@ -1186,6 +1187,7 @@ export default function ProdutosPage() {
           categoria: categoriaNormalizadaNovoProduto || categoriaBebidasAtual,
           ordem: proximaOrdem,
           disponivel: true,
+          ...camposEstoque,
         }
         : {
           nome: dados.nome,
@@ -1205,9 +1207,9 @@ export default function ProdutosPage() {
 
       if (erroCriacao) throw erroCriacao
 
-      if (!isBebida && produtoCriado && typeof quantidadeInicial === 'number') {
+      if (produtoCriado && typeof quantidadeInicial === 'number') {
         try {
-          await ajustarEstoqueProduto({ produtoId: produtoCriado.id, quantidade: quantidadeInicial })
+          await ajustarEstoqueProduto({ produtoId: produtoCriado.id, tabela, quantidade: quantidadeInicial })
         } catch (erroEstoque) {
           toast.error(
             erroEstoque instanceof ErroEstoque
@@ -1308,17 +1310,14 @@ export default function ProdutosPage() {
       ? precoNumero * (1 - descontoNumero / 100)
       : precoNumero
     const categoriaNormalizada = normalizarNomeCategoria(dados.categoria) || produto.categoria
-    const camposEstoque = tabela === 'bebidas'
-      ? {}
-      : camposEstoqueParaPersistenciaCatalogo('produto', {
+    const tipoCatalogo = tabela === 'bebidas' ? 'bebida' : 'produto'
+    const camposEstoque = camposEstoqueParaPersistenciaCatalogo(tipoCatalogo, {
           custoUnitario: dados.custoUnitario,
           quantidade: dados.quantidadeEstoque,
           minimo: dados.estoqueMinimo,
           bloquear: dados.bloquearVendaSemEstoque,
         })
-    const quantidadeAlvo = tabela === 'bebidas'
-      ? null
-      : camposEstoqueParaCatalogo('produto', {
+    const quantidadeAlvo = camposEstoqueParaCatalogo(tipoCatalogo, {
           custoUnitario: dados.custoUnitario,
           quantidade: dados.quantidadeEstoque,
           minimo: dados.estoqueMinimo,
@@ -1336,6 +1335,7 @@ export default function ProdutosPage() {
               preco_original: descontoNumero > 0 ? precoNumero : null,
               desconto: descontoNumero > 0 ? descontoNumero : null,
               disponivel: dados.disponivel,
+              ...camposEstoque,
             }
           : {
               nome: dados.nome.trim(),
@@ -1352,8 +1352,8 @@ export default function ProdutosPage() {
       if (error) throw error
 
       let quantidadeConfirmada = produto.estoque_quantidade ?? 0
-      if (tabela !== 'bebidas' && typeof quantidadeAlvo === 'number') {
-        quantidadeConfirmada = await ajustarEstoqueProduto({ produtoId: produto.id, quantidade: quantidadeAlvo })
+      if (typeof quantidadeAlvo === 'number') {
+        quantidadeConfirmada = await ajustarEstoqueProduto({ produtoId: produto.id, tabela, quantidade: quantidadeAlvo })
       }
 
       if (tabela !== 'bebidas' && categoriaNormalizada !== produto.categoria) {
@@ -1372,17 +1372,13 @@ export default function ProdutosPage() {
                     desconto: descontoNumero > 0 ? descontoNumero : null,
                     categoria: tabela === 'bebidas' ? item.categoria : categoriaNormalizada,
                     disponivel: dados.disponivel,
-                    ...(tabela === 'bebidas'
-                      ? {}
-                      : {
-                          custo_unitario:
-                            dados.custoUnitario.trim() === ''
-                              ? null
-                              : Number(camposEstoque.custo_unitario),
-                          estoque_quantidade: quantidadeConfirmada,
-                          estoque_minimo: Number(camposEstoque.estoque_minimo),
-                          bloquear_venda_sem_estoque: dados.bloquearVendaSemEstoque,
-                        }),
+                    custo_unitario:
+                      dados.custoUnitario.trim() === ''
+                        ? null
+                        : Number(camposEstoque.custo_unitario),
+                    estoque_quantidade: quantidadeConfirmada,
+                    estoque_minimo: Number(camposEstoque.estoque_minimo),
+                    bloquear_venda_sem_estoque: dados.bloquearVendaSemEstoque,
                   }
                 : item
             ),

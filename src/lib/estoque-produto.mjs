@@ -99,7 +99,7 @@ export const normalizarDinheiro = (valor, { opcional = false } = {}) => {
 }
 
 export const camposEstoqueParaCatalogo = (tipoCatalogo, configuracao) => {
-  if (tipoCatalogo !== 'produto') return {}
+  if (tipoCatalogo !== 'produto' && tipoCatalogo !== 'bebida') return {}
   const estoque = normalizarConfiguracaoEstoque(configuracao)
   return {
     custo_unitario: normalizarDinheiro(configuracao.custoUnitario, { opcional: true }),
@@ -133,6 +133,11 @@ export const produtoCorrespondeBuscaEstoque = (produto, termo) => {
     || normalizarTextoBusca(produto?.categoria).includes(busca)
   )
 }
+
+export const combinarItensEstoque = (produtos = [], bebidas = []) => [
+  ...(Array.isArray(produtos) ? produtos : []).map((produto) => ({ ...produto, tabela: 'produtos' })),
+  ...(Array.isArray(bebidas) ? bebidas : []).map((bebida) => ({ ...bebida, tabela: 'bebidas' })),
+].sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'))
 
 export const somarQuantidadeProdutoNoCarrinho = (itens, produtoId) =>
   (Array.isArray(itens) ? itens : []).reduce((total, item) => {

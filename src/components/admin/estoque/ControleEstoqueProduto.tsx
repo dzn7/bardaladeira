@@ -21,6 +21,7 @@ import { useNotificacoesAdmin } from '@/features/notificacoes'
 
 type ControleEstoqueProdutoProps = {
   produtoId: string
+  tabela?: 'produtos' | 'bebidas'
   quantidade: number
   nomeProduto?: string
   desabilitado?: boolean
@@ -36,6 +37,7 @@ const parsearInteiroNaoNegativo = (valor: string) => {
 
 export const ControleEstoqueProduto = ({
   produtoId,
+  tabela = 'produtos',
   quantidade,
   nomeProduto,
   desabilitado = false,
@@ -74,7 +76,7 @@ export const ControleEstoqueProduto = ({
     setTexto(String(previa))
     setOcupado(true)
     try {
-      const confirmada = await ajustarEstoqueProduto({ produtoId, ...ajuste })
+      const confirmada = await ajustarEstoqueProduto({ produtoId, tabela, ...ajuste })
       reconciliar(confirmada)
       void invalidarNotificacoes().catch(() => undefined)
     } catch (erro) {

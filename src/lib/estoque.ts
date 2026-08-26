@@ -10,6 +10,9 @@ export const COLUNAS_ESTOQUE_ADMIN =
 export const COLUNAS_ESTOQUE_PUBLICO =
   'id, nome, descricao, preco, preco_original, desconto, categoria, imagem_url, disponivel, ordem, destaque, created_at, updated_at, estoque_quantidade, bloquear_venda_sem_estoque'
 
+export const COLUNAS_ESTOQUE_BEBIDAS_PUBLICO =
+  'id, nome, descricao, preco, preco_original, desconto, categoria, imagem_url, disponivel, ordem, created_at, updated_at, tamanho, estoque_quantidade, bloquear_venda_sem_estoque'
+
 export type SituacaoEstoque = 'em_estoque' | 'baixo' | 'esgotado'
 
 export type ProdutoComEstoque = {
@@ -23,6 +26,7 @@ export type ProdutoComEstoque = {
   bloquear_venda_sem_estoque: boolean
   disponivel?: boolean
   imagem_url?: string | null
+  tabela: 'produtos' | 'bebidas'
 }
 
 export const rotuloSituacaoEstoque = (situacao: SituacaoEstoque) => {
@@ -42,7 +46,10 @@ const inteiroOuPadrao = (valor: unknown, padrao: number) => {
   return Number.isInteger(numero) && numero >= 0 ? numero : padrao
 }
 
-export const mapearLinhaEstoque = (linha: Record<string, unknown>): ProdutoComEstoque => ({
+export const mapearLinhaEstoque = (
+  linha: Record<string, unknown>,
+  tabela: ProdutoComEstoque['tabela'] = 'produtos',
+): ProdutoComEstoque => ({
   id: String(linha.id || ''),
   nome: String(linha.nome || ''),
   categoria: String(linha.categoria || ''),
@@ -56,6 +63,7 @@ export const mapearLinhaEstoque = (linha: Record<string, unknown>): ProdutoComEs
   bloquear_venda_sem_estoque: linha.bloquear_venda_sem_estoque === true,
   disponivel: linha.disponivel !== false,
   imagem_url: typeof linha.imagem_url === 'string' ? linha.imagem_url : null,
+  tabela,
 })
 
 export const formatarMoedaEstoque = (valor: number | null | undefined) => {
@@ -64,8 +72,8 @@ export const formatarMoedaEstoque = (valor: number | null | undefined) => {
 }
 
 export type AjusteEstoqueProduto =
-  | { produtoId: string; delta: number; quantidade?: never }
-  | { produtoId: string; quantidade: number; delta?: never }
+  | { produtoId: string; tabela?: 'produtos' | 'bebidas'; delta: number; quantidade?: never }
+  | { produtoId: string; tabela?: 'produtos' | 'bebidas'; quantidade: number; delta?: never }
 
 export class ErroEstoque extends Error {
   readonly causa: unknown
@@ -84,10 +92,17 @@ export async function ajustarEstoqueProduto(ajuste: AjusteEstoqueProduto): Promi
     throw new ErroEstoque(new Error('O ajuste de estoque deve usar um número inteiro válido'))
   }
 
-  const nomeRpc = usaDelta ? 'ajustar_estoque_produto' : 'definir_estoque_produto'
-  const parametros = usaDelta
-    ? { p_produto_id: ajuste.produtoId, p_delta: valor }
-    : { p_produto_id: ajuste.produtoId, p_quantidade: valor }
+  const bebida = ajuste.tabela === 'bebidas'
+  const nomeRpc = bebida
+    ? (usaDelta ? 'ajustar_estoque_bebida' : 'definir_estoque_bebida')
+    : (usaDelta ? 'ajustar_estoque_produto' : 'definir_estoque_produto')
+  const parametros = bebida
+    ? (usaDelta
+        ? { p_bebida_id: ajuste.produtoId, p_delta: valor }
+        : { p_bebida_id: ajuste.produtoId, p_quantidade: valor })
+    : (usaDelta
+        ? { p_produto_id: ajuste.produtoId, p_delta: valor }
+        : { p_produto_id: ajuste.produtoId, p_quantidade: valor })
   const { data, error } = await supabase.rpc(nomeRpc, parametros)
 
   if (error) throw new ErroEstoque(error)

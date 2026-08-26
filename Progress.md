@@ -1,5 +1,21 @@
 # Progress
 
+## [2026-08-25] Estoque completo — produtos e bebidas
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** fazer o estoque e o modal de Produtos abrangerem também bebidas, corrigir o `PGRST204` ao salvar Skol e restabelecer as rotas server-side do Supabase.
+**Arquivos alterados:** `specs/estoque-catalogo-completo.md`, `supabase/migrations/20260825233500_estoque_bebidas_catalogo.sql`, `src/lib/estoque-produto.mjs`, `src/lib/estoque.ts`, `src/app/admin/estoque/page.tsx`, `src/components/admin/estoque/ControleEstoqueProduto.tsx`, `src/app/admin/produtos/page.tsx`, `src/components/admin/produtos/ModalFormularioProduto.tsx`, `src/app/page.tsx`, testes, `PRD.md`, `UI.md`, `Progress.md`.
+
+**Causa raiz:** `/admin/estoque` consultava apenas `produtos`, mas Skol pertence a `bebidas`; o modal ocultava estoque para bebidas e enviava `desconto`/`preco_original` a uma tabela sem essas colunas. As três APIs 500 não tinham credenciais válidas no ambiente Production da Vercel.
+
+**O que foi feito:** a listagem une produtos e bebidas preservando a tabela de origem; busca/filtros/paginação operam sobre o catálogo completo. Bebidas ganharam promoção, custo e estoque com constraints, RPCs atômicas e consumo/restauração por `bebida_id`. O modal e o cardápio público usam os mesmos campos. URL, anon e service role foram configuradas como variáveis sensíveis apenas no ambiente Production da Vercel.
+
+**Decisões tomadas:** “todos os itens” foi enquadrado como os dois tipos administrados no painel de Produtos (16 produtos + 13 bebidas); combos estão vazios e adicionais não são itens vendáveis isolados. Não houve backfill inventado: bebidas existentes começaram com saldo 0, mínimo 5, bloqueio desligado e custo desconhecido.
+
+**TDD e verificação:** RED com 6 falhas (export/migration ausentes e bebida rejeitada pelo domínio); GREEN focado 18/18. Migration executada primeiro em `BEGIN … ROLLBACK` com RPC, reserva, cancelamento e reabertura de bebida; depois aplicada via Supabase Management API e conferida no registro da Skol. Suíte completa 65/65, TypeScript 0 erros e build 48/48 com credenciais somente em memória; HTTP publicado e diff final são registrados na entrega.
+
+**Fora de escopo:** estoque próprio de combos/adicionais, avisos Radix de foco/`aria-hidden` e remediação geral dos grants legados.
+
 ## [2026-08-25] Novo pedido Admin — bebida não é mais enviada como produto
 
 **Agente/Modelo:** Codex GPT-5
