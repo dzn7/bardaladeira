@@ -134,6 +134,8 @@ const OPCOES_PAGAMENTO_PEDIDO = [
   { valor: 'Crediário', label: 'Crediário', icone: Wallet },
 ]
 
+const CHAVE_ENTREGAS_ONLINE = 'entregas_online_ativas'
+
 const normalizarInputMonetario = (valor: string) => {
   const valorLimpo = valor.replace(',', '.').replace(/[^\d.]/g, '')
   if (!valorLimpo) return ''
@@ -271,6 +273,9 @@ function NovoPedidoContent() {
   const [mesaSelecionada, setMesaSelecionada] = useState<number | null>(null)
   const [comandaSelecionada, setComandaSelecionada] = useState<number | null>(null)
   const [loadingMesas, setLoadingMesas] = useState(false)
+  const [mesasCarregadasComSucesso, setMesasCarregadasComSucesso] = useState(false)
+  const [entregasOnlineAtivas, setEntregasOnlineAtivas] = useState(true)
+  const [carregandoConfigEntrega, setCarregandoConfigEntrega] = useState(true)
   const [taxaServicoAtivaPadrao, setTaxaServicoAtivaPadrao] = useState(false)
   const [aplicarTaxaServico, setAplicarTaxaServico] = useState(false)
   const [percentualTaxaServico, setPercentualTaxaServico] = useState('10')
@@ -313,6 +318,7 @@ function NovoPedidoContent() {
     carregarAdicionais()
     carregarBairros()
     carregarMesas()
+    carregarConfigEntrega()
     carregarConfiguracaoTaxaServico()
 
     const mesaParam = searchParams.get('mesa')
@@ -551,6 +557,23 @@ function NovoPedidoContent() {
     }
   }
 
+  const carregarConfigEntrega = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('configuracoes_loja')
+        .select('valor')
+        .eq('chave', CHAVE_ENTREGAS_ONLINE)
+        .maybeSingle()
+
+      if (error) throw error
+      setEntregasOnlineAtivas((data?.valor ?? 'true') !== 'false')
+    } catch (error) {
+      console.error('[Admin] Erro ao carregar configuração de entregas:', error)
+    } finally {
+      setCarregandoConfigEntrega(false)
+    }
+  }
+
   const carregarMesas = async () => {
     setLoadingMesas(true)
     try {
@@ -572,6 +595,7 @@ function NovoPedidoContent() {
         nome_cliente: mesa.nome_cliente,
         identificador: mesa.identificador,
       })))
+      setMesasCarregadasComSucesso(true)
     } catch (error) {
       console.error('[Admin] Erro ao carregar mesas:', error)
     } finally {
@@ -712,6 +736,24 @@ function NovoPedidoContent() {
     () => mesasDisponiveis.filter((registro) => registro.tipo === 'local_externo'),
     [mesasDisponiveis]
   )
+
+  const temPontoSalaoCadastrado = mesasDisponiveis.length > 0
+  const mostrarOpcoesSalao = !mesasCarregadasComSucesso || temPontoSalaoCadastrado
+
+  useEffect(() => {
+    if (
+      loadingMesas ||
+      carregandoConfigEntrega ||
+      !mesasCarregadasComSucesso ||
+      temPontoSalaoCadastrado ||
+      entregasOnlineAtivas
+    ) return
+
+    setTipoEntrega('retirada')
+    setMesaSelecionada(null)
+    setComandaSelecionada(null)
+    setEtapaMobile((etapaAtual) => etapaAtual === 'salao' ? 'produtos' : etapaAtual)
+  }, [carregandoConfigEntrega, entregasOnlineAtivas, loadingMesas, mesasCarregadasComSucesso, temPontoSalaoCadastrado])
 
   const pontosSalaoAtivos = modoSalao === 'mesa'
     ? mesasCadastradas
@@ -1666,8 +1708,13 @@ function NovoPedidoContent() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              {([
+            <div className={cn(
+              'grid gap-2',
+              mostrarOpcoesSalao
+                ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+                : entregasOnlineAtivas ? 'grid-cols-2' : 'grid-cols-1',
+            )}>
+              {mostrarOpcoesSalao && ([
                 { id: 'mesa' as const, label: 'Mesa', hint: 'Consumo no local' },
                 { id: 'comanda' as const, label: 'Comanda', hint: 'Atendimento aberto' },
                 { id: 'local_externo' as const, label: 'Parceiro', hint: 'Bar próximo' },
@@ -1697,8 +1744,8 @@ function NovoPedidoContent() {
               })}
 
               {([
-                { id: 'entrega', label: 'Entrega', hint: 'Com endereço' },
-                { id: 'retirada', label: 'Retirada', hint: 'Balcão' },
+                ...(entregasOnlineAtivas ? [{ id: 'entrega' as const, label: 'Entrega', hint: 'Com endereço' }] : []),
+                { id: 'retirada' as const, label: 'Retirada', hint: 'Balcão' },
               ]).map((opcao) => {
                 const ativa = tipoEntrega === opcao.id
                 return (
@@ -1909,8 +1956,13 @@ function NovoPedidoContent() {
                 )}
               </div>
 
-              <div className="grid grid-cols-5 gap-1.5">
-                {([
+              <div className={cn(
+                'grid gap-1.5',
+                mostrarOpcoesSalao
+                  ? 'grid-cols-5'
+                  : entregasOnlineAtivas ? 'grid-cols-2' : 'grid-cols-1',
+              )}>
+                {mostrarOpcoesSalao && ([
                   { id: 'mesa' as const, label: 'Mesa', hint: 'No local' },
                   { id: 'comanda' as const, label: 'Comanda', hint: 'Aberta' },
                   { id: 'local_externo' as const, label: 'Parceiro', hint: 'Bar próximo' },
@@ -1936,8 +1988,8 @@ function NovoPedidoContent() {
                   )
                 })}
                 {([
-                  { id: 'entrega', label: 'Entrega', hint: 'Com endereço' },
-                  { id: 'retirada', label: 'Retirada', hint: 'Balcão' },
+                  ...(entregasOnlineAtivas ? [{ id: 'entrega' as const, label: 'Entrega', hint: 'Com endereço' }] : []),
+                  { id: 'retirada' as const, label: 'Retirada', hint: 'Balcão' },
                 ] as const).map((opcao) => {
                   const ativa = tipoEntrega === opcao.id
                   return (
@@ -2124,7 +2176,7 @@ function NovoPedidoContent() {
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="mb-1.5 block text-sm font-medium text-foreground" htmlFor="nome-cliente-novo">
                       Nome do cliente *
                     </label>
@@ -2141,7 +2193,7 @@ function NovoPedidoContent() {
                         placeholder={tipoEntrega === 'local' ? `Ex: ${obterNomeTipoPontoSalaoCapitalizado(modoSalao)} 3` : 'Digite o nome'}
                         aria-invalid={campoErro === 'nome'}
                         className={cn(
-                          'h-10 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60',
+                          'h-11 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60',
                           campoErro === 'nome' ? 'border-destructive' : 'border-border/70',
                         )}
                       />
@@ -2149,7 +2201,7 @@ function NovoPedidoContent() {
                         <button
                           type="button"
                           onClick={() => setNomeCliente(pontoSalaoSelecionado ? rotuloPontoSalaoSelecionado : obterNomeTipoPontoSalaoCapitalizado(modoSalao))}
-                          className="h-10 shrink-0 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                          className="h-11 shrink-0 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                         >
                           {obterNomeTipoPontoSalaoCapitalizado(modoSalao)}
                         </button>
@@ -2157,7 +2209,7 @@ function NovoPedidoContent() {
                         <button
                           type="button"
                           onClick={() => setNomeCliente('Cliente')}
-                          className="h-10 shrink-0 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                          className="h-11 shrink-0 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                         >
                           Cliente
                         </button>

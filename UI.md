@@ -259,6 +259,8 @@ Primitivos Kibo UI disponíveis:
 - Mobile: stepper 4 etapas (Local/Entrega/Retirada → Itens → Pessoa → Resumo); prévia do carrinho na etapa Itens; barra fixa com total + CTA.
 - Catálogo: 1 toque adiciona/incrementa; botão Personalizar abre modal (obs./desconto).
 - Tipo de atendimento só no card/etapa de atendimento (chip-resumo + Trocar nos dados — sem `<select>` duplicado).
+- Sem mesa, comanda ou parceiro cadastrado, o atendimento mostra somente Entrega (quando `entregas_online_ativas` não for `false`) e Retirada; se entrega estiver desligada, Retirada é selecionada e o mobile avança direto para Itens.
+- O campo manual de nome do cliente ocupa a largura completa do card de Cliente e usa alvo de 44 px.
 - Tokens Juridiq em todos os cards; campos inválidos com `border-destructive` / `aria-invalid` e scroll ao foco.
 - Observação geral do pedido no resumo (grava `pedidos.observacoes`).
 

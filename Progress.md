@@ -1,5 +1,21 @@
 # Progress
 
+## [2026-08-27] Novo pedido sem pontos de salão
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** simplificar os canais do novo pedido quando não existem mesas, comandas ou parceiros e ampliar o campo manual de nome do cliente.
+**Arquivos alterados:** `src/app/admin/pedidos/novo/page.tsx`, `UI.md`, `Progress.md`.
+
+**O que foi feito:** o novo pedido passou a ler `configuracoes_loja.entregas_online_ativas` com o mesmo fallback do checkout público; depois de confirmar que `mesas` está vazia, oculta Mesa, Comanda e Parceiro. Entrega só aparece quando ativa; sem entrega e sem ponto de salão, Retirada é selecionada e o stepper mobile avança para Itens. O campo de nome agora ocupa toda a largura do card e tem 44 px de altura.
+
+**Decisões tomadas:** ausência da configuração continua significando entrega ativa, preservando o contrato existente. Erro ao carregar `mesas` não é tratado como lista vazia, evitando esconder canais por falha de rede. A Management API foi usada somente para leitura e confirmou zero pontos de salão e ausência da chave no projeto `bardaladeira`; nenhuma alteração de banco foi feita.
+
+**Verificação:** `npx tsc --noEmit` ✓ (0 erros) · bug-hunter ✓ · verification-before-completion ✓ · `npm run lint` indisponível (`next lint` foi removido no Next 16 e o repositório não possui configuração ESLint para execução direta).
+
+**Pendências / próximos passos:** corrigir o script/configuração de lint em tarefa própria; isso altera tooling fora do escopo desta mudança.
+
+**Armadilhas descobertas:** distinguir carregamento bem-sucedido com zero linhas de erro na consulta; ambos deixam o array vazio, mas apenas o primeiro autoriza simplificar o fluxo.
+
 ## [2026-08-25] Estoque completo — produtos e bebidas
 
 **Agente/Modelo:** Codex GPT-5
