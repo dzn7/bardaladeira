@@ -35,7 +35,7 @@ import {
 import { carregarPagamentosParciaisPorPedido } from '@/lib/pagamentoParcial'
 import { enfileirarImpressao, gerarHashEventoImpressao } from '@/lib/filaImpressao'
 import { cn } from '@/lib/utils'
-import { estaNoDiaOperacionalAtual } from '@/lib/dia-operacional'
+import { estaNoDiaOperacionalAtual, obterIntervaloDiaOperacionalAtual } from '@/lib/dia-operacional'
 import { TEMPO_AVISO_MESA_MINUTOS, TEMPO_PADRAO_MESA_MINUTOS, calcularLiberacaoMesa } from '@/lib/mesas-tempo'
 import {
   criarIntervaloEntregas,
@@ -90,6 +90,7 @@ function PedidosContent() {
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [loading, setLoading] = useState(true)
   const [totalPedidos, setTotalPedidos] = useState(0)
+  const [totalPedidosDia, setTotalPedidosDia] = useState(0)
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [itensPorPagina, setItensPorPagina] = useState(PEDIDOS_POR_PAGINA_PADRAO)
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatusPedido>('todos')
@@ -333,10 +334,21 @@ function PedidosContent() {
         query = query.or(filtrosBusca.join(','))
       }
 
-      const { data, error, count } = await query
-        .order('created_at', { ascending: false })
-        .order('id', { ascending: false })
-        .range(offset, offset + itensPorPagina - 1)
+      const { inicio, fim } = obterIntervaloDiaOperacionalAtual()
+      const [resultadoPedidos, resultadoTotalDia] = await Promise.all([
+        query
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(offset, offset + itensPorPagina - 1),
+        supabase
+          .from('pedidos')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', inicio.toISOString())
+          .lt('created_at', fim.toISOString()),
+      ])
+
+      const { data, error, count } = resultadoPedidos
+      if (resultadoTotalDia.error) throw resultadoTotalDia.error
 
       if (error) throw error
 
@@ -396,12 +408,14 @@ function PedidosContent() {
 
       if (requisicaoId !== requisicaoAtualRef.current) return
       setTotalPedidos(count || 0)
+      setTotalPedidosDia(resultadoTotalDia.count || 0)
       setPedidos(pedidosComItens)
     } catch (error) {
       if (requisicaoId !== requisicaoAtualRef.current) return
       console.error('Erro ao carregar pedidos:', error)
       setPedidos([])
       setTotalPedidos(0)
+      setTotalPedidosDia(0)
     } finally {
       if (requisicaoId === requisicaoAtualRef.current) {
         setLoading(false)
@@ -954,10 +968,10 @@ function PedidosContent() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div className="min-w-0">
               <h2 className="text-xl sm:text-2xl font-semibold text-foreground truncate">
-                Gerenciar Pedidos
+                Pedidos do dia — {totalPedidosDia} pedido{totalPedidosDia === 1 ? '' : 's'}
               </h2>
               <p className="text-sm text-muted-foreground mt-0.5">
-                {totalPedidos} pedido{totalPedidos === 1 ? '' : 's'} encontrado{totalPedidos === 1 ? '' : 's'}
+                Pedidos — {totalPedidos} pedido{totalPedidos === 1 ? '' : 's'} encontrado{totalPedidos === 1 ? '' : 's'}
               </p>
             </div>
             <div className="flex gap-2 flex-shrink-0">

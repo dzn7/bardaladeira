@@ -1,5 +1,41 @@
 # Progress
 
+## [2026-08-28] Dashboard limita pedidos recentes ao dia operacional
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** exibir no Dashboard somente pedidos do dia operacional e manter o histórico completo na tela de Pedidos com uma contagem diária separada.
+**Arquivos alterados:** `src/app/admin/dashboard/page.tsx`, `src/app/admin/pedidos/page.tsx`, `UI.md`, `Progress.md`.
+
+**Causa raiz:** a lista “Pedidos recentes” do Dashboard consultava o mês civil selecionado; na listagem geral, a única contagem disponível correspondia ao resultado dos filtros, sem uma contagem independente do dia operacional.
+
+**O que foi feito:** a consulta do Dashboard passou a usar diretamente o intervalo operacional 03:00→03:00; `/admin/pedidos` continua sem recorte de data por padrão e faz uma consulta `head/count` paralela para mostrar “Pedidos do dia” sem carregar registros adicionais.
+
+**Decisões tomadas:** “até as 2h da manhã” foi aplicado como término às 02:59:59, mantendo o corte oficial já documentado às 03:00 em `America/Sao_Paulo`; cancelados permanecem na contagem geral e diária da tela de Pedidos, enquanto o Dashboard preserva seus filtros anteriores de status.
+
+**Verificação:** `npx tsc --noEmit --incremental false` ✓ 0 erros · `git diff --check` ✓ · bug-hunter ✓ · verification-before-completion ✓ · `npm run lint` indisponível (`next lint` removido no Next 16).
+
+**Pendências / próximos passos:** corrigir o tooling de lint em tarefa própria.
+
+**Armadilhas descobertas:** contar apenas os pedidos já carregados produziria um total diário incorreto por causa da paginação e dos filtros; a contagem diária precisa ser independente e server-side.
+
+## [2026-08-28] Exclusão de pedido preserva histórico e repõe estoque
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** corrigir o erro `55000 / HISTORICO_PRODUTO_APPEND_ONLY` ao excluir pedidos e comprovar a devolução dos itens ao estoque.
+**Arquivos alterados:** `supabase/migrations/20260828132755_produto_historico_preservar_ao_excluir_pedido.sql`, `tests/produto-historico.test.mjs`, `Progress.md`.
+
+**Causa raiz:** `produto_historico_eventos.pedido_id` tinha FK `ON DELETE SET NULL`; excluir `pedidos` tentava atualizar o audit trail, mas o trigger append-only bloqueia corretamente qualquer `UPDATE` ou `DELETE` nessa tabela.
+
+**O que foi feito:** a migration remove somente a FK incompatível e mantém `pedido_id` como snapshot UUID imutável. A migration foi testada em `BEGIN/ROLLBACK`, aplicada no projeto `bardaladeira` pela Management API e verificada no schema ativo. A exclusão do pedido real informado foi simulada novamente em rollback: pedido e itens saíram, o produto e a bebida retornaram ao estoque pela quantidade efetivamente consumida, e os eventos históricos permaneceram.
+
+**Decisões tomadas:** preservar exclusão real e o audit trail; não usar `SET NULL`, `CASCADE` ou desativar o trigger de imutabilidade. A restauração continua centralizada no trigger existente `sincronizar_estoque_item_pedido`, sem cálculo duplicado no frontend.
+
+**Verificação:** suíte `node --test tests/*.test.mjs` ✓ 66/66 · `npx tsc --noEmit --incremental false` ✓ 0 erros · teste transacional de produto+bebida ✓ · bug-hunter ✓ · verification-before-completion ✓ · `npm run lint` indisponível (`next lint` removido no Next 16).
+
+**Pendências / próximos passos:** corrigir o tooling de lint em tarefa própria. O pedido usado na simulação foi preservado pelo rollback e ainda pode ser excluído pela interface.
+
+**Armadilhas descobertas:** FK com ação referencial mutável é incompatível com tabela append-only; IDs de origem históricos devem ser snapshots sem FK quando a entidade de origem pode ser excluída.
+
 ## [2026-08-27] Novo pedido oculta tipos de salão vazios individualmente
 
 **Agente/Modelo:** Codex GPT-5

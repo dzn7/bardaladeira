@@ -31,6 +31,20 @@ test('audit trail de produto é privado, append-only e indexado para cursor', as
   assert.match(sql, /before update or delete on public\.produto_historico_eventos/i)
 })
 
+test('exclusão de pedido preserva o UUID no histórico append-only', async () => {
+  const sql = await lerMigration()
+
+  assert.match(
+    sql,
+    /alter table public\.produto_historico_eventos[\s\S]*drop constraint if exists produto_historico_eventos_pedido_id_fkey/i,
+  )
+  assert.match(sql, /snapshot imutável do UUID do pedido/i)
+  assert.doesNotMatch(
+    sql,
+    /alter table public\.produto_historico_eventos[\s\S]*add constraint produto_historico_eventos_pedido_id_fkey/i,
+  )
+})
+
 test('mudanças e promoções são registradas pelo banco, sem evento para valor idêntico', async () => {
   const sql = await lerMigration()
 

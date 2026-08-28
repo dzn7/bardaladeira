@@ -212,13 +212,13 @@ export default function Dashboard() {
     })
   }, [])
 
-  const carregarListaRecente = useCallback(async (mes: number, ano: number) => {
-    const { inicio: inicioMes, fim: fimMes } = obterPeriodoMes(ano, mes)
+  const carregarListaRecente = useCallback(async () => {
+    const { inicio, fim } = obterIntervaloDiaOperacionalAtual()
     const { data: pedidosRecentes, error } = await supabase
       .from('pedidos')
       .select(COLUNAS_PEDIDO_DASHBOARD)
-      .gte('created_at', inicioMes)
-      .lte('created_at', fimMes)
+      .gte('created_at', inicio.toISOString())
+      .lt('created_at', fim.toISOString())
       .neq('status', 'cancelado')
       .neq('status', 'aguardando_pagamento')
       .order('created_at', { ascending: false })
@@ -233,7 +233,7 @@ export default function Dashboard() {
     try {
       await Promise.all([
         carregarEstatisticas(mes, ano),
-        carregarListaRecente(mes, ano),
+        carregarListaRecente(),
       ])
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
@@ -263,7 +263,7 @@ export default function Dashboard() {
       if (debounceLista) clearTimeout(debounceLista)
       debounceLista = setTimeout(() => {
         debounceLista = null
-        void carregarListaRecente(mesSelecionado, anoSelecionado)
+        void carregarListaRecente()
       }, 800)
     }
 
@@ -595,7 +595,7 @@ export default function Dashboard() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-base font-semibold tracking-tight text-foreground">
-                  Pedidos recentes
+                  Pedidos do dia
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   Acompanhe status, pagamento e ações rápidas

@@ -191,7 +191,7 @@ Primitivos Kibo UI disponíveis:
 
 ### Administração desktop
 
-- No Dashboard, “Pedidos hoje” e “Receita hoje” seguem o dia operacional 03:00→03:00 em `America/Sao_Paulo`; o resumo mensal continua usando o mês civil selecionado.
+- No Dashboard, “Pedidos hoje”, “Receita hoje” e a lista “Pedidos do dia” seguem o dia operacional 03:00→03:00 em `America/Sao_Paulo`; o resumo mensal continua usando o mês civil selecionado. Em `/admin/pedidos`, a lista preserva todo o histórico e o cabeçalho separa a contagem do dia operacional da contagem do resultado atual.
 - O `AdminLayout` é o dono do scroll vertical (`data-admin-scroll-container`) e sempre volta ao topo ao mudar de rota; telas paginadas devem reposicionar esse container sem animação antes de trocar a altura do conteúdo.
 - O service worker do admin nunca armazena navegações HTML nem payloads RSC (`RSC`, `_rsc`, `text/x-component`); esses documentos precisam vir da mesma versão dos chunks do Next.
 - Sidebar colapsável: **112 px** fechada (estilo Juridiq) e 224 px aberta; logo `/logo.webp` + “Bar da Ladeira”; item ativo com barra esquerda absoluta + `bg-primary/10` (ícones opticamente centralizados quando fechada); grupos com abreviação de 3 letras e divisores no estado colapsado.
