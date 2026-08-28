@@ -741,6 +741,23 @@ function NovoPedidoContent() {
   const mostrarOpcoesSalao = !mesasCarregadasComSucesso || temPontoSalaoCadastrado
 
   useEffect(() => {
+    if (!mesasCarregadasComSucesso || !temPontoSalaoCadastrado) return
+
+    const modoAtualDisponivel = mesasDisponiveis.some((registro) => registro.tipo === modoSalao)
+    if (modoAtualDisponivel) return
+
+    const novoModo = mesasCadastradas.length > 0
+      ? 'mesa'
+      : comandasCadastradas.length > 0
+        ? 'comanda'
+        : 'local_externo'
+
+    setModoSalao(novoModo)
+    setMesaSelecionada(null)
+    setComandaSelecionada(null)
+  }, [comandasCadastradas.length, locaisExternosCadastrados.length, mesasCadastradas.length, mesasCarregadasComSucesso, mesasDisponiveis, modoSalao, temPontoSalaoCadastrado])
+
+  useEffect(() => {
     if (
       loadingMesas ||
       carregandoConfigEntrega ||
@@ -1715,9 +1732,15 @@ function NovoPedidoContent() {
                 : entregasOnlineAtivas ? 'grid-cols-2' : 'grid-cols-1',
             )}>
               {mostrarOpcoesSalao && ([
-                { id: 'mesa' as const, label: 'Mesa', hint: 'Consumo no local' },
-                { id: 'comanda' as const, label: 'Comanda', hint: 'Atendimento aberto' },
-                { id: 'local_externo' as const, label: 'Parceiro', hint: 'Bar próximo' },
+                ...(!mesasCarregadasComSucesso || mesasCadastradas.length > 0
+                  ? [{ id: 'mesa' as const, label: 'Mesa', hint: 'Consumo no local' }]
+                  : []),
+                ...(!mesasCarregadasComSucesso || comandasCadastradas.length > 0
+                  ? [{ id: 'comanda' as const, label: 'Comanda', hint: 'Atendimento aberto' }]
+                  : []),
+                ...(!mesasCarregadasComSucesso || locaisExternosCadastrados.length > 0
+                  ? [{ id: 'local_externo' as const, label: 'Parceiro', hint: 'Bar próximo' }]
+                  : []),
               ]).map((opcao) => {
                 const ativa = tipoEntrega === 'local' && modoSalao === opcao.id
                 return (
@@ -1963,9 +1986,15 @@ function NovoPedidoContent() {
                   : entregasOnlineAtivas ? 'grid-cols-2' : 'grid-cols-1',
               )}>
                 {mostrarOpcoesSalao && ([
-                  { id: 'mesa' as const, label: 'Mesa', hint: 'No local' },
-                  { id: 'comanda' as const, label: 'Comanda', hint: 'Aberta' },
-                  { id: 'local_externo' as const, label: 'Parceiro', hint: 'Bar próximo' },
+                  ...(!mesasCarregadasComSucesso || mesasCadastradas.length > 0
+                    ? [{ id: 'mesa' as const, label: 'Mesa', hint: 'No local' }]
+                    : []),
+                  ...(!mesasCarregadasComSucesso || comandasCadastradas.length > 0
+                    ? [{ id: 'comanda' as const, label: 'Comanda', hint: 'Aberta' }]
+                    : []),
+                  ...(!mesasCarregadasComSucesso || locaisExternosCadastrados.length > 0
+                    ? [{ id: 'local_externo' as const, label: 'Parceiro', hint: 'Bar próximo' }]
+                    : []),
                 ] as const).map((opcao) => {
                   const ativa = tipoEntrega === 'local' && modoSalao === opcao.id
                   return (

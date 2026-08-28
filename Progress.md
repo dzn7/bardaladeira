@@ -1,5 +1,23 @@
 # Progress
 
+## [2026-08-27] Novo pedido oculta tipos de salão vazios individualmente
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** remover Comanda e Parceiro do novo pedido quando esses tipos não possuem cadastro, mesmo que existam mesas.
+**Arquivos alterados:** `src/app/admin/pedidos/novo/page.tsx`, `UI.md`, `Progress.md`.
+
+**Causa raiz:** a primeira correção usava `mesasDisponiveis.length > 0` como condição conjunta. Como o banco possui mesas, o componente mantinha também Comanda e Parceiro, embora as listas específicas estivessem vazias.
+
+**O que foi feito:** os três botões presenciais agora são filtrados pelas listas específicas já existentes. Se o modo atualmente selecionado não tiver mais cadastro após a carga, a tela seleciona o primeiro tipo presencial disponível e limpa seleções incompatíveis.
+
+**Decisões tomadas:** preservar todos os botões enquanto a consulta ainda carrega ou falha; ocultar somente após resposta bem-sucedida, evitando interpretar erro de rede como ausência de cadastro.
+
+**Verificação:** `npx tsc --noEmit --incremental false` ✓ (0 erros) · bug-hunter ✓ · verification-before-completion ✓ · `npm run lint` indisponível (`next lint` foi removido no Next 16).
+
+**Pendências / próximos passos:** nenhuma conhecida.
+
+**Armadilhas descobertas:** “há algum ponto de salão” não responde se cada tipo individual possui cadastro; usar sempre `mesasCadastradas`, `comandasCadastradas` e `locaisExternosCadastrados` separadamente.
+
 ## [2026-08-27] Novo pedido sem pontos de salão
 
 **Agente/Modelo:** Codex GPT-5
