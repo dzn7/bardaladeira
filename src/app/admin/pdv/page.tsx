@@ -96,6 +96,7 @@ import CardPedido, { type Pedido } from '@/components/admin/CardPedido'
 import ModalDetalhesPedido from '@/components/admin/ModalDetalhesPedido'
 import ModalEditarPedido from '@/components/admin/ModalEditarPedido'
 import PainelSalaoAtual from '@/features/salao/components/PainelSalaoAtual'
+import { deveRegistrarPagamentoGlobal, resolverFormaPagamentoPrincipal } from '@/lib/pedido-forma-pagamento.mjs'
 import CardPerfilUsuario from '@/components/login/CardPerfilUsuario'
 import ModalSenhaLogin from '@/components/login/ModalSenhaLogin'
 import TransicaoLogin from '@/components/login/TransicaoLogin'
@@ -104,7 +105,7 @@ import TransicaoLogin from '@/components/login/TransicaoLogin'
 type TipoCatalogo = 'produto' | 'bebida' | 'combo'
 type TipoAtendimento = 'balcao' | 'salao' | 'retirada'
 type TipoPontoSalao = 'mesa' | 'comanda' | 'local_externo'
-type FormaPagamento = 'dinheiro' | 'pix' | 'debito' | 'credito' | 'crediario'
+type FormaPagamento = 'pendente' | 'dinheiro' | 'pix' | 'debito' | 'credito' | 'crediario'
 
 type ItemCatalogo = {
   id: string
@@ -129,7 +130,7 @@ type ItemCarrinho = {
 type PagamentoParcialLocal = {
   id: string
   itemLocalId: string
-  forma: Exclude<FormaPagamento, 'crediario'>
+  forma: Exclude<FormaPagamento, 'crediario' | 'pendente'>
   quantidade: number
   valorUnitario: number
   valorTotal: number
@@ -228,10 +229,11 @@ type PedidoDia = {
 const FORMAS_PAGAMENTO: Array<{
   id: FormaPagamento
   label: string
-  banco: string
+  banco: string | null
   icon: typeof Banknote
   classe: string
 }> = [
+  { id: 'pendente', label: 'Definir depois', banco: null, icon: Clock3, classe: 'bg-primary text-primary-foreground hover:bg-primary/90' },
   { id: 'dinheiro', label: 'Dinheiro', banco: 'dinheiro', icon: Banknote, classe: 'bg-primary text-primary-foreground hover:bg-primary/90' },
   { id: 'pix', label: 'PIX', banco: 'pix', icon: QrCode, classe: 'bg-primary text-primary-foreground hover:bg-primary/90' },
   { id: 'debito', label: 'Débito', banco: 'debito', icon: CreditCard, classe: 'bg-primary text-primary-foreground hover:bg-primary/90' },
@@ -1002,6 +1004,10 @@ export default function PdvAdminPage() {
   }
 
   const pagarUnidades = (item: ItemCarrinho, quantidade: number) => {
+    if (formaPagamento === 'pendente') {
+      toast.warning('Escolha uma forma antes de registrar pagamento parcial.')
+      return
+    }
     if (formaPagamento === 'crediario') {
       toast.warning('Crediário no PDV é fechamento do pedido inteiro. Para parcial, use dinheiro, PIX ou cartão.')
       return
@@ -1195,9 +1201,10 @@ export default function PdvAdminPage() {
         nomeCliente,
         localParceiro,
       })
+      const formaSelecionada = obterForma(formaPagamento)
       const formaPrincipal = valorPago > 0
         ? 'Parcial'
-        : obterForma(formaPagamento).label
+        : resolverFormaPagamentoPrincipal({ formaPagamento: formaSelecionada.banco ? formaSelecionada.label : null })
       const numeroPedido = await buscarProximoNumeroPedidoDiario(supabase)
 
       const { data: pedido, error: pedidoError } = await supabase
@@ -1305,7 +1312,7 @@ export default function PdvAdminPage() {
           const valorPagamento = pagamento.valorTotal || subtotalPago
           return {
             pedido_id: pedido.id,
-            forma_pagamento: obterForma(pagamento.forma).banco,
+            forma_pagamento: obterForma(pagamento.forma).banco || pagamento.forma,
             valor: valorPagamento,
             itens_pagos: [{
               id: item.itemPedidoId,
@@ -1325,14 +1332,17 @@ export default function PdvAdminPage() {
             .insert(pagamentosParaInserir)
           if (pagamentosError) throw pagamentosError
         }
-      } else {
-        const { error: pagamentoError } = await supabase.from('pagamentos_pedido').insert({
-          pedido_id: pedido.id,
-          forma_pagamento: obterForma(formaPagamento).banco,
-          valor: subtotal,
-          itens_pagos: [],
-        })
-        if (pagamentoError) throw pagamentoError
+      } else if (deveRegistrarPagamentoGlobal({ formaPagamento: formaPrincipal })) {
+        const formaBanco = obterForma(formaPagamento).banco
+        if (formaBanco) {
+          const { error: pagamentoError } = await supabase.from('pagamentos_pedido').insert({
+            pedido_id: pedido.id,
+            forma_pagamento: formaBanco,
+            valor: subtotal,
+            itens_pagos: [],
+          })
+          if (pagamentoError) throw pagamentoError
+        }
       }
 
       const { error: statusError } = await supabase

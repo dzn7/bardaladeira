@@ -24,6 +24,7 @@ import {
   Store,
   Package,
   Wallet,
+  Clock3,
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import GarcomLayout from '@/components/garcom/GarcomLayout'
@@ -37,6 +38,7 @@ import { buscarProximoNumeroPedidoDiario, normalizarNumeroPedido, sincronizarNum
 import { normalizarNomeCategoria } from '@/lib/categoriasCardapio'
 import { nomeClienteParaPedido, nomeClienteParaPontoSalao } from '@/lib/nome-cliente-local.mjs'
 import { Pill } from '@/components/kibo-ui/pill'
+import { deveRegistrarPagamentoGlobal, resolverFormaPagamentoPrincipal } from '@/lib/pedido-forma-pagamento.mjs'
 
 type TipoItemCatalogo = 'produto' | 'bebida' | 'combo'
 
@@ -751,7 +753,7 @@ function GarcomNovoPedidoContent() {
   const valorRestante = totalPedido - totalPagamentos
   const pagamentoValido = pagamentoDividido
     ? pagamentos.length > 0 && Math.abs(valorRestante) <= 0.01
-    : !!formaPagamento
+    : true
   const podeSalvarPedido = Boolean(
     !loading &&
     dadosClienteValidos &&
@@ -777,7 +779,7 @@ function GarcomNovoPedidoContent() {
           : tipoEntrega === 'entrega' && !bairroSelecionado
             ? 'Selecione o bairro'
             : !pagamentoValido
-              ? 'Revise o pagamento'
+              ? 'Revise o pagamento dividido'
               : null
 
   const pontosSalaoAtivos = useMemo(
@@ -820,9 +822,6 @@ function GarcomNovoPedidoContent() {
         toast.warning('O valor dos pagamentos deve ser igual ao total do pedido')
         return
       }
-    } else if (!formaPagamento) {
-      toast.warning('Selecione uma forma de pagamento')
-      return
     }
 
     setLoading(true)
@@ -837,7 +836,7 @@ function GarcomNovoPedidoContent() {
 
       const enderecoCompleto = tipoEntrega === 'entrega' && endereco ? endereco : null
 
-      const formaPagamentoPrincipal = pagamentoDividido ? 'Dividido' : formaPagamento
+      const formaPagamentoPrincipal = resolverFormaPagamentoPrincipal({ formaPagamento, pagamentoDividido })
 
       const valorTrocoPara = (formaPagamento === 'Dinheiro' && precisaTroco && trocoPara && !pagamentoDividido) 
         ? parseFloat(trocoPara) 
@@ -928,7 +927,7 @@ function GarcomNovoPedidoContent() {
 
         const { error: pagDivError } = await supabase.from('pagamentos_pedido').insert(pagamentosParaInserir)
         if (pagDivError) console.error('[Garçom] Falha ao inserir pagamentos divididos:', pagDivError.message)
-      } else {
+      } else if (deveRegistrarPagamentoGlobal({ formaPagamento: formaPagamentoPrincipal })) {
         const formaNormalizada = formaPagamento === 'Dinheiro' ? 'dinheiro' 
           : formaPagamento === 'PIX' ? 'pix'
           : formaPagamento === 'Cartão de Crédito' ? 'credito'
@@ -1827,6 +1826,22 @@ function GarcomNovoPedidoContent() {
                 
                 {!pagamentoDividido ? (
                   <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormaPagamento('')
+                        setPrecisaTroco(false)
+                        setTrocoPara('')
+                      }}
+                      className={`flex min-h-11 items-center gap-2 rounded-xl border p-3 text-left transition-colors ${
+                        !formaPagamento
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700'
+                      }`}
+                    >
+                      <Clock3 className="h-5 w-5 shrink-0" />
+                      <span className="text-sm font-medium">Definir depois</span>
+                    </button>
                     {[
                       { id: 'Dinheiro', label: 'Dinheiro', icone: Banknote },
                       { id: 'PIX', label: 'PIX', icone: Smartphone },

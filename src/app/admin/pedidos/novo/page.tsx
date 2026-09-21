@@ -19,6 +19,7 @@ import {
   Check,
   ChevronsUpDown,
   Wallet,
+  Clock3,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -42,6 +43,7 @@ import { normalizarNomeCategoria } from '@/lib/categoriasCardapio'
 import { nomeClienteParaPedido, nomeClienteParaPontoSalao } from '@/lib/nome-cliente-local.mjs'
 import { criarVinculoCatalogoItemPedido } from '@/lib/vinculo-catalogo-item-pedido.mjs'
 import { formatarErroEstoque } from '@/lib/estoque-produto.mjs'
+import { deveRegistrarPagamentoGlobal, resolverFormaPagamentoPrincipal } from '@/lib/pedido-forma-pagamento.mjs'
 
 type ProdutoSelecionado = {
   id: string
@@ -894,7 +896,7 @@ function NovoPedidoContent() {
   const valorRestante = calcularTotal() - totalPagamentos
   const pagamentoValido = pagamentoDividido
     ? pagamentos.length > 0 && Math.abs(valorRestante) <= 0.01
-    : !!formaPagamento
+    : true
 
   const atendimentoLocalSelecionado =
     tipoEntrega !== 'local' || (modoSalao === 'comanda' ? Boolean(comandaSelecionada) : Boolean(mesaSelecionada))
@@ -918,7 +920,7 @@ function NovoPedidoContent() {
         : tipoEntrega === 'entrega' && !bairroSelecionado
           ? 'Selecione um bairro'
           : !pagamentoValido
-            ? 'Revise o pagamento'
+            ? 'Revise o pagamento dividido'
           : null
 
   const podeAvancarEtapaMobile =
@@ -1002,10 +1004,6 @@ function NovoPedidoContent() {
         toast.warning('O valor dos pagamentos deve ser igual ao total do pedido')
         return
       }
-    } else if (!formaPagamento) {
-      destacarCampoErro('pagamento')
-      toast.warning('Selecione uma forma de pagamento')
-      return
     }
 
     setCampoErro(null)
@@ -1039,9 +1037,7 @@ function NovoPedidoContent() {
       const enderecoCompleto = tipoEntrega === 'entrega' && endereco ? endereco : null
 
       // Determinar forma de pagamento principal
-      const formaPagamentoPrincipal = pagamentoDividido 
-        ? 'Dividido' 
-        : formaPagamento
+      const formaPagamentoPrincipal = resolverFormaPagamentoPrincipal({ formaPagamento, pagamentoDividido })
 
       // Calcula o valor do troco apenas se for dinheiro e precisar de troco
       const valorTrocoPara = (formaPagamento === 'Dinheiro' && precisaTroco && trocoPara && !pagamentoDividido) 
@@ -1134,7 +1130,7 @@ function NovoPedidoContent() {
           .insert(pagamentosParaInserir)
 
         if (pagamentosError) throw pagamentosError
-      } else {
+      } else if (deveRegistrarPagamentoGlobal({ formaPagamento: formaPagamentoPrincipal })) {
         // Inserir pagamento único
         const formaNormalizada = formaPagamento === 'Dinheiro' ? 'dinheiro' 
           : formaPagamento === 'PIX' ? 'pix'
@@ -2426,6 +2422,21 @@ function NovoPedidoContent() {
                 {!pagamentoDividido ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormaPagamento('')
+                          setPrecisaTroco(false)
+                          setTrocoPara('')
+                        }}
+                        className={cn(
+                          'flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors',
+                          !formaPagamento ? 'border-primary bg-primary/10 text-primary' : 'border-border/70 bg-card text-foreground hover:bg-accent',
+                        )}
+                      >
+                        <Clock3 className="size-4 shrink-0" strokeWidth={1.6} />
+                        <span className="font-medium">Definir depois</span>
+                      </button>
                       {OPCOES_PAGAMENTO_PEDIDO.map((opcao) => {
                         const Icone = opcao.icone
                         const ativo = formaPagamento === opcao.valor

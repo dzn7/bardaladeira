@@ -1,21 +1,48 @@
 # Progress
 
+## [2026-09-20] Pagamento posterior e descarte da fila antiga
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** permitir definir o pagamento depois e impedir impressão retroativa ao iniciar o desktop.
+**Arquivos alterados:** fluxos de pedido admin/garçom/PDV, helper de pagamento, migration, impressora Electron e testes.
+**O que foi feito:** pedidos sem forma gravam `forma_pagamento` nula e não criam pagamento/entrada de caixa; a impressora marca como erro itens pendentes anteriores ao início, mantendo a impressão automática para novos itens.
+**Decisões tomadas:** notificações foram excluídas; a migration preserva histórico e só inicia o relógio para novos pedidos sem pagamento.
+**Verificação:** TypeScript web ✓ · TypeScript Electron ✓ · testes de pagamento ✓ · política da fila 27/27 ✓ · lint indisponível no Next 16.
+**Pendências / próximos passos:** aplicar `20260920120000_pedido_pagamento_pendente.sql` pela Management API; credencial recebida respondeu `Unauthorized`.
+**Armadilhas descobertas:** não imprimir pendência recuperada exige marcá-la antes de assinar Realtime e iniciar polling.
+
+## [2026-08-30] Impressora ligada ao Supabase do Bar e empacotada para Windows
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** configurar a impressora desktop para o projeto Supabase do Bar da Ladeira e gerar os executáveis Windows x64.
+**Arquivos alterados:** `bar-da-ladeira-impressora/electron/main.ts`, `bar-da-ladeira-impressora/public/icon.ico`, `bar-da-ladeira-impressora/.env.local` (local/ignorado), `bar-da-ladeira-impressora/release/` (local/ignorado), `Progress.md`.
+**O que foi feito:** o projeto `bardaladeira` foi confirmado pela Management API; URL e anon key viraram defaults do Electron com override por `SUPABASE_*`/`NEXT_PUBLIC_SUPABASE_*`; `.env.local` recebeu somente URL e anon key; foram gerados instalador NSIS e executável portátil Windows x64.
+**Decisões tomadas:** nenhum service role nem access token foi persistido. O favicon pequeno foi convertido para um ícone Windows 256×256 exigido pelo empacotador.
+**Verificação:** Management API confirmou projeto ativo ✓ · PostgREST respondeu 200 com a configuração nova ✓ · testes 26/26 ✓ · TypeScript 0 erros ✓ · empacotamento NSIS + portátil Windows x64 ✓ · busca por marca/projeto anterior sem ocorrências ativas ✓ · bug-hunter ✓ · verification-before-completion ✓ · lint indisponível porque o subprojeto não possui script `lint`.
+**Pendências / próximos passos:** instalar em uma máquina Windows e selecionar a impressora física.
+**Armadilhas descobertas:** o favicon original tinha somente 16/32 px e o `electron-builder` exige pelo menos 256×256.
+
+## [2026-08-30] Impressora desktop do Bar da Ladeira
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** trazer a impressora Electron para este repositório e substituir integralmente a identidade visual da base antiga pela marca Bar da Ladeira.
+**Arquivos alterados:** `bar-da-ladeira-impressora/` (novo subprojeto), `.gitignore`, `Progress.md`.
+**O que foi feito:** o app Electron foi copiado sem artefatos gerados ou dependências instaladas; nomes visíveis, pacote, app id, atalho, título, ticket e contrato IPC foram renomeados. Logo, ícone Windows e conjunto de ícones macOS usam os ativos do Bar da Ladeira.
+**Decisões tomadas:** as credenciais e o identificador do projeto Supabase da origem foram preservados, pois são infraestrutura externa e não devem ser rebatizados sem autorização; continuam configuráveis pela tela existente.
+**Verificação:** testes 26/26 ✓ · `tsc --noEmit` + build Vite/Electron ✓ · busca completa pela marca antiga sem ocorrências ✓ · assets Windows/macOS inspecionados ✓ · lint indisponível porque o subprojeto não possui script `lint`.
+**Pendências / próximos passos:** confirmar separadamente qual projeto Supabase a impressora deve usar por padrão antes de alterar infraestrutura.
+**Armadilhas descobertas:** o caminho informado tinha `edienail`; a pasta real é `edienai-lanches-impressora`.
+
 ## [2026-08-28] Dashboard limita pedidos recentes ao dia operacional
 
 **Agente/Modelo:** Codex GPT-5
 **Objetivo:** exibir no Dashboard somente pedidos do dia operacional e manter o histórico completo na tela de Pedidos com uma contagem diária separada.
 **Arquivos alterados:** `src/app/admin/dashboard/page.tsx`, `src/app/admin/pedidos/page.tsx`, `UI.md`, `Progress.md`.
-
 **Causa raiz:** a lista “Pedidos recentes” do Dashboard consultava o mês civil selecionado; na listagem geral, a única contagem disponível correspondia ao resultado dos filtros, sem uma contagem independente do dia operacional.
-
 **O que foi feito:** a consulta do Dashboard passou a usar diretamente o intervalo operacional 03:00→03:00; `/admin/pedidos` continua sem recorte de data por padrão e faz uma consulta `head/count` paralela para mostrar “Pedidos do dia” sem carregar registros adicionais.
-
 **Decisões tomadas:** “até as 2h da manhã” foi aplicado como término às 02:59:59, mantendo o corte oficial já documentado às 03:00 em `America/Sao_Paulo`; cancelados permanecem na contagem geral e diária da tela de Pedidos, enquanto o Dashboard preserva seus filtros anteriores de status.
-
 **Verificação:** `npx tsc --noEmit --incremental false` ✓ 0 erros · `git diff --check` ✓ · bug-hunter ✓ · verification-before-completion ✓ · `npm run lint` indisponível (`next lint` removido no Next 16).
-
 **Pendências / próximos passos:** corrigir o tooling de lint em tarefa própria.
-
 **Armadilhas descobertas:** contar apenas os pedidos já carregados produziria um total diário incorreto por causa da paginação e dos filtros; a contagem diária precisa ser independente e server-side.
 
 ## [2026-08-28] Exclusão de pedido preserva histórico e repõe estoque
@@ -23,17 +50,11 @@
 **Agente/Modelo:** Codex GPT-5
 **Objetivo:** corrigir o erro `55000 / HISTORICO_PRODUTO_APPEND_ONLY` ao excluir pedidos e comprovar a devolução dos itens ao estoque.
 **Arquivos alterados:** `supabase/migrations/20260828132755_produto_historico_preservar_ao_excluir_pedido.sql`, `tests/produto-historico.test.mjs`, `Progress.md`.
-
 **Causa raiz:** `produto_historico_eventos.pedido_id` tinha FK `ON DELETE SET NULL`; excluir `pedidos` tentava atualizar o audit trail, mas o trigger append-only bloqueia corretamente qualquer `UPDATE` ou `DELETE` nessa tabela.
-
 **O que foi feito:** a migration remove somente a FK incompatível e mantém `pedido_id` como snapshot UUID imutável. A migration foi testada em `BEGIN/ROLLBACK`, aplicada no projeto `bardaladeira` pela Management API e verificada no schema ativo. A exclusão do pedido real informado foi simulada novamente em rollback: pedido e itens saíram, o produto e a bebida retornaram ao estoque pela quantidade efetivamente consumida, e os eventos históricos permaneceram.
-
 **Decisões tomadas:** preservar exclusão real e o audit trail; não usar `SET NULL`, `CASCADE` ou desativar o trigger de imutabilidade. A restauração continua centralizada no trigger existente `sincronizar_estoque_item_pedido`, sem cálculo duplicado no frontend.
-
 **Verificação:** suíte `node --test tests/*.test.mjs` ✓ 66/66 · `npx tsc --noEmit --incremental false` ✓ 0 erros · teste transacional de produto+bebida ✓ · bug-hunter ✓ · verification-before-completion ✓ · `npm run lint` indisponível (`next lint` removido no Next 16).
-
 **Pendências / próximos passos:** corrigir o tooling de lint em tarefa própria. O pedido usado na simulação foi preservado pelo rollback e ainda pode ser excluído pela interface.
-
 **Armadilhas descobertas:** FK com ação referencial mutável é incompatível com tabela append-only; IDs de origem históricos devem ser snapshots sem FK quando a entidade de origem pode ser excluída.
 
 ## [2026-08-27] Novo pedido oculta tipos de salão vazios individualmente
@@ -41,17 +62,11 @@
 **Agente/Modelo:** Codex GPT-5
 **Objetivo:** remover Comanda e Parceiro do novo pedido quando esses tipos não possuem cadastro, mesmo que existam mesas.
 **Arquivos alterados:** `src/app/admin/pedidos/novo/page.tsx`, `UI.md`, `Progress.md`.
-
 **Causa raiz:** a primeira correção usava `mesasDisponiveis.length > 0` como condição conjunta. Como o banco possui mesas, o componente mantinha também Comanda e Parceiro, embora as listas específicas estivessem vazias.
-
 **O que foi feito:** os três botões presenciais agora são filtrados pelas listas específicas já existentes. Se o modo atualmente selecionado não tiver mais cadastro após a carga, a tela seleciona o primeiro tipo presencial disponível e limpa seleções incompatíveis.
-
 **Decisões tomadas:** preservar todos os botões enquanto a consulta ainda carrega ou falha; ocultar somente após resposta bem-sucedida, evitando interpretar erro de rede como ausência de cadastro.
-
 **Verificação:** `npx tsc --noEmit --incremental false` ✓ (0 erros) · bug-hunter ✓ · verification-before-completion ✓ · `npm run lint` indisponível (`next lint` foi removido no Next 16).
-
 **Pendências / próximos passos:** nenhuma conhecida.
-
 **Armadilhas descobertas:** “há algum ponto de salão” não responde se cada tipo individual possui cadastro; usar sempre `mesasCadastradas`, `comandasCadastradas` e `locaisExternosCadastrados` separadamente.
 
 ## [2026-08-27] Novo pedido sem pontos de salão
@@ -59,15 +74,10 @@
 **Agente/Modelo:** Codex GPT-5
 **Objetivo:** simplificar os canais do novo pedido quando não existem mesas, comandas ou parceiros e ampliar o campo manual de nome do cliente.
 **Arquivos alterados:** `src/app/admin/pedidos/novo/page.tsx`, `UI.md`, `Progress.md`.
-
 **O que foi feito:** o novo pedido passou a ler `configuracoes_loja.entregas_online_ativas` com o mesmo fallback do checkout público; depois de confirmar que `mesas` está vazia, oculta Mesa, Comanda e Parceiro. Entrega só aparece quando ativa; sem entrega e sem ponto de salão, Retirada é selecionada e o stepper mobile avança para Itens. O campo de nome agora ocupa toda a largura do card e tem 44 px de altura.
-
 **Decisões tomadas:** ausência da configuração continua significando entrega ativa, preservando o contrato existente. Erro ao carregar `mesas` não é tratado como lista vazia, evitando esconder canais por falha de rede. A Management API foi usada somente para leitura e confirmou zero pontos de salão e ausência da chave no projeto `bardaladeira`; nenhuma alteração de banco foi feita.
-
 **Verificação:** `npx tsc --noEmit` ✓ (0 erros) · bug-hunter ✓ · verification-before-completion ✓ · `npm run lint` indisponível (`next lint` foi removido no Next 16 e o repositório não possui configuração ESLint para execução direta).
-
 **Pendências / próximos passos:** corrigir o script/configuração de lint em tarefa própria; isso altera tooling fora do escopo desta mudança.
-
 **Armadilhas descobertas:** distinguir carregamento bem-sucedido com zero linhas de erro na consulta; ambos deixam o array vazio, mas apenas o primeiro autoriza simplificar o fluxo.
 
 ## [2026-08-25] Estoque completo — produtos e bebidas
@@ -146,6 +156,17 @@
 **Verificação:** TDD estrutural 10/10 ✓ · `./node_modules/.bin/tsc --noEmit --incremental false` 0 erros ✓ · IDE diagnostics nos arquivos editados 0 ✓ · `npm run lint` permanece indisponível (`next lint` resolve o diretório `lint`) · sem verificação no browser nesta sessão.
 **Pendências / próximos passos:** recarregar o admin (ou sair e entrar de novo) para o auto-reparo rodar no localStorage; se o 401 continuar após login fresco com usuário admin ativo, o próximo alvo é o lookup em `usuarios_sistema` via service role.
 **Armadilhas descobertas:** `ProtectedRoute` tratava `admin-supabase-*` como sessão válida, enquanto o servidor exige UUID RFC; quem já tinha o token antigo do PDV (`Date.now()`) ficava "logado" na UI e tomava 401 em toda API administrativa. `npx tsc` neste worktree cai no stub do npm sem `node_modules` prévio — usar o binário local.
+## [2026-08-22] Histórico de produto — token administrativo inválido no PDV
+
+**Agente/Modelo:** Codex GPT-5
+**Objetivo:** fazer as APIs de histórico receberem o UUID real do administrador autenticado.
+**Arquivos alterados:** `src/app/admin/pdv/page.tsx`, `src/contexts/AdminAuthContext.tsx`, `tests/produto-historico.test.mjs`, `Progress.md`.
+**O que foi feito:** o PDV deixou de salvar `Date.now()` como token administrativo e agora usa `resultado.usuario.id`; ao restaurar sessão administrativa, o contexto substitui automaticamente o token legado inválido pelo UUID da sessão.
+**Decisões tomadas:** preservei os dois tokens locais de desenvolvimento e somente normalizo tokens Supabase inválidos quando existe uma sessão administrativa válida.
+**Verificação:** reprodução de produção mostrou `401 { erro: 'Não autorizado.' }` após as rotas serem publicadas; TDD RED→GREEN 7/7 ✓ · `npx tsc --noEmit` ✓.
+**Pendências / próximos passos:** publicar este diff no projeto Vercel correto (`dzn7's projects`); o CLI local está autenticado somente em `yfgdericks-projects`, portanto não foi usado para produção.
+**Armadilhas descobertas:** o modal estar publicado não garante que a API esteja autorizada; o token antigo do PDV começava com o prefixo esperado, mas continha timestamp em vez de UUID e era rejeitado no route handler.
+
 ## [2026-08-22] Histórico de produto — resposta 404 da publicação
 
 **Agente/Modelo:** Codex GPT-5

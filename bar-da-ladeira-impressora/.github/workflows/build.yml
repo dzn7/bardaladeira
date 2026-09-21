@@ -1,0 +1,47 @@
+name: Build Impressao Electron Windows
+
+on:
+  push:
+    branches: ["main", "master", "develop"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build renderer + main (vite + tsc)
+        run: npm run build
+
+      - name: Empacotar instalador e portable (.exe)
+        run: npx electron-builder --publish never --win nsis portable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Conferir saida em release/
+        shell: pwsh
+        run: |
+          if (-not (Test-Path release)) { throw "Pasta release/ nao existe" }
+          Get-ChildItem release -Recurse | Format-Table Name, Length
+          if (-not (Get-ChildItem release -Filter *.exe)) { throw "Nenhum .exe gerado" }
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: bar-da-ladeira-impressao-windows
+          path: release/*.exe
+          if-no-files-found: error
