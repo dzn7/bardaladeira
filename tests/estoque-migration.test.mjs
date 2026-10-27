@@ -87,7 +87,7 @@ test('tela de estoque expoe o toggle de esgotado no site', async () => {
     new URL('../src/app/admin/estoque/page.tsx', import.meta.url),
     'utf8',
   )
-  assert.match(paginaEstoque, /<Interruptor/)
+  assert.match(paginaEstoque, /<(Linha)?Interruptor/)
   assert.match(paginaEstoque, /bloquear_venda_sem_estoque/)
   assert.match(paginaEstoque, /Esgotado no site/)
 })

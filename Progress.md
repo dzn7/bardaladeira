@@ -1,5 +1,15 @@
 # Progress
 
+## [2026-10-27] Estoque e Movimentações no padrão do Crediário; saldo negativo manual
+
+**Agente/Modelo:** Claude Opus 5.5
+**Objetivo:** limpar a UI de Estoque/Movimentações (bordas brancas, tabela poluída) e permitir deixar um item negativo pelo ajuste manual.
+**Arquivos alterados:** `src/app/admin/estoque/page.tsx`, `src/components/admin/estoque/MovimentacoesEstoque.tsx`, `src/components/admin/estoque/ControleEstoqueProduto.tsx`, `src/components/admin/estoque/FiltroEstoqueAdmin.tsx` (removido, sem uso), `src/app/globals.css`, `tests/estoque-migration.test.mjs`, `UI.md`, `Progress.md`.
+**Causa raiz das bordas brancas:** não havia regra global de `border-color`; todo `border`/`border-b` sem cor (ex.: linhas do `Table` shadcn) usava o cinza claro padrão do Tailwind no tema escuro.
+**O que foi feito:** regra `*, ::before, ::after { border-color: hsl(var(--border)) }`; Estoque e Movimentações reescritos com o kit no layout do Crediário (lista tocável + gaveta, sem Table/ToggleGroup/Popover/Command/FiltroAvancado); ajuste manual aceita valor negativo e `−` abaixo de zero; Zerar usa `useConfirmar`; número sem `font-mono`.
+**Verificação:** `npx tsc --noEmit` ✓ · testes 67/67 ✓ · RPCs `definir/ajustar_estoque_produto` aceitam negativo (teste em rollback: -2 e -3) ✓ · sem navegador.
+**Armadilhas descobertas:** `tests/estoque-migration.test.mjs` confere texto do fonte da página (`<Interruptor`); trocar componente exige ajustar a regex.
+
 ## [2026-10-27] Reforma de UX do admin inteiro (kit gaveta + Phosphor)
 
 **Agente/Modelo:** Claude Opus 5.5 (orquestrador + 7 subagentes por grupo disjunto)

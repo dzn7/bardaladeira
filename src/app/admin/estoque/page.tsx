@@ -3,12 +3,10 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Warning as AlertTriangle, CaretRight as ChevronRight, ClockCounterClockwise as History, Package, ArrowsClockwise as RefreshCw, MagnifyingGlass as Search } from '@phosphor-icons/react'
+import { ArrowsClockwise, MagnifyingGlass, Package, Warning, X } from '@phosphor-icons/react'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
-import Interruptor from '@/components/admin/Interruptor'
 import { ControleEstoqueProduto } from '@/components/admin/estoque/ControleEstoqueProduto'
-import { FiltroEstoqueAdmin } from '@/components/admin/estoque/FiltroEstoqueAdmin'
 import {
   buscarMovimentacoes,
   ListaCompactaMovimentacoes,
@@ -16,16 +14,22 @@ import {
   Saldo,
   type Movimentacao,
 } from '@/components/admin/estoque/MovimentacoesEstoque'
-import { CHIP_FILTRO_ALERTA, CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
-import { FiltrosAtivosChips, type ChipFiltroAtivo } from '@/components/admin/filtros/FiltrosAtivosChips'
-import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ModalSheet } from '@/components/ui/modal-sheet'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import {
+  Botao,
+  CabecalhoPagina,
+  Chip,
+  Entrada,
+  Esqueleto,
+  Gaveta,
+  LinhaInterruptor,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Segmentos,
+  Selecao,
+  Selo,
+} from '@/components/admin/ui'
 import { PaginacaoFinancas } from '@/features/financas/components/PaginacaoFinancas'
 import {
   COLUNAS_ESTOQUE_ADMIN,
@@ -40,7 +44,6 @@ import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
 const LIMITE_PADRAO = 15
-const LIMITES_PAGINA = [15, 30, 50, 100] as const
 
 type Estado = SituacaoEstoque | 'negativo'
 type FiltroEstado = 'todos' | Estado
@@ -53,32 +56,10 @@ const ROTULO_ESTADO: Record<Estado, string> = {
   em_estoque: 'Em estoque',
 }
 
+const TOM_ESTADO = { negativo: 'perigo', esgotado: 'neutro', baixo: 'alerta', em_estoque: 'sucesso' } as const
+
 const estadoDe = (produto: ProdutoComEstoque): Estado =>
   produto.estoque_quantidade < 0 ? 'negativo' : situacaoDeProduto(produto)
-
-const EstadoEstoque = ({ estado }: { estado: Estado }) => (
-  <span
-    className={cn(
-      'inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium',
-      estado === 'negativo' && 'text-destructive',
-      estado === 'esgotado' && 'text-muted-foreground',
-      estado === 'baixo' && 'text-amber-700 dark:text-amber-400',
-      estado === 'em_estoque' && 'text-muted-foreground',
-    )}
-  >
-    <span
-      aria-hidden
-      className={cn(
-        'h-1.5 w-1.5 rounded-full',
-        estado === 'negativo' && 'bg-destructive',
-        estado === 'esgotado' && 'bg-muted-foreground/60',
-        estado === 'baixo' && 'bg-amber-500',
-        estado === 'em_estoque' && 'bg-emerald-500',
-      )}
-    />
-    {ROTULO_ESTADO[estado]}
-  </span>
-)
 
 type DetalheItemProps = {
   produto: ProdutoComEstoque | null
@@ -103,7 +84,10 @@ const DetalheItemEstoque = ({
   const saldo = produto?.estoque_quantidade
 
   useEffect(() => {
-    if (!produtoId) return
+    if (!produtoId) {
+      setRecentes(null)
+      return
+    }
     let ativo = true
     setErroRecentes(false)
     buscarMovimentacoes({ itemId: produtoId, limite: 6 })
@@ -118,41 +102,42 @@ const DetalheItemEstoque = ({
     }
   }, [produtoId, saldo])
 
-  useEffect(() => {
-    if (!produtoId) setRecentes(null)
-  }, [produtoId])
+  const estado = produto ? estadoDe(produto) : null
 
   return (
-    <ModalSheet
-      open={Boolean(produto)}
-      onOpenChange={(aberto) => {
-        if (!aberto) onFechar()
-      }}
-      title={produto ? `Estoque de ${produto.nome}` : 'Estoque'}
-      className="sm:max-w-md"
+    <Gaveta
+      aberto={Boolean(produto)}
+      aoFechar={onFechar}
+      largura="lg"
+      titulo={produto?.nome ?? 'Estoque'}
+      descricao={
+        produto && estado ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <Selo tom={TOM_ESTADO[estado]}>{ROTULO_ESTADO[estado]}</Selo>
+            <span>{produto.categoria || 'Sem categoria'}</span>
+          </span>
+        ) : undefined
+      }
+      rodape={
+        produto ? (
+          <Botao variante="contorno" onClick={() => onVerHistorico(produto)}>
+            Ver todas as movimentações
+          </Botao>
+        ) : undefined
+      }
     >
       {produto ? (
-        <div className="max-h-[85dvh] overflow-y-auto">
-          <div className="space-y-1 border-b border-border/60 p-5 pr-12">
-            <p className="text-xs text-muted-foreground">{produto.categoria || 'Sem categoria'}</p>
-            <h2 className="text-base font-semibold leading-snug">{produto.nome}</h2>
-          </div>
-
-          <div className="space-y-5 p-5">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Saldo atual</p>
-                <Saldo valor={produto.estoque_quantidade} className="text-3xl leading-tight" />
-              </div>
-              <EstadoEstoque estado={estadoDe(produto)} />
+        <div className="space-y-6">
+          <section className="space-y-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Saldo atual</p>
+              <Saldo valor={produto.estoque_quantidade} className="text-4xl font-semibold tracking-tight" />
             </div>
-
             {produto.estoque_quantidade < 0 ? (
-              <p className="rounded-lg bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
-                Foram vendidas {Math.abs(produto.estoque_quantidade)} unidades além do estoque. Reponha ou ajuste a contagem.
+              <p className="text-sm text-destructive">
+                {Math.abs(produto.estoque_quantidade)} {Math.abs(produto.estoque_quantidade) === 1 ? 'unidade vendida' : 'unidades vendidas'} além do estoque. Reponha ou ajuste a contagem.
               </p>
             ) : null}
-
             <ControleEstoqueProduto
               produtoId={produto.id}
               tabela={produto.tabela}
@@ -160,70 +145,49 @@ const DetalheItemEstoque = ({
               nomeProduto={produto.nome}
               onQuantidadeConfirmada={(quantidade) => onQuantidadeConfirmada(produto, quantidade)}
             />
+            <p className="text-xs text-muted-foreground">Digite o saldo (aceita negativo) ou use − e +.</p>
+          </section>
 
-            <div className="flex items-start justify-between gap-4 rounded-lg border border-border/70 p-3">
-              <div>
-                <p className="text-sm font-medium">Esgotado no site</p>
-                <p className="text-xs text-muted-foreground">
-                  Sem saldo, o item some do cardápio online. Pedidos no balcão continuam liberados.
-                </p>
-              </div>
-              <Interruptor
-                ativado={produto.bloquear_venda_sem_estoque}
-                aoAlternar={(bloquear) => onBloqueioSite(produto, bloquear)}
-                desabilitado={salvandoBloqueio}
-                tamanho="md"
-                aria-label={`${produto.bloquear_venda_sem_estoque ? 'Desativar' : 'Ativar'} esgotado automático no site para ${produto.nome}`}
-              />
-            </div>
+          <LinhaInterruptor
+            titulo="Esgotado no site"
+            descricao="Sem saldo, o item some do cardápio online. Balcão e garçom continuam vendendo."
+            marcado={produto.bloquear_venda_sem_estoque}
+            aoMudar={(bloquear) => onBloqueioSite(produto, bloquear)}
+            desabilitado={salvandoBloqueio}
+            rotuloAcessivel={`Esgotado no site para ${produto.nome}`}
+          />
 
-            <dl className="grid grid-cols-3 gap-3 text-sm">
-              <div>
-                <dt className="text-xs text-muted-foreground">Mínimo</dt>
-                <dd className="font-mono tabular-nums">{produto.estoque_minimo}</dd>
+          <dl className="divide-y divide-border/70 rounded-xl border border-border/70">
+            {[
+              ['Mínimo', String(produto.estoque_minimo)],
+              ['Preço de venda', formatarMoedaEstoque(produto.preco)],
+              ['Custo', formatarMoedaEstoque(produto.custo_unitario)],
+            ].map(([rotulo, valor]) => (
+              <div key={rotulo} className="flex items-baseline justify-between gap-3 px-4 py-3">
+                <dt className="text-sm text-muted-foreground">{rotulo}</dt>
+                <dd className="font-medium tabular-nums">{valor}</dd>
               </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Venda</dt>
-                <dd className="font-mono tabular-nums">{formatarMoedaEstoque(produto.preco)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Custo</dt>
-                <dd className="font-mono tabular-nums">{formatarMoedaEstoque(produto.custo_unitario)}</dd>
-              </div>
-            </dl>
+            ))}
+          </dl>
 
-            <section>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Últimas movimentações</h3>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-2 text-muted-foreground"
-                  onClick={() => onVerHistorico(produto)}
-                >
-                  Ver tudo
-                  <ChevronRight className="ml-1 h-4 w-4" aria-hidden />
-                </Button>
+          <section className="space-y-2">
+            <h3 className="px-1 text-sm font-semibold">Últimas movimentações</h3>
+            {erroRecentes ? (
+              <p className="px-1 text-sm text-muted-foreground">Não foi possível carregar as movimentações.</p>
+            ) : recentes === null ? (
+              <div className="space-y-2">
+                <Esqueleto className="h-14 w-full rounded-xl" />
+                <Esqueleto className="h-14 w-full rounded-xl" />
               </div>
-              {erroRecentes ? (
-                <p className="py-3 text-sm text-muted-foreground">Não foi possível carregar as movimentações.</p>
-              ) : recentes === null ? (
-                <div className="space-y-2 py-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ) : recentes.length === 0 ? (
-                <p className="py-3 text-sm text-muted-foreground">Nenhuma movimentação registrada ainda.</p>
-              ) : (
-                <ListaCompactaMovimentacoes movimentacoes={recentes} mostrarProduto={false} />
-              )}
-            </section>
-          </div>
+            ) : recentes.length === 0 ? (
+              <p className="px-1 text-sm text-muted-foreground">Nenhuma movimentação registrada ainda.</p>
+            ) : (
+              <ListaCompactaMovimentacoes movimentacoes={recentes} mostrarProduto={false} />
+            )}
+          </section>
         </div>
       ) : null}
-    </ModalSheet>
+    </Gaveta>
   )
 }
 
@@ -247,8 +211,8 @@ const PainelEstoque = () => {
   const canalIdRef = useRef(`estoque-catalogo-${Math.random().toString(36).slice(2)}`)
   const deepLinkAplicadoRef = useRef<string | null>(null)
 
-  const carregarProdutos = useCallback(async (silencioso = false) => {
-    if (!silencioso) setCarregando(true)
+  const carregarProdutos = useCallback(async () => {
+    setCarregando(true)
     setErro(null)
     try {
       const [consultaProdutos, consultaBebidas] = await Promise.all([
@@ -258,23 +222,19 @@ const PainelEstoque = () => {
       if (consultaProdutos.error) throw consultaProdutos.error
       if (consultaBebidas.error) throw consultaBebidas.error
       setProdutos(combinarItensEstoque(
-        (consultaProdutos.data || []).map((linha) =>
-          mapearLinhaEstoque(linha as Record<string, unknown>, 'produtos'),
-        ),
-        (consultaBebidas.data || []).map((linha) =>
-          mapearLinhaEstoque(linha as Record<string, unknown>, 'bebidas'),
-        ),
+        (consultaProdutos.data || []).map((linha) => mapearLinhaEstoque(linha as Record<string, unknown>, 'produtos')),
+        (consultaBebidas.data || []).map((linha) => mapearLinhaEstoque(linha as Record<string, unknown>, 'bebidas')),
       ))
     } catch (falha) {
       console.error('[Estoque] Falha ao carregar produtos:', falha)
-      setErro('Não foi possível carregar o estoque. Tente novamente.')
+      setErro('Não foi possível carregar o estoque.')
     } finally {
-      if (!silencioso) setCarregando(false)
+      setCarregando(false)
     }
   }, [])
 
   useEffect(() => {
-    void carregarProdutos(false)
+    void carregarProdutos()
   }, [carregarProdutos])
 
   useEffect(() => {
@@ -284,8 +244,7 @@ const PainelEstoque = () => {
 
   useEffect(() => {
     const aplicarMudanca = (payload: { eventType: string; old: unknown; new: unknown }, tabela: 'produtos' | 'bebidas') => {
-      const evento = payload.eventType
-      if (evento === 'DELETE') {
+      if (payload.eventType === 'DELETE') {
         const idRemovido = String((payload.old as { id?: string } | null)?.id || '')
         if (!idRemovido) return
         setProdutos((atual) => atual.filter((produto) => !(produto.id === idRemovido && produto.tabela === tabela)))
@@ -296,10 +255,12 @@ const PainelEstoque = () => {
       const atualizado = mapearLinhaEstoque(linha, tabela)
       setProdutos((atual) => {
         const existe = atual.some((produto) => produto.id === atualizado.id && produto.tabela === tabela)
-        if (!existe) return combinarItensEstoque(
-          tabela === 'produtos' ? [...atual.filter((item) => item.tabela === 'produtos'), atualizado] : atual.filter((item) => item.tabela === 'produtos'),
-          tabela === 'bebidas' ? [...atual.filter((item) => item.tabela === 'bebidas'), atualizado] : atual.filter((item) => item.tabela === 'bebidas'),
-        )
+        if (!existe) {
+          return combinarItensEstoque(
+            [...atual.filter((item) => item.tabela === 'produtos'), ...(tabela === 'produtos' ? [atualizado] : [])],
+            [...atual.filter((item) => item.tabela === 'bebidas'), ...(tabela === 'bebidas' ? [atualizado] : [])],
+          )
+        }
         return atual.map((produto) =>
           produto.id === atualizado.id && produto.tabela === tabela ? { ...produto, ...atualizado } : produto,
         )
@@ -308,12 +269,8 @@ const PainelEstoque = () => {
 
     const canal = supabase
       .channel(canalIdRef.current)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, (payload) => {
-        aplicarMudanca(payload, 'produtos')
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bebidas' }, (payload) => {
-        aplicarMudanca(payload, 'bebidas')
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, (payload) => aplicarMudanca(payload, 'produtos'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bebidas' }, (payload) => aplicarMudanca(payload, 'bebidas'))
       .subscribe()
 
     return () => {
@@ -328,28 +285,23 @@ const PainelEstoque = () => {
   }, [produtos])
 
   const categorias = useMemo(
-    () =>
-      Array.from(new Set(produtos.map((produto) => produto.categoria).filter(Boolean))).sort((a, b) =>
-        a.localeCompare(b, 'pt-BR'),
-      ),
+    () => Array.from(new Set(produtos.map((produto) => produto.categoria).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
     [produtos],
   )
 
-  const produtosFiltrados = useMemo(() => {
-    return produtos.filter((produto) => {
+  const produtosFiltrados = useMemo(
+    () => produtos.filter((produto) => {
       if (!produtoCorrespondeBuscaEstoque(produto, busca)) return false
       if (categoria !== 'todas' && produto.categoria !== categoria) return false
       if (filtroEstado !== 'todos' && estadoDe(produto) !== filtroEstado) return false
       return true
-    })
-  }, [busca, categoria, filtroEstado, produtos])
+    }),
+    [busca, categoria, filtroEstado, produtos],
+  )
 
   const totalPaginas = Math.max(1, Math.ceil(produtosFiltrados.length / itensPorPagina))
   const paginaSegura = Math.min(pagina, totalPaginas)
-  const produtosPagina = produtosFiltrados.slice(
-    (paginaSegura - 1) * itensPorPagina,
-    paginaSegura * itensPorPagina,
-  )
+  const produtosPagina = produtosFiltrados.slice((paginaSegura - 1) * itensPorPagina, paginaSegura * itensPorPagina)
 
   const produtoDetalhe = detalhe
     ? produtos.find((produto) => produto.id === detalhe.id && produto.tabela === detalhe.tabela) || null
@@ -380,80 +332,46 @@ const PainelEstoque = () => {
 
   useEffect(() => {
     if (!produtoDestacado) return
-    const linha =
-      document.getElementById(`estoque-produto-m-${produtoDestacado}`) ||
-      document.getElementById(`estoque-produto-d-${produtoDestacado}`)
-    const container = document.querySelector('[data-admin-scroll-container]')
-    if (linha instanceof HTMLElement) {
-      const topo = linha.getBoundingClientRect().top
-      const origem = container instanceof HTMLElement ? container.getBoundingClientRect().top : 0
-      if (container instanceof HTMLElement) {
-        container.scrollTo({ top: container.scrollTop + topo - origem - 24, behavior: 'auto' })
-      } else {
-        linha.scrollIntoView({ behavior: 'auto', block: 'center' })
-      }
-    }
-  }, [produtoDestacado, paginaSegura, produtosPagina])
+    document.getElementById(`estoque-produto-${produtoDestacado}`)?.scrollIntoView({ block: 'center' })
+  }, [produtoDestacado, paginaSegura])
 
-  const handleQuantidadeConfirmada = (
-    produtoId: string,
-    tabela: ProdutoComEstoque['tabela'],
-    quantidade: number,
-  ) => {
+  const handleQuantidadeConfirmada = (produto: ProdutoComEstoque, quantidade: number) => {
     setProdutos((atual) =>
-      atual.map((produto) =>
-        produto.id === produtoId && produto.tabela === tabela
-          ? { ...produto, estoque_quantidade: quantidade }
-          : produto,
+      atual.map((item) =>
+        item.id === produto.id && item.tabela === produto.tabela ? { ...item, estoque_quantidade: quantidade } : item,
       ),
     )
   }
 
   const handleBloqueioSite = async (produto: ProdutoComEstoque, bloquear: boolean) => {
     if (produtoSalvandoBloqueio) return
-    setProdutoSalvandoBloqueio(produto.id)
-    setProdutos((atual) =>
-      atual.map((item) =>
-        item.id === produto.id && item.tabela === produto.tabela
-          ? { ...item, bloquear_venda_sem_estoque: bloquear }
-          : item,
-      ),
-    )
-    try {
-      const { error } = await supabase
-        .from(produto.tabela)
-        .update({ bloquear_venda_sem_estoque: bloquear })
-        .eq('id', produto.id)
-      if (error) throw error
-      toast.success(bloquear ? 'Esgotado automático ativado no site.' : 'Esgotado automático desativado no site.')
-    } catch (falha) {
+    const trocar = (valor: boolean) =>
       setProdutos((atual) =>
         atual.map((item) =>
-          item.id === produto.id && item.tabela === produto.tabela
-            ? { ...item, bloquear_venda_sem_estoque: produto.bloquear_venda_sem_estoque }
-            : item,
+          item.id === produto.id && item.tabela === produto.tabela ? { ...item, bloquear_venda_sem_estoque: valor } : item,
         ),
       )
-      console.error('[Estoque] Falha ao alterar bloqueio no site:', falha)
-      toast.error('Não foi possível alterar a exibição de esgotado no site.')
-    } finally {
-      setProdutoSalvandoBloqueio(null)
+    setProdutoSalvandoBloqueio(produto.id)
+    trocar(bloquear)
+    const { error } = await supabase.from(produto.tabela).update({ bloquear_venda_sem_estoque: bloquear }).eq('id', produto.id)
+    setProdutoSalvandoBloqueio(null)
+    if (error) {
+      console.error('[Estoque] Falha ao alterar bloqueio no site:', error)
+      trocar(produto.bloquear_venda_sem_estoque)
+      toast.error('Não foi possível alterar o site.', { description: produto.nome })
+      return
     }
+    toast.success(bloquear ? 'Esgota no site sem saldo' : 'Continua no site sem saldo', { description: produto.nome })
   }
 
-  const chips: ChipFiltroAtivo[] = []
-  if (busca.trim()) chips.push({ key: 'busca', label: 'Busca', value: busca.trim() })
-  if (filtroEstado !== 'todos') chips.push({ key: 'estado', label: 'Estado', value: ROTULO_ESTADO[filtroEstado] })
-  if (categoria !== 'todas') chips.push({ key: 'categoria', label: 'Categoria', value: categoria })
+  const temFiltro = Boolean(busca.trim()) || filtroEstado !== 'todos' || categoria !== 'todas'
 
-  const handleLimparFiltros = () => {
+  const limparFiltros = () => {
     setBuscaDigitada('')
     setBusca('')
     setFiltroEstado('todos')
     setCategoria('todas')
   }
-
-  const abrirDetalhe = (produto: ProdutoComEstoque) => setDetalhe({ id: produto.id, tabela: produto.tabela })
 
   const verHistorico = (produto: ProdutoComEstoque) => {
     setDetalhe(null)
@@ -461,234 +379,181 @@ const PainelEstoque = () => {
     setAba('movimentacoes')
   }
 
+  const filtrosEstado: { valor: FiltroEstado; rotulo: string; alerta?: boolean }[] = [
+    { valor: 'todos', rotulo: 'Todos' },
+    ...(resumo.negativo > 0 ? [{ valor: 'negativo' as const, rotulo: `Negativos · ${resumo.negativo}`, alerta: true }] : []),
+    { valor: 'esgotado', rotulo: 'Esgotados' },
+    { valor: 'baixo', rotulo: 'Estoque baixo' },
+    { valor: 'em_estoque', rotulo: 'Em estoque' },
+  ]
+
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 pb-8">
-      <header className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight">Estoque</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {carregando && produtos.length === 0 ? (
-              'Carregando…'
-            ) : (
-              <>
-                {produtos.length} itens
-                {resumo.negativo > 0 ? (
-                  <> · <span className="font-medium text-destructive">{resumo.negativo} negativos</span></>
-                ) : null}
-                {' · '}
-                {resumo.esgotado} esgotados · {resumo.baixo} com estoque baixo
-              </>
-            )}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 shrink-0"
-          onClick={() => void carregarProdutos(false)}
-          disabled={carregando}
-          aria-label="Atualizar estoque"
-        >
-          <RefreshCw className={cn('h-4 w-4', carregando && 'animate-spin')} />
-        </Button>
-      </header>
+    <Pagina>
+      <CabecalhoPagina
+        titulo="Estoque"
+        descricao={
+          carregando && produtos.length === 0
+            ? 'Carregando…'
+            : `${produtos.length} itens · ${resumo.esgotado} esgotados · ${resumo.baixo} com estoque baixo`
+        }
+        acoes={
+          <Botao variante="contorno" onClick={() => void carregarProdutos()} disabled={carregando}>
+            <ArrowsClockwise className={cn('size-4', carregando && 'animate-spin')} />
+            Atualizar
+          </Botao>
+        }
+      />
 
-      {resumo.negativo > 0 && aba === 'saldo' && filtroEstado !== 'negativo' ? (
-        <button
-          type="button"
-          onClick={() => setFiltroEstado('negativo')}
-          className="flex w-full items-center gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-3 text-left text-sm transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
-        >
-          <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="font-medium text-destructive">
-              {resumo.negativo === 1 ? '1 item vendido sem estoque.' : `${resumo.negativo} itens vendidos sem estoque.`}
-            </span>{' '}
-            <span className="text-muted-foreground">Reponha ou ajuste a contagem.</span>
-          </span>
-          <span className="shrink-0 font-medium text-destructive">Ver</span>
-        </button>
-      ) : null}
+      <Segmentos
+        opcoes={[
+          { valor: 'saldo', rotulo: 'Saldo' },
+          { valor: 'movimentacoes', rotulo: 'Movimentações' },
+        ]}
+        valor={aba}
+        aoMudar={setAba}
+        rotuloAcessivel="Ver saldo ou movimentações"
+      />
 
-      <Tabs value={aba} onValueChange={(valor) => setAba(valor as Aba)} className="space-y-4">
-        <TabsList className="h-10">
-          <TabsTrigger value="saldo" className="h-8 px-4">
-            <Package className="mr-2 h-4 w-4" aria-hidden />
-            Saldo
-          </TabsTrigger>
-          <TabsTrigger value="movimentacoes" className="h-8 px-4">
-            <History className="mr-2 h-4 w-4" aria-hidden />
-            Movimentações
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="saldo" className="mt-0 space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={buscaDigitada}
-                onChange={(evento) => setBuscaDigitada(evento.target.value)}
-                placeholder="Buscar produto"
-                className="h-10 border-border/70 pl-9 shadow-none"
-                aria-label="Buscar produtos no estoque"
-              />
-            </div>
-            <FiltroEstoqueAdmin
-              valor={{ categoria }}
-              categorias={categorias}
-              onChange={(proximo) => {
-                if (proximo.categoria) setCategoria(proximo.categoria)
-              }}
-              onLimpar={handleLimparFiltros}
-              hasFilter={chips.length > 0}
-            />
-          </div>
-
-          <div className="w-full overflow-x-auto">
-            <ToggleGroup
-              type="single"
-              value={filtroEstado}
-              onValueChange={(valor) => {
-                if (valor) setFiltroEstado(valor as FiltroEstado)
-              }}
-              aria-label="Filtro de estado do estoque"
-              className="flex w-max items-center justify-start gap-1.5"
+      {aba === 'movimentacoes' ? (
+        <MovimentacoesEstoque itens={produtos} produtoId={produtoHistorico} onProdutoChange={setProdutoHistorico} />
+      ) : (
+        <>
+          {resumo.negativo > 0 && filtroEstado !== 'negativo' ? (
+            <button
+              type="button"
+              onClick={() => setFiltroEstado('negativo')}
+              className="flex w-full items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-left text-sm transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
             >
-              <ToggleGroupItem value="todos" className={CHIP_FILTRO_DEFAULT}>Todos</ToggleGroupItem>
-              {resumo.negativo > 0 ? (
-                <ToggleGroupItem value="negativo" className={CHIP_FILTRO_ALERTA}>
-                  Negativos · {resumo.negativo}
-                </ToggleGroupItem>
-              ) : null}
-              <ToggleGroupItem value="esgotado" className={CHIP_FILTRO_DEFAULT}>Esgotados</ToggleGroupItem>
-              <ToggleGroupItem value="baixo" className={CHIP_FILTRO_DEFAULT}>Estoque baixo</ToggleGroupItem>
-              <ToggleGroupItem value="em_estoque" className={CHIP_FILTRO_DEFAULT}>Em estoque</ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
-          <FiltrosAtivosChips chips={chips} onLimpar={handleLimparFiltros} />
-
-          {erro ? (
-            <div className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-destructive">{erro}</p>
-              <Button type="button" variant="outline" className="h-10 shadow-none" onClick={() => void carregarProdutos(false)}>
-                Tentar novamente
-              </Button>
-            </div>
+              <Warning className="size-5 shrink-0 text-destructive" aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="font-medium text-destructive">
+                  {resumo.negativo === 1 ? '1 item vendido sem estoque' : `${resumo.negativo} itens vendidos sem estoque`}
+                </span>
+                <span className="block text-muted-foreground">Reponha ou ajuste a contagem.</span>
+              </span>
+              <span className="shrink-0 font-medium text-destructive">Ver</span>
+            </button>
           ) : null}
 
-          {carregando && produtos.length === 0 ? (
-            <TabelaSkeleton linhas={8} />
-          ) : produtos.length === 0 && !erro ? (
+          <div className="space-y-3">
+            <div className="relative">
+              <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Entrada
+                type="search"
+                value={buscaDigitada}
+                onChange={(evento) => setBuscaDigitada(evento.target.value)}
+                placeholder="Buscar produto ou categoria"
+                aria-label="Buscar produtos no estoque"
+                className="pl-9 pr-11"
+              />
+              {buscaDigitada ? (
+                <button
+                  type="button"
+                  onClick={() => setBuscaDigitada('')}
+                  className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="Limpar busca"
+                >
+                  <X className="size-4" />
+                </button>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0" role="group" aria-label="Filtro de estado do estoque">
+                {filtrosEstado.map((filtro) => (
+                  <Chip
+                    key={filtro.valor}
+                    ativo={filtroEstado === filtro.valor}
+                    onClick={() => setFiltroEstado(filtro.valor)}
+                    className={cn('h-11 shrink-0 md:h-9', filtro.alerta && filtroEstado !== filtro.valor && 'text-destructive')}
+                  >
+                    {filtro.rotulo}
+                  </Chip>
+                ))}
+              </div>
+              <Selecao
+                value={categoria}
+                onChange={(evento) => setCategoria(evento.target.value)}
+                aria-label="Categoria"
+                className="md:w-52"
+              >
+                <option value="todas">Todas as categorias</option>
+                {categorias.map((nome) => (
+                  <option key={nome} value={nome}>{nome}</option>
+                ))}
+              </Selecao>
+            </div>
+          </div>
+
+          <div className="flex min-h-9 items-center justify-between gap-3 px-1">
+            <p className="text-sm text-muted-foreground">
+              {produtosFiltrados.length} {produtosFiltrados.length === 1 ? 'item' : 'itens'}
+            </p>
+            {temFiltro ? (
+              <Botao variante="fantasma" tamanho="sm" onClick={limparFiltros}>
+                Limpar filtros
+              </Botao>
+            ) : null}
+          </div>
+
+          {erro ? (
             <ListaVazia
-              icone={<Package className="h-5 w-5" />}
-              titulo="Nenhum produto cadastrado"
-              descricao="Cadastre produtos no cardápio para controlar o estoque."
+              icone={<Package />}
+              titulo="Não foi possível carregar o estoque"
+              descricao="Verifique a conexão e tente de novo."
+              acao={<Botao variante="contorno" onClick={() => void carregarProdutos()}>Tentar de novo</Botao>}
             />
-          ) : produtosFiltrados.length === 0 && !erro ? (
+          ) : carregando && produtos.length === 0 ? (
+            <ListaCarregando linhas={6} />
+          ) : produtosFiltrados.length === 0 ? (
             <ListaVazia
-              icone={<Search className="h-5 w-5" />}
-              titulo="Nenhum produto encontrado"
-              descricao="Ajuste a busca ou limpe os filtros."
-              acao={
-                <Button type="button" variant="outline" className="h-10 shadow-none" onClick={handleLimparFiltros}>
-                  Limpar filtros
-                </Button>
-              }
+              icone={<Package />}
+              titulo={produtos.length === 0 ? 'Nenhum produto cadastrado' : 'Nenhum produto encontrado'}
+              descricao={produtos.length === 0 ? 'Cadastre produtos no cardápio para controlar o estoque.' : 'Ajuste a busca ou os filtros.'}
+              acao={temFiltro ? <Botao variante="contorno" onClick={limparFiltros}>Limpar filtros</Botao> : undefined}
             />
-          ) : produtosFiltrados.length > 0 ? (
+          ) : (
             <>
-              <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card md:hidden">
-                {produtosPagina.map((produto) => (
-                  <li key={`${produto.tabela}-${produto.id}`} id={`estoque-produto-m-${produto.id}`}>
-                    <button
-                      type="button"
-                      onClick={() => abrirDetalhe(produto)}
-                      className={cn(
-                        'flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/60',
-                        produtoDestacado === produto.id && 'bg-primary/5',
-                      )}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{produto.nome}</p>
-                        <div className="mt-0.5 flex items-center gap-2">
-                          <EstadoEstoque estado={estadoDe(produto)} />
-                          <span className="truncate text-xs text-muted-foreground">{produto.categoria}</span>
+              <Lista>
+                {produtosPagina.map((produto) => {
+                  const estado = estadoDe(produto)
+                  const abrir = () => setDetalhe({ id: produto.id, tabela: produto.tabela })
+                  return (
+                    <li key={`${produto.tabela}-${produto.id}`} id={`estoque-produto-${produto.id}`}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={abrir}
+                        onKeyDown={(evento) => {
+                          if (evento.key === 'Enter' || evento.key === ' ') {
+                            evento.preventDefault()
+                            abrir()
+                          }
+                        }}
+                        aria-label={`Abrir estoque de ${produto.nome}`}
+                        className={cn(
+                          'flex min-h-16 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                          produtoDestacado === produto.id && 'bg-accent/40',
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-foreground">{produto.nome}</p>
+                          <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                            {produto.categoria || 'Sem categoria'}
+                            <span className="hidden sm:inline"> · mínimo {produto.estoque_minimo}</span>
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <Saldo valor={produto.estoque_quantidade} className="text-lg font-semibold" />
+                          <div className="mt-0.5">
+                            <Selo tom={TOM_ESTADO[estado]}>{ROTULO_ESTADO[estado]}</Selo>
+                          </div>
                         </div>
                       </div>
-                      <Saldo valor={produto.estoque_quantidade} className="text-lg" />
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-card md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="pl-4">Produto</TableHead>
-                      <TableHead className="w-24 text-right">Saldo</TableHead>
-                      <TableHead className="w-20 text-right">Mínimo</TableHead>
-                      <TableHead className="w-32">Estado</TableHead>
-                      <TableHead className="w-[17rem]">Ajuste rápido</TableHead>
-                      <TableHead className="w-12"><span className="sr-only">Detalhes</span></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {produtosPagina.map((produto) => (
-                      <TableRow
-                        key={`${produto.tabela}-${produto.id}`}
-                        id={`estoque-produto-d-${produto.id}`}
-                        className={cn(produtoDestacado === produto.id && 'bg-primary/5')}
-                      >
-                        <TableCell className="pl-4">
-                          <button
-                            type="button"
-                            onClick={() => abrirDetalhe(produto)}
-                            className="block max-w-[22rem] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <span className="block truncate font-medium hover:underline">{produto.nome}</span>
-                            <span className="block truncate text-xs text-muted-foreground">{produto.categoria}</span>
-                          </button>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Saldo valor={produto.estoque_quantidade} className="text-base" />
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
-                          {produto.estoque_minimo}
-                        </TableCell>
-                        <TableCell><EstadoEstoque estado={estadoDe(produto)} /></TableCell>
-                        <TableCell>
-                          <ControleEstoqueProduto
-                            produtoId={produto.id}
-                            tabela={produto.tabela}
-                            quantidade={produto.estoque_quantidade}
-                            nomeProduto={produto.nome}
-                            onQuantidadeConfirmada={(quantidade) =>
-                              handleQuantidadeConfirmada(produto.id, produto.tabela, quantidade)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="pr-3">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9"
-                            onClick={() => abrirDetalhe(produto)}
-                            aria-label={`Detalhes e movimentações de ${produto.nome}`}
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </li>
+                  )
+                })}
+              </Lista>
 
               <PaginacaoFinancas
                 paginaAtual={paginaSegura}
@@ -696,35 +561,23 @@ const PainelEstoque = () => {
                 totalItens={produtosFiltrados.length}
                 itensPorPagina={itensPorPagina}
                 onPaginaChange={setPagina}
-                onItensPorPaginaChange={(quantidade) => {
-                  if ((LIMITES_PAGINA as readonly number[]).includes(quantidade)) {
-                    setItensPorPagina(quantidade)
-                  }
-                }}
+                onItensPorPaginaChange={setItensPorPagina}
                 carregando={carregando}
               />
             </>
-          ) : null}
-        </TabsContent>
-
-        <TabsContent value="movimentacoes" className="mt-0">
-          <MovimentacoesEstoque
-            itens={produtos}
-            produtoId={produtoHistorico}
-            onProdutoChange={setProdutoHistorico}
-          />
-        </TabsContent>
-      </Tabs>
+          )}
+        </>
+      )}
 
       <DetalheItemEstoque
         produto={produtoDetalhe}
         salvandoBloqueio={produtoSalvandoBloqueio !== null}
         onFechar={() => setDetalhe(null)}
-        onQuantidadeConfirmada={(produto, quantidade) => handleQuantidadeConfirmada(produto.id, produto.tabela, quantidade)}
+        onQuantidadeConfirmada={handleQuantidadeConfirmada}
         onBloqueioSite={(produto, bloquear) => void handleBloqueioSite(produto, bloquear)}
         onVerHistorico={verHistorico}
       />
-    </div>
+    </Pagina>
   )
 }
 

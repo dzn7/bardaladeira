@@ -155,6 +155,14 @@ html, body {
   box-sizing: border-box;
 }
 
+/* Sem isto, todo `border` sem cor explícita usa o cinza claro padrão do Tailwind
+   (vira linha branca no tema escuro). Padrão shadcn: borda segue o token. */
+@layer base {
+  *, ::before, ::after {
+    border-color: hsl(var(--border));
+  }
+}
+
 input,
 textarea,
 select,
