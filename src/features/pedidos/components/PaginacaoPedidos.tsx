@@ -11,7 +11,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Selecao } from '@/components/admin/ui'
 
 type ItemPagina = number | 'inicio-ellipsis' | 'fim-ellipsis'
 
@@ -79,32 +79,29 @@ export default function PaginacaoPedidos({
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Exibir</span>
-          <Select
+          <Selecao
             value={String(itensPorPagina)}
-            onValueChange={(valor) => onItensPorPaginaChange(Number(valor))}
+            onChange={(evento) => onItensPorPaginaChange(Number(evento.target.value))}
             disabled={carregando}
+            aria-label="Pedidos por página"
+            className="w-24"
           >
-            <SelectTrigger className="h-10 w-[92px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {OPCOES_POR_PAGINA.map((opcao) => (
-                <SelectItem key={opcao} value={String(opcao)}>
-                  {opcao}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-sm text-muted-foreground">itens</span>
+            {OPCOES_POR_PAGINA.map((opcao) => (
+              <option key={opcao} value={String(opcao)}>
+                {opcao}
+              </option>
+            ))}
+          </Selecao>
+          <span className="text-sm text-muted-foreground">por página</span>
         </div>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {primeiroItem}–{ultimoItem} de {totalItens}
         </span>
       </div>
 
       <Pagination className="mx-0 w-auto justify-start lg:justify-end">
         <PaginationContent className="flex-wrap">
-          <PaginationItem>
+          <PaginationItem className="hidden sm:block">
             <PaginationFirst
               disabled={carregando || paginaAtual === 1}
               onClick={() => onPaginaChange(1)}
@@ -117,9 +114,13 @@ export default function PaginacaoPedidos({
             />
           </PaginationItem>
 
+          <PaginationItem className="px-2 text-sm tabular-nums text-muted-foreground sm:hidden">
+            Página {paginaAtual} de {totalPaginas}
+          </PaginationItem>
+
           {itens.map((item) =>
             typeof item === 'number' ? (
-              <PaginationItem key={item}>
+              <PaginationItem key={item} className="hidden sm:block">
                 <PaginationButton
                   isActive={item === paginaAtual}
                   disabled={carregando}
@@ -130,7 +131,7 @@ export default function PaginacaoPedidos({
                 </PaginationButton>
               </PaginationItem>
             ) : (
-              <PaginationItem key={item}>
+              <PaginationItem key={item} className="hidden sm:block">
                 <PaginationEllipsis />
               </PaginationItem>
             ),
@@ -142,7 +143,7 @@ export default function PaginacaoPedidos({
               onClick={() => onPaginaChange(paginaAtual + 1)}
             />
           </PaginationItem>
-          <PaginationItem>
+          <PaginationItem className="hidden sm:block">
             <PaginationLast
               disabled={carregando || paginaAtual === totalPaginas}
               onClick={() => onPaginaChange(totalPaginas)}

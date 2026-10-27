@@ -1,17 +1,6 @@
 'use client'
 
-import {
-  ArrowLeft,
-  ArrowRight,
-  EyeOff,
-  FastForward,
-  Loader2,
-  MoreHorizontal,
-  Pause,
-  Play,
-  RotateCcw,
-  X,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, EyeSlash as EyeOff, FastForward, CircleNotch as Loader2, DotsThree as MoreHorizontal, Pause, Play, ArrowCounterClockwise as RotateCcw, X } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {

@@ -3,9 +3,8 @@
 import { useMemo } from 'react'
 import { Bar } from 'react-chartjs-2'
 import type { ChartData, ChartOptions } from 'chart.js'
-import { BarChart3 } from 'lucide-react'
-import { ListaVazia } from '@/components/admin/filtros/ListaEstado'
-import { Skeleton } from '@/components/ui/skeleton'
+import { ChartBar as BarChart3 } from '@phosphor-icons/react'
+import { Cartao, Esqueleto, ListaVazia } from '@/components/admin/ui'
 import { ensureChartJsRegistered } from '@/features/financas/lib/setup-chartjs'
 import { formatarPontos } from '../lib/periodo'
 import type { GarcomProdutividade } from '../types'
@@ -96,19 +95,19 @@ export function GraficoPontosGarcom({ garcons, carregando }: Props) {
   )
 
   return (
-    <section className="rounded-xl border border-border/70 bg-card p-4 shadow-sm md:p-5">
+    <Cartao className="p-4 md:p-5">
       <div className="mb-4">
-        <h2 className="text-sm font-medium text-foreground">Ganhos e perdas por garçom</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+        <h2 className="text-base font-semibold text-foreground">Ganhos e perdas por garçom</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Barra azul é o que somou; a vermelha é o que as falhas de cadastro descontaram.
         </p>
       </div>
 
       {carregando ? (
-        <Skeleton className="h-[280px] w-full rounded-lg" />
+        <Esqueleto className="h-[280px] w-full rounded-lg" />
       ) : dados.length === 0 ? (
         <ListaVazia
-          icone={<BarChart3 className="h-5 w-5" />}
+          icone={<BarChart3 />}
           titulo="Sem pontuação no período"
           descricao="Nenhum garçom registrou pedidos ou itens nesta janela."
         />
@@ -117,6 +116,6 @@ export function GraficoPontosGarcom({ garcons, carregando }: Props) {
           <Bar data={chartData} options={options} />
         </div>
       )}
-    </section>
+    </Cartao>
   )
 }

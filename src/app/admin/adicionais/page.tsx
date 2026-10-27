@@ -2,20 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  RefreshCw,
+  ArrowsClockwise as RefreshCw,
   Plus,
   Camera,
   Crop,
-  Trash2,
-  ImageOff,
+  ImageBroken as ImageOff,
   X,
   Tag,
-  Filter,
   Package,
   Check,
-  ListPlus,
-  Search,
-} from 'lucide-react'
+  MagnifyingGlass as Search,
+  Trash as Trash2,
+} from '@phosphor-icons/react'
 import Image from 'next/image'
 import { toast } from 'sonner'
 
@@ -26,45 +24,25 @@ import { supabase } from '@/lib/supabase'
 import { validarArquivoImagem, arquivoParaUrl } from '@/lib/recorteImagem'
 import { enviarImagemParaR2 } from '@/lib/servicoUploadImagem'
 import { cn } from '@/lib/utils'
-
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Separator } from '@/components/ui/separator'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
-import { MenuAcoes, type MenuAcaoItem } from '@/components/ui/menu-acoes'
+  Botao,
+  CabecalhoPagina,
+  Campo,
+  Chip,
+  Entrada,
+  EntradaPreco,
+  Gaveta,
+  Interruptor,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Selecao,
+  Selo,
+  formatarPreco,
+  lerPreco,
+  useConfirmar,
+} from '@/components/admin/ui'
 
 type Adicional = {
   id: string
@@ -92,11 +70,6 @@ type EstadoRecorte = {
   adicionalId: string | null
 }
 
-type ConfirmacaoExclusao =
-  | { tipo: 'adicional'; id: string; nome: string }
-  | { tipo: 'categoria'; nome: string }
-  | null
-
 const normalizarCategorias = (categorias: Array<string | null | undefined>) =>
   Array.from(
     new Set(
@@ -110,6 +83,7 @@ const extrairCategoriasDosAdicionais = (lista: Adicional[]) =>
   normalizarCategorias(lista.map((a) => a.categoria))
 
 export default function AdicionaisPage() {
+  const confirmar = useConfirmar()
   const [adicionais, setAdicionais] = useState<Adicional[]>([])
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState<string | null>(null)
@@ -118,23 +92,13 @@ export default function AdicionaisPage() {
   const [filtroCategoria, setFiltroCategoria] = useState<string>('todas')
   const [busca, setBusca] = useState('')
   const [modalCategorias, setModalCategorias] = useState(false)
-  const [criandoCategoria, setCriandoCategoria] = useState(false)
   const [novaCategoria, setNovaCategoria] = useState('')
 
-  const [modalNovoAberto, setModalNovoAberto] = useState(false)
-  const [novoAdicional, setNovoAdicional] = useState({ nome: '', preco: '', categoria: '' })
-  const [salvandoNovo, setSalvandoNovo] = useState(false)
-  const [criandoCategoriaNoNovo, setCriandoCategoriaNoNovo] = useState(false)
-  const [nomeNovaCategoriaNoNovo, setNomeNovaCategoriaNoNovo] = useState('')
-  const [produtosSelecionadosNovo, setProdutosSelecionadosNovo] = useState<string[]>([])
-  const [buscaProdutoNovo, setBuscaProdutoNovo] = useState('')
+  // null = fechada; { id: null } = criar; { id } = editar
+  const [gaveta, setGaveta] = useState<{ id: string | null } | null>(null)
 
   const [todosProdutos, setTodosProdutos] = useState<ProdutoSimples[]>([])
   const [produtosVinculados, setProdutosVinculados] = useState<Record<string, string[]>>({})
-  const [modalProdutosAberto, setModalProdutosAberto] = useState<string | null>(null)
-  const [buscaProduto, setBuscaProduto] = useState('')
-  const [salvandoProdutos, setSalvandoProdutos] = useState(false)
-  const [produtosSelecionadosTemp, setProdutosSelecionadosTemp] = useState<string[]>([])
 
   const [estadoRecorte, setEstadoRecorte] = useState<EstadoRecorte>({
     aberto: false,
@@ -144,8 +108,6 @@ export default function AdicionaisPage() {
   const [enviandoImagem, setEnviandoImagem] = useState<string | null>(null)
   const inputFileRef = useRef<HTMLInputElement>(null)
   const [adicionalSelecionadoParaUpload, setAdicionalSelecionadoParaUpload] = useState<string | null>(null)
-
-  const [confirmacao, setConfirmacao] = useState<ConfirmacaoExclusao>(null)
 
   const carregarAdicionais = useCallback(async () => {
     setLoading(true)
@@ -227,14 +189,6 @@ export default function AdicionaisPage() {
     ? adicionaisPorCategoria.filter((a) => a.nome.toLowerCase().includes(termoBusca))
     : adicionaisPorCategoria
 
-  const resetarFormularioNovoAdicional = () => {
-    setNovoAdicional({ nome: '', preco: '', categoria: '' })
-    setCriandoCategoriaNoNovo(false)
-    setNomeNovaCategoriaNoNovo('')
-    setProdutosSelecionadosNovo([])
-    setBuscaProdutoNovo('')
-  }
-
   const criarCategoria = async () => {
     const nome = novaCategoria.trim()
     if (!nome) return
@@ -249,7 +203,6 @@ export default function AdicionaisPage() {
 
       await carregarAdicionais()
       setNovaCategoria('')
-      setCriandoCategoria(false)
       toast.success(`Categoria "${nome}" criada.`)
     } catch (erro) {
       console.error('Erro ao criar categoria:', erro)
@@ -257,105 +210,53 @@ export default function AdicionaisPage() {
     }
   }
 
-  const criarCategoriaNoModalNovoAdicional = async () => {
-    const nome = nomeNovaCategoriaNoNovo.trim()
-    if (!nome) return
+  /** Cria (ou reaproveita) a categoria digitada dentro da gaveta e devolve o nome final. */
+  const criarCategoriaNaGaveta = async (nomeDigitado: string): Promise<string | null> => {
+    const nome = nomeDigitado.trim()
+    if (!nome) return null
 
     const existente = categorias.find((c) => c.toLowerCase() === nome.toLowerCase())
-    if (existente) {
-      setNovoAdicional((s) => ({ ...s, categoria: existente }))
-      setCriandoCategoriaNoNovo(false)
-      setNomeNovaCategoriaNoNovo('')
-      return
-    }
+    if (existente) return existente
 
     try {
       const { error } = await supabase.from('categorias_adicionais').insert({ nome })
       if (error) throw error
 
       await carregarAdicionais()
-      setNovoAdicional((s) => ({ ...s, categoria: nome }))
-      setCriandoCategoriaNoNovo(false)
-      setNomeNovaCategoriaNoNovo('')
       toast.success(`Categoria "${nome}" criada.`)
+      return nome
     } catch (erro) {
       console.error('Erro ao criar categoria no modal:', erro)
       toast.error('Não foi possível criar a categoria.')
+      return null
     }
   }
 
-  const abrirModalProdutos = (adicionalId: string) => {
-    setProdutosSelecionadosTemp(produtosVinculados[adicionalId] || [])
-    setBuscaProduto('')
-    setModalProdutosAberto(adicionalId)
-  }
+  const salvarVinculosProdutos = async (adicionalId: string, selecionados: string[]) => {
+    await supabase.from('produto_adicionais').delete().eq('adicional_id', adicionalId)
 
-  const salvarVinculosProdutos = async () => {
-    if (!modalProdutosAberto) return
-    setSalvandoProdutos(true)
-    try {
-      await supabase.from('produto_adicionais').delete().eq('adicional_id', modalProdutosAberto)
-
-      if (produtosSelecionadosTemp.length > 0) {
-        const registros = produtosSelecionadosTemp.map((produtoId) => ({
-          produto_id: produtoId,
-          adicional_id: modalProdutosAberto,
-        }))
-        const { error } = await supabase.from('produto_adicionais').insert(registros)
-        if (error) throw error
-      }
-
-      setProdutosVinculados((prev) => ({
-        ...prev,
-        [modalProdutosAberto]: [...produtosSelecionadosTemp],
+    if (selecionados.length > 0) {
+      const registros = selecionados.map((produtoId) => ({
+        produto_id: produtoId,
+        adicional_id: adicionalId,
       }))
-
-      setModalProdutosAberto(null)
-      toast.success(
-        produtosSelecionadosTemp.length === 0
-          ? 'Adicional disponível para todos os produtos.'
-          : `Adicional vinculado a ${produtosSelecionadosTemp.length} produto(s).`,
-      )
-    } catch (erro) {
-      console.error('Erro ao salvar vínculos:', erro)
-      toast.error('Não foi possível salvar os vínculos.')
-    } finally {
-      setSalvandoProdutos(false)
+      const { error } = await supabase.from('produto_adicionais').insert(registros)
+      if (error) throw error
     }
+
+    setProdutosVinculados((prev) => ({ ...prev, [adicionalId]: [...selecionados] }))
   }
 
-  const atualizarAdicional = async (id: string, campo: string, valor: unknown) => {
-    let valorNormalizado: unknown = valor
-
-    if (campo === 'preco') {
-      const precoInformado = typeof valor === 'number' ? valor : Number(valor)
-      if (!Number.isFinite(precoInformado) || precoInformado < 0) return
-      valorNormalizado = precoInformado
-    }
-
-    if (campo === 'categoria') {
-      const cat = typeof valor === 'string' ? valor.trim() : ''
-      if (cat && !categorias.includes(cat)) {
-        toast.error('Categoria inválida. Atualize a tela e tente novamente.')
-        return
-      }
-      valorNormalizado = cat || null
-    }
-
-    setSalvando(id)
+  const atualizarDisponivel = async (adicional: Adicional, disponivel: boolean) => {
+    setSalvando(adicional.id)
     try {
-      const { error } = await supabase
-        .from('adicionais')
-        .update({ [campo]: valorNormalizado })
-        .eq('id', id)
+      const { error } = await supabase.from('adicionais').update({ disponivel }).eq('id', adicional.id)
       if (error) throw error
-
-      setAdicionais((lista) =>
-        lista.map((a) => (a.id === id ? { ...a, [campo]: valorNormalizado as never } : a)),
-      )
+      setAdicionais((lista) => lista.map((a) => (a.id === adicional.id ? { ...a, disponivel } : a)))
+      toast.success(disponivel ? 'Voltou ao cardápio' : 'Pausado no cardápio', { description: adicional.nome })
     } catch (erro) {
       console.error('Erro ao atualizar adicional:', erro)
-      toast.error('Não foi possível atualizar o adicional.')
+      toast.error('Não foi possível atualizar o adicional.', { description: adicional.nome })
     } finally {
       setSalvando(null)
     }
@@ -430,80 +331,35 @@ export default function AdicionaisPage() {
     [estadoRecorte.adicionalId],
   )
 
-  const criarAdicional = async () => {
-    if (!novoAdicional.nome.trim()) {
-      toast.error('Informe o nome do adicional.')
-      return
-    }
-    const preco = parseFloat(novoAdicional.preco)
-    if (!Number.isFinite(preco) || preco <= 0) {
-      toast.error('Informe um preço válido.')
-      return
-    }
-    if (novoAdicional.categoria && !categorias.includes(novoAdicional.categoria)) {
-      toast.error('Categoria inválida.')
-      return
-    }
-
-    setSalvandoNovo(true)
+  const removerImagem = useCallback(async (adicionalId: string) => {
+    setSalvando(adicionalId)
     try {
-      const { data: novoRegistro, error } = await supabase
+      const { error } = await supabase
         .from('adicionais')
-        .insert({
-          nome: novoAdicional.nome.trim(),
-          preco,
-          categoria: novoAdicional.categoria || null,
-          disponivel: true,
-        })
-        .select('id')
-        .single()
+        .update({ imagem_url: null })
+        .eq('id', adicionalId)
       if (error) throw error
 
-      if (novoRegistro && produtosSelecionadosNovo.length > 0) {
-        const registros = produtosSelecionadosNovo.map((produtoId) => ({
-          produto_id: produtoId,
-          adicional_id: novoRegistro.id,
-        }))
-        await supabase.from('produto_adicionais').insert(registros)
-      }
-
-      setModalNovoAberto(false)
-      resetarFormularioNovoAdicional()
-      await carregarAdicionais()
-      toast.success(`"${novoAdicional.nome.trim()}" foi criado.`)
-    } catch (erro: unknown) {
-      console.error('Erro ao criar adicional:', erro)
-      const code = (erro as { code?: string })?.code
-      const msg = (erro as { message?: string })?.message
-      const erroFK = code === '23503' && typeof msg === 'string' && msg.includes('adicionais_categoria_fkey')
-      toast.error(erroFK ? 'Categoria inválida. Atualize e tente novamente.' : 'Não foi possível criar o adicional.')
-    } finally {
-      setSalvandoNovo(false)
-    }
-  }
-
-  const confirmarExclusaoAdicional = async () => {
-    if (!confirmacao || confirmacao.tipo !== 'adicional') return
-    const { id, nome } = confirmacao
-    setConfirmacao(null)
-    setSalvando(id)
-    try {
-      const { error } = await supabase.from('adicionais').delete().eq('id', id)
-      if (error) throw error
-      setAdicionais((prev) => prev.filter((a) => a.id !== id))
-      toast.success(`"${nome}" foi excluído.`)
+      setAdicionais((prev) =>
+        prev.map((a) => (a.id === adicionalId ? { ...a, imagem_url: null } : a)),
+      )
+      toast.success('Imagem removida.')
     } catch (erro) {
-      console.error('Erro ao excluir adicional:', erro)
-      toast.error('Não foi possível excluir o adicional.')
+      console.error('Erro ao remover imagem:', erro)
+      toast.error('Não foi possível remover a imagem.')
     } finally {
       setSalvando(null)
     }
-  }
+  }, [])
 
-  const confirmarExclusaoCategoria = async () => {
-    if (!confirmacao || confirmacao.tipo !== 'categoria') return
-    const { nome } = confirmacao
-    setConfirmacao(null)
+  const excluirCategoria = async (nome: string) => {
+    const ok = await confirmar({
+      titulo: `Excluir a categoria "${nome}"?`,
+      descricao: 'Os adicionais dessa categoria ficam sem categoria. Eles não são apagados.',
+      confirmar: 'Excluir categoria',
+      perigo: true,
+    })
+    if (!ok) return
     try {
       const { error: erroAdicionais } = await supabase
         .from('adicionais')
@@ -526,347 +382,151 @@ export default function AdicionaisPage() {
     }
   }
 
-  const removerImagem = useCallback(async (adicionalId: string) => {
-    setSalvando(adicionalId)
-    try {
-      const { error } = await supabase
-        .from('adicionais')
-        .update({ imagem_url: null })
-        .eq('id', adicionalId)
-      if (error) throw error
+  const adicionalEmEdicao = gaveta?.id ? adicionais.find((a) => a.id === gaveta.id) ?? null : null
+  const disponiveis = adicionais.filter((a) => a.disponivel).length
 
-      setAdicionais((prev) =>
-        prev.map((a) => (a.id === adicionalId ? { ...a, imagem_url: null } : a)),
-      )
-      toast.success('Imagem removida.')
-    } catch (erro) {
-      console.error('Erro ao remover imagem:', erro)
-      toast.error('Não foi possível remover a imagem.')
-    } finally {
-      setSalvando(null)
-    }
-  }, [])
-
-  const itensAcaoAdicional = (adicional: Adicional): MenuAcaoItem[] => {
-    const qtdVinculos = produtosVinculados[adicional.id]?.length || 0
-    const itens: MenuAcaoItem[] = [
-      {
-        key: 'vincular',
-        label: qtdVinculos > 0 ? `Vincular produtos (${qtdVinculos})` : 'Vincular produtos (todos)',
-        icon: <Package strokeWidth={1.6} className="size-3.5" />,
-        onSelect: () => abrirModalProdutos(adicional.id),
-      },
-    ]
-
-    if (adicional.imagem_url) {
-      itens.push(
-        {
-          key: 'crop',
-          label: 'Recortar imagem',
-          icon: <Crop strokeWidth={1.6} className="size-3.5" />,
-          onSelect: () => abrirRecorteImagemExistente(adicional),
-        },
-        {
-          key: 'remover-img',
-          label: 'Remover imagem',
-          icon: <ImageOff strokeWidth={1.6} className="size-3.5" />,
-          onSelect: () => {
-            void removerImagem(adicional.id)
-          },
-        },
-      )
-    }
-
-    itens.push({
-      key: 'excluir',
-      label: 'Excluir',
-      icon: <Trash2 strokeWidth={1.6} className="size-3.5" />,
-      separatorBefore: true,
-      variant: 'destructive',
-      onSelect: () => setConfirmacao({ tipo: 'adicional', id: adicional.id, nome: adicional.nome }),
-    })
-
-    return itens
-  }
-
-  const produtosNovoFiltrados = todosProdutos.filter(
-    (p) => !buscaProdutoNovo || p.nome.toLowerCase().includes(buscaProdutoNovo.toLowerCase()),
-  )
-
-  const produtosVincularFiltrados = todosProdutos.filter(
-    (p) => !buscaProduto || p.nome.toLowerCase().includes(buscaProduto.toLowerCase()),
-  )
+  const abrirNovo = () => setGaveta({ id: null })
 
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="mx-auto w-full max-w-6xl space-y-5">
-          <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div className="min-w-0">
-              <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
-                <ListPlus className="size-5 text-primary" strokeWidth={1.6} />
-                Adicionais
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Nomes, preços e disponibilidade · {adicionais.length} cadastrado
-                {adicionais.length === 1 ? '' : 's'}
-              </p>
-            </div>
-            <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 shadow-none"
-                onClick={carregarAdicionais}
-                disabled={loading}
-              >
-                <RefreshCw strokeWidth={1.6} className={cn('size-4', loading && 'animate-spin')} />
-                Atualizar
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="h-9 shadow-none"
-                onClick={() => {
-                  resetarFormularioNovoAdicional()
-                  setModalNovoAberto(true)
-                }}
-              >
-                <Plus strokeWidth={1.6} className="size-4" />
-                Novo
-              </Button>
-            </div>
-          </div>
+        <Pagina>
+          <CabecalhoPagina
+            titulo="Adicionais"
+            descricao={`${adicionais.length} cadastrado${adicionais.length === 1 ? '' : 's'} · ${disponiveis} no cardápio`}
+            acoes={
+              <>
+                <Botao variante="contorno" onClick={carregarAdicionais} disabled={loading}>
+                  <RefreshCw className={cn('size-4', loading && 'animate-spin')} />
+                  Atualizar
+                </Botao>
+                <Botao variante="contorno" onClick={() => setModalCategorias(true)}>
+                  <Tag className="size-4" />
+                  Categorias
+                </Botao>
+                <Botao onClick={abrirNovo}>
+                  <Plus className="size-4" />
+                  Novo adicional
+                </Botao>
+              </>
+            }
+          />
 
-          {!loading && (
+          {!loading && adicionais.length > 0 && (
             <div className="space-y-3">
-              <div className="relative min-w-0 sm:max-w-sm">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.6} />
-                <Input
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Entrada
+                  type="search"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar por nome…"
-                  className="h-9 border-border/70 bg-background pl-9 shadow-none"
+                  placeholder="Buscar adicional"
+                  className="pl-9"
                   aria-label="Buscar adicional por nome"
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Filter strokeWidth={1.6} className="size-4" />
-                  Categorias
-                </span>
-                <FiltroChip
-                  ativo={filtroCategoria === 'todas'}
-                  onClick={() => setFiltroCategoria('todas')}
-                  label={`Todas (${adicionais.length})`}
-                />
+              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 scrollbar-hide md:mx-0 md:flex-wrap md:px-0">
+                <Chip ativo={filtroCategoria === 'todas'} onClick={() => setFiltroCategoria('todas')}>
+                  Todas <span className="tabular-nums opacity-70">{adicionais.length}</span>
+                </Chip>
                 {categorias.map((cat) => (
-                  <FiltroChip
-                    key={cat}
-                    ativo={filtroCategoria === cat}
-                    onClick={() => setFiltroCategoria(cat)}
-                    label={`${cat} (${adicionais.filter((a) => a.categoria === cat).length})`}
-                  />
+                  <Chip key={cat} ativo={filtroCategoria === cat} onClick={() => setFiltroCategoria(cat)}>
+                    {cat}{' '}
+                    <span className="tabular-nums opacity-70">
+                      {adicionais.filter((a) => a.categoria === cat).length}
+                    </span>
+                  </Chip>
                 ))}
-                <FiltroChip
-                  ativo={filtroCategoria === 'sem-categoria'}
-                  onClick={() => setFiltroCategoria('sem-categoria')}
-                  label={`Sem categoria (${adicionais.filter((a) => !a.categoria).length})`}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setModalCategorias(true)}
-                  className="h-7 rounded-full px-3 text-xs shadow-none"
-                >
-                  <Tag strokeWidth={1.6} className="size-3" />
-                  Gerenciar
-                </Button>
+                <Chip ativo={filtroCategoria === 'sem-categoria'} onClick={() => setFiltroCategoria('sem-categoria')}>
+                  Sem categoria{' '}
+                  <span className="tabular-nums opacity-70">{adicionais.filter((a) => !a.categoria).length}</span>
+                </Chip>
               </div>
             </div>
           )}
 
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-              <RefreshCw strokeWidth={1.6} className="size-5 animate-spin text-primary" />
-              Carregando adicionais…
-            </div>
+            <ListaCarregando linhas={5} />
+          ) : adicionais.length === 0 ? (
+            <ListaVazia
+              icone={<Package />}
+              titulo="Nenhum adicional cadastrado"
+              descricao="Adicionais são extras que o cliente escolhe no produto, como bacon ou queijo."
+              acao={
+                <Botao onClick={abrirNovo}>
+                  <Plus className="size-4" />
+                  Novo adicional
+                </Botao>
+              }
+            />
           ) : adicionaisFiltrados.length === 0 ? (
-            <Empty className="border border-dashed border-border/70 bg-card">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Package strokeWidth={1.6} className="size-5" />
-                </EmptyMedia>
-                <EmptyTitle>
-                  {adicionais.length === 0
-                    ? 'Nenhum adicional cadastrado'
-                    : termoBusca
-                      ? 'Nenhum resultado na busca'
-                      : 'Nenhum adicional nessa categoria'}
-                </EmptyTitle>
-                <EmptyDescription>
-                  {adicionais.length === 0
-                    ? 'Crie o primeiro adicional para começar.'
-                    : termoBusca
-                      ? 'Ajuste o nome buscado ou limpe a busca.'
-                      : 'Crie um novo adicional ou troque o filtro acima.'}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="grid gap-2.5">
-              {adicionaisFiltrados.map((adicional) => (
-                <div
-                  key={adicional.id}
-                  className="min-w-0 rounded-xl border border-border/70 bg-card p-3 sm:p-3.5"
+            <ListaVazia
+              icone={<Search />}
+              titulo={termoBusca ? 'Nenhum adicional encontrado' : 'Nenhum adicional nessa categoria'}
+              descricao={termoBusca ? 'Tente outro nome.' : 'Troque o filtro ou crie um adicional novo.'}
+              acao={
+                <Botao
+                  variante="contorno"
+                  onClick={() => {
+                    setBusca('')
+                    setFiltroCategoria('todas')
+                  }}
                 >
-                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start">
-                    <div className="flex shrink-0 items-start gap-2">
-                      <div className="relative">
-                        {adicional.imagem_url ? (
-                          <div className="relative size-16 overflow-hidden rounded-lg border border-border/70 sm:size-[4.5rem]">
-                            <Image
-                              src={adicional.imagem_url}
-                              alt={adicional.nome}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex size-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-border/70 bg-muted/30 sm:size-[4.5rem]">
-                            <ImageOff strokeWidth={1.6} className="size-4 text-muted-foreground/60" />
-                            <span className="text-[10px] text-muted-foreground/60">sem foto</span>
-                          </div>
-                        )}
-                        {enviandoImagem === adicional.id && (
-                          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-foreground/70">
-                            <RefreshCw strokeWidth={1.6} className="size-4 animate-spin text-background" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-1.5 sm:hidden">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          onClick={() => iniciarUploadImagem(adicional.id)}
-                          disabled={enviandoImagem === adicional.id}
-                          className="shadow-none"
-                        >
-                          <Camera strokeWidth={1.6} className="size-3" />
-                          {adicional.imagem_url ? 'Trocar' : 'Foto'}
-                        </Button>
-                        <MenuAcoes
-                          ariaLabel={`Ações de ${adicional.nome}`}
-                          items={itensAcaoAdicional(adicional)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="min-w-0 flex-1 space-y-2.5">
-                      <div className="flex min-w-0 items-start gap-2">
-                        <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-12">
-                          <div className="min-w-0 lg:col-span-4">
-                            <Label htmlFor={`nome-${adicional.id}`} className="text-[11px] text-muted-foreground">
-                              Nome
-                            </Label>
-                            <Input
-                              id={`nome-${adicional.id}`}
-                              value={adicional.nome}
-                              onChange={(e) => atualizarAdicional(adicional.id, 'nome', e.target.value)}
-                              className="mt-0.5 h-8"
-                            />
-                          </div>
-                          <div className="min-w-0 lg:col-span-3">
-                            <Label className="text-[11px] text-muted-foreground">Categoria</Label>
-                            <Select
-                              value={adicional.categoria || 'sem-categoria'}
-                              onValueChange={(v) =>
-                                atualizarAdicional(adicional.id, 'categoria', v === 'sem-categoria' ? '' : v)
-                              }
-                            >
-                              <SelectTrigger className="mt-0.5 h-8">
-                                <SelectValue placeholder="Sem categoria" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="sem-categoria">Sem categoria</SelectItem>
-                                {categorias.map((cat) => (
-                                  <SelectItem key={cat} value={cat}>
-                                    {cat}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="min-w-0 lg:col-span-3">
-                            <Label htmlFor={`preco-${adicional.id}`} className="text-[11px] text-muted-foreground">
-                              Preço
-                            </Label>
-                            <div className="relative mt-0.5">
-                              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                                R$
-                              </span>
-                              <Input
-                                id={`preco-${adicional.id}`}
-                                type="number"
-                                inputMode="decimal"
-                                step="0.01"
-                                min="0"
-                                value={adicional.preco}
-                                onChange={(e) =>
-                                  atualizarAdicional(adicional.id, 'preco', parseFloat(e.target.value))
-                                }
-                                className="h-8 pl-8 font-mono tabular-nums"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex min-w-0 items-end lg:col-span-2">
-                            <label className="flex h-8 cursor-pointer items-center gap-2">
-                              <Checkbox
-                                checked={adicional.disponivel}
-                                onCheckedChange={(checked) =>
-                                  atualizarAdicional(adicional.id, 'disponivel', checked === true)
-                                }
-                                aria-label="Disponível"
-                              />
-                              <span className="text-sm text-foreground">Disponível</span>
-                            </label>
-                          </div>
-                        </div>
-                        <div className="hidden shrink-0 flex-col items-end gap-1.5 sm:flex">
-                          <MenuAcoes
-                            ariaLabel={`Ações de ${adicional.nome}`}
-                            items={itensAcaoAdicional(adicional)}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="xs"
-                            onClick={() => iniciarUploadImagem(adicional.id)}
-                            disabled={enviandoImagem === adicional.id}
-                            className="shadow-none"
-                          >
-                            <Camera strokeWidth={1.6} className="size-3" />
-                            {adicional.imagem_url ? 'Trocar' : 'Foto'}
-                          </Button>
-                        </div>
-                      </div>
-
-                      {salvando === adicional.id && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <RefreshCw strokeWidth={1.6} className="size-3 animate-spin text-primary" />
-                          Salvando…
-                        </div>
+                  Ver todos
+                </Botao>
+              }
+            />
+          ) : (
+            <Lista>
+              {adicionaisFiltrados.map((adicional) => {
+                const qtdVinculos = produtosVinculados[adicional.id]?.length || 0
+                return (
+                  <li key={adicional.id}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setGaveta({ id: adicional.id })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') setGaveta({ id: adicional.id })
+                      }}
+                      className={cn(
+                        'flex min-h-16 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                        !adicional.disponivel && 'opacity-60',
                       )}
+                    >
+                      <Miniatura adicional={adicional} enviando={enviandoImagem === adicional.id} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-foreground">{adicional.nome}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span className="text-sm tabular-nums text-primary">{formatarPreco(adicional.preco)}</span>
+                          {adicional.categoria ? <Selo>{adicional.categoria}</Selo> : null}
+                          {qtdVinculos > 0 ? (
+                            <Selo tom="primario">
+                              {qtdVinculos} produto{qtdVinculos === 1 ? '' : 's'}
+                            </Selo>
+                          ) : null}
+                          {!adicional.disponivel ? <Selo>Pausado</Selo> : null}
+                        </div>
+                      </div>
+                      <Interruptor
+                        marcado={adicional.disponivel}
+                        desabilitado={salvando === adicional.id}
+                        aoMudar={(v) => void atualizarDisponivel(adicional, v)}
+                        rotuloAcessivel={`${adicional.disponivel ? 'Pausar' : 'Ativar'} ${adicional.nome} no cardápio`}
+                      />
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  </li>
+                )
+              })}
+            </Lista>
           )}
-        </div>
+
+          {!loading && adicionais.length > 0 && (
+            <p className="px-1 text-sm text-muted-foreground">
+              Toque no adicional para editar. Adicional pausado não aparece no cardápio.
+            </p>
+          )}
+        </Pagina>
 
         <input
           ref={inputFileRef}
@@ -875,6 +535,27 @@ export default function AdicionaisPage() {
           onChange={aoSelecionarArquivo}
           className="hidden"
           aria-hidden="true"
+        />
+
+        <GavetaAdicional
+          aberto={gaveta !== null}
+          adicional={adicionalEmEdicao}
+          categorias={categorias}
+          todosProdutos={todosProdutos}
+          vinculosIniciais={gaveta?.id ? produtosVinculados[gaveta.id] || [] : []}
+          enviandoImagem={!!gaveta?.id && enviandoImagem === gaveta.id}
+          removendoImagem={!!gaveta?.id && salvando === gaveta.id}
+          aoFechar={() => setGaveta(null)}
+          aoCriarCategoria={criarCategoriaNaGaveta}
+          aoSalvarVinculos={salvarVinculosProdutos}
+          aoRecarregar={carregarAdicionais}
+          aoExcluido={(id) => setAdicionais((prev) => prev.filter((a) => a.id !== id))}
+          aoAtualizado={(atualizado) =>
+            setAdicionais((lista) => lista.map((a) => (a.id === atualizado.id ? atualizado : a)))
+          }
+          aoTrocarFoto={iniciarUploadImagem}
+          aoRecortarFoto={abrirRecorteImagemExistente}
+          aoRemoverFoto={(id) => void removerImagem(id)}
         />
 
         <ModalRecorteImagem
@@ -886,487 +567,477 @@ export default function AdicionaisPage() {
           titulo="Ajustar imagem do adicional"
         />
 
-        <Dialog
-          open={modalNovoAberto}
-          onOpenChange={(open) => {
-            setModalNovoAberto(open)
-            if (!open) resetarFormularioNovoAdicional()
+        <Gaveta
+          aberto={modalCategorias}
+          aoFechar={() => {
+            setModalCategorias(false)
+            setNovaCategoria('')
           }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Novo adicional</DialogTitle>
-              <DialogDescription>
-                Cadastre um adicional novo e, se quiser, já vincule a produtos.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-5 py-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="novo-nome">Nome</Label>
-                <Input
-                  id="novo-nome"
-                  value={novoAdicional.nome}
-                  onChange={(e) => setNovoAdicional({ ...novoAdicional, nome: e.target.value })}
-                  placeholder="Ex.: Bacon extra"
-                  autoFocus
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Categoria</Label>
-                {!criandoCategoriaNoNovo ? (
-                  <Select
-                    value={novoAdicional.categoria || 'sem-categoria'}
-                    onValueChange={(v) => {
-                      if (v === '__nova__') {
-                        setCriandoCategoriaNoNovo(true)
-                        setNomeNovaCategoriaNoNovo('')
-                        return
-                      }
-                      setNovoAdicional({
-                        ...novoAdicional,
-                        categoria: v === 'sem-categoria' ? '' : v,
-                      })
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sem categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sem-categoria">Sem categoria</SelectItem>
-                      {categorias.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="__nova__">+ Criar nova categoria</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={nomeNovaCategoriaNoNovo}
-                      onChange={(e) => setNomeNovaCategoriaNoNovo(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          criarCategoriaNoModalNovoAdicional()
-                        }
-                      }}
-                      placeholder="Nome da nova categoria"
-                      autoFocus
-                    />
-                    <Button type="button" size="sm" onClick={criarCategoriaNoModalNovoAdicional}>
-                      Criar
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setCriandoCategoriaNoNovo(false)
-                        setNomeNovaCategoriaNoNovo('')
-                      }}
-                      aria-label="Cancelar criação de categoria"
-                    >
-                      <X strokeWidth={1.6} className="size-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="novo-preco">Preço</Label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                    R$
-                  </span>
-                  <Input
-                    id="novo-preco"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    value={novoAdicional.preco}
-                    onChange={(e) => setNovoAdicional({ ...novoAdicional, preco: e.target.value })}
-                    placeholder="0,00"
-                    className="pl-9 font-mono tabular-nums"
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <div>
-                  <Label>Produtos que terão este adicional</Label>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Se nenhum for selecionado, fica disponível para todos.
-                  </p>
-                </div>
-                <Input
-                  value={buscaProdutoNovo}
-                  onChange={(e) => setBuscaProdutoNovo(e.target.value)}
-                  placeholder="Buscar produto…"
-                />
-                <div className="max-h-40 overflow-y-auto rounded-lg border border-border/70 bg-card">
-                  {produtosNovoFiltrados.length === 0 ? (
-                    <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-                      Nenhum produto encontrado.
-                    </p>
-                  ) : (
-                    <ul className="divide-y divide-border/70">
-                      {produtosNovoFiltrados.map((produto) => {
-                        const selecionado = produtosSelecionadosNovo.includes(produto.id)
-                        return (
-                          <li key={produto.id}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setProdutosSelecionadosNovo((prev) =>
-                                  selecionado ? prev.filter((id) => id !== produto.id) : [...prev, produto.id],
-                                )
-                              }
-                              className={cn(
-                                'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors',
-                                selecionado ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50',
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  'flex size-4 shrink-0 items-center justify-center rounded border',
-                                  selecionado ? 'border-primary bg-primary' : 'border-border',
-                                )}
-                              >
-                                {selecionado && <Check strokeWidth={2} className="size-3 text-primary-foreground" />}
-                              </span>
-                              <span className="truncate">{produto.nome}</span>
-                              <span className="ml-auto text-[10px] text-muted-foreground">
-                                {produto.categoria}
-                              </span>
-                            </button>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                </div>
-                {produtosSelecionadosNovo.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {produtosSelecionadosNovo.length} produto(s) selecionado(s).
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setModalNovoAberto(false)
-                  resetarFormularioNovoAdicional()
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button type="button" onClick={criarAdicional} disabled={salvandoNovo}>
-                {salvandoNovo ? (
-                  <>
-                    <RefreshCw strokeWidth={1.6} className="size-4 animate-spin" />
-                    Salvando…
-                  </>
-                ) : (
-                  <>
-                    <Plus strokeWidth={1.6} className="size-4" />
-                    Criar adicional
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={modalCategorias}
-          onOpenChange={(open) => {
-            setModalCategorias(open)
-            if (!open) {
-              setCriandoCategoria(false)
-              setNovaCategoria('')
-            }
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Tag strokeWidth={1.6} className="size-4 text-primary" />
-                Gerenciar categorias
-              </DialogTitle>
-              <DialogDescription>
-                Crie ou remova categorias usadas pelos adicionais.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="max-h-[50vh] space-y-2 overflow-y-auto py-2">
-              {categorias.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">
-                  Nenhuma categoria criada ainda.
-                </p>
-              ) : (
-                categorias.map((cat) => (
-                  <div
-                    key={cat}
-                    className="flex items-center justify-between rounded-lg border border-border/70 bg-card px-3 py-2"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Tag strokeWidth={1.6} className="size-4 text-muted-foreground" />
-                      <span className="truncate text-sm font-medium text-foreground">{cat}</span>
-                      <span className="text-xs text-muted-foreground">
-                        ({adicionais.filter((a) => a.categoria === cat).length})
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => setConfirmacao({ tipo: 'categoria', nome: cat })}
-                      aria-label={`Excluir categoria ${cat}`}
-                    >
-                      <Trash2 strokeWidth={1.6} className="size-4" />
-                    </Button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <DialogFooter className="sm:justify-start">
-              {criandoCategoria ? (
-                <div className="flex w-full items-center gap-2">
-                  <Input
-                    value={novaCategoria}
-                    onChange={(e) => setNovaCategoria(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        criarCategoria()
-                      }
-                    }}
-                    placeholder="Nome da categoria"
-                    autoFocus
-                  />
-                  <Button type="button" size="sm" onClick={criarCategoria}>
-                    Criar
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setCriandoCategoria(false)
-                      setNovaCategoria('')
-                    }}
-                    aria-label="Cancelar"
-                  >
-                    <X strokeWidth={1.6} className="size-4" />
-                  </Button>
-                </div>
-              ) : (
-                <Button type="button" className="w-full" onClick={() => setCriandoCategoria(true)}>
-                  <Plus strokeWidth={1.6} className="size-4" />
-                  Nova categoria
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={!!modalProdutosAberto}
-          onOpenChange={(open) => {
-            if (!open) setModalProdutosAberto(null)
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Package strokeWidth={1.6} className="size-4 text-primary" />
-                Vincular produtos
-              </DialogTitle>
-              <DialogDescription>
-                Escolha em quais produtos esse adicional aparece. Sem seleção, fica disponível para todos.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-2 py-2">
-              <Input
-                value={buscaProduto}
-                onChange={(e) => setBuscaProduto(e.target.value)}
-                placeholder="Buscar produto…"
+          titulo="Categorias"
+          descricao="Agrupam os adicionais no cardápio. Excluir uma categoria não apaga os adicionais."
+          cabecalho={
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void criarCategoria()
+              }}
+            >
+              <Entrada
+                value={novaCategoria}
+                onChange={(e) => setNovaCategoria(e.target.value)}
+                placeholder="Nova categoria"
+                aria-label="Nome da nova categoria"
+                className="flex-1"
               />
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">
-                  {produtosSelecionadosTemp.length} selecionado(s)
-                </span>
-                <div className="flex gap-3 text-xs">
-                  <button
-                    type="button"
-                    className="font-medium text-primary underline-offset-2 hover:underline"
-                    onClick={() => setProdutosSelecionadosTemp(todosProdutos.map((p) => p.id))}
-                  >
-                    Todos
-                  </button>
-                  <button
-                    type="button"
-                    className="font-medium text-muted-foreground underline-offset-2 hover:underline"
-                    onClick={() => setProdutosSelecionadosTemp([])}
-                  >
-                    Limpar
-                  </button>
-                </div>
-              </div>
-              <div className="max-h-[45vh] overflow-y-auto rounded-lg border border-border/70 bg-card">
-                {produtosVincularFiltrados.length === 0 ? (
-                  <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-                    Nenhum produto encontrado.
-                  </p>
-                ) : (
-                  <ul className="divide-y divide-border/70">
-                    {produtosVincularFiltrados.map((produto) => {
-                      const selecionado = produtosSelecionadosTemp.includes(produto.id)
-                      return (
-                        <li key={produto.id}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setProdutosSelecionadosTemp((prev) =>
-                                selecionado ? prev.filter((id) => id !== produto.id) : [...prev, produto.id],
-                              )
-                            }
-                            className={cn(
-                              'flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors',
-                              selecionado ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50',
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                'flex size-4 shrink-0 items-center justify-center rounded border',
-                                selecionado ? 'border-primary bg-primary' : 'border-border',
-                              )}
-                            >
-                              {selecionado && <Check strokeWidth={2} className="size-3 text-primary-foreground" />}
-                            </span>
-                            <span className="truncate font-medium">{produto.nome}</span>
-                            <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                              {produto.categoria}
-                            </span>
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setModalProdutosAberto(null)}>
-                Cancelar
-              </Button>
-              <Button type="button" onClick={salvarVinculosProdutos} disabled={salvandoProdutos}>
-                {salvandoProdutos ? (
-                  <>
-                    <RefreshCw strokeWidth={1.6} className="size-4 animate-spin" />
-                    Salvando…
-                  </>
-                ) : (
-                  <>
-                    <Check strokeWidth={1.6} className="size-4" />
-                    Salvar
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <AlertDialog
-          open={!!confirmacao}
-          onOpenChange={(open) => {
-            if (!open) setConfirmacao(null)
-          }}
+              <Botao type="submit" disabled={!novaCategoria.trim()} className="h-11 md:h-10">
+                <Plus className="size-4" />
+                Criar
+              </Botao>
+            </form>
+          }
         >
-          <AlertDialogContent>
-            {confirmacao?.tipo === 'adicional' && (
-              <>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir adicional</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    O adicional &quot;{confirmacao.nome}&quot; será removido permanentemente. Essa ação não pode
-                    ser desfeita.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={confirmarExclusaoAdicional}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          {categorias.length === 0 ? (
+            <ListaVazia icone={<Tag />} titulo="Nenhuma categoria ainda" descricao="Digite um nome acima para criar." />
+          ) : (
+            <Lista>
+              {categorias.map((cat) => (
+                <li key={cat} className="flex min-h-14 items-center gap-3 px-4 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{cat}</p>
+                    <p className="text-[13px] text-muted-foreground">
+                      {adicionais.filter((a) => a.categoria === cat).length} adicionais
+                    </p>
+                  </div>
+                  <Botao
+                    variante="fantasma"
+                    tamanho="icone"
+                    className="size-11 text-muted-foreground hover:text-destructive"
+                    onClick={() => void excluirCategoria(cat)}
+                    aria-label={`Excluir categoria ${cat}`}
                   >
-                    Excluir
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </>
-            )}
-            {confirmacao?.tipo === 'categoria' && (
-              <>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir categoria</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    A categoria &quot;{confirmacao.nome}&quot; será removida. Os adicionais que usam essa
-                    categoria ficarão sem categoria.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={confirmarExclusaoCategoria}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Excluir
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </>
-            )}
-          </AlertDialogContent>
-        </AlertDialog>
+                    <Trash2 className="size-4" />
+                  </Botao>
+                </li>
+              ))}
+            </Lista>
+          )}
+        </Gaveta>
       </AdminLayout>
     </ProtectedRoute>
   )
 }
 
-function FiltroChip({
-  ativo,
-  onClick,
-  label,
-}: {
-  ativo: boolean
-  onClick: () => void
-  label: string
-}) {
+function Miniatura({ adicional, enviando }: { adicional: Adicional; enviando: boolean }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'inline-flex h-7 items-center rounded-full border px-3 text-xs font-medium transition-colors',
-        ativo
-          ? 'border-foreground bg-foreground text-background'
-          : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground',
+    <div className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted/40">
+      {adicional.imagem_url ? (
+        <Image src={adicional.imagem_url} alt={adicional.nome} fill className="object-cover" />
+      ) : (
+        <div className="flex size-full items-center justify-center">
+          <ImageOff className="size-4 text-muted-foreground/60" />
+        </div>
       )}
+      {enviando && (
+        <div className="absolute inset-0 flex items-center justify-center bg-foreground/70">
+          <RefreshCw className="size-4 animate-spin text-background" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+type GavetaAdicionalProps = {
+  aberto: boolean
+  adicional: Adicional | null
+  categorias: string[]
+  todosProdutos: ProdutoSimples[]
+  vinculosIniciais: string[]
+  enviandoImagem: boolean
+  removendoImagem: boolean
+  aoFechar: () => void
+  aoCriarCategoria: (nome: string) => Promise<string | null>
+  aoSalvarVinculos: (adicionalId: string, selecionados: string[]) => Promise<void>
+  aoRecarregar: () => Promise<void>
+  aoExcluido: (id: string) => void
+  aoAtualizado: (adicional: Adicional) => void
+  aoTrocarFoto: (id: string) => void
+  aoRecortarFoto: (adicional: Adicional) => void
+  aoRemoverFoto: (id: string) => void
+}
+
+function GavetaAdicional({
+  aberto,
+  adicional,
+  categorias,
+  todosProdutos,
+  vinculosIniciais,
+  enviandoImagem,
+  removendoImagem,
+  aoFechar,
+  aoCriarCategoria,
+  aoSalvarVinculos,
+  aoRecarregar,
+  aoExcluido,
+  aoAtualizado,
+  aoTrocarFoto,
+  aoRecortarFoto,
+  aoRemoverFoto,
+}: GavetaAdicionalProps) {
+  const confirmar = useConfirmar()
+  const [nome, setNome] = useState('')
+  const [preco, setPreco] = useState('')
+  const [categoria, setCategoria] = useState('')
+  const [criandoCategoria, setCriandoCategoria] = useState(false)
+  const [nomeNovaCategoria, setNomeNovaCategoria] = useState('')
+  const [selecionados, setSelecionados] = useState<string[]>([])
+  const [erros, setErros] = useState<{ nome?: string; preco?: string; categoria?: string }>({})
+  const [salvando, setSalvando] = useState(false)
+  // Evita insert duplicado se o vínculo falhar depois de criar e o usuário tentar de novo.
+  const idCriado = useRef<string | null>(null)
+
+  const idEdicao = adicional?.id ?? null
+  useEffect(() => {
+    if (!aberto) return
+    setNome(adicional?.nome ?? '')
+    setPreco(adicional ? String(adicional.preco).replace('.', ',') : '')
+    setCategoria(adicional?.categoria ?? '')
+    setCriandoCategoria(false)
+    setNomeNovaCategoria('')
+    setSelecionados(vinculosIniciais)
+    setErros({})
+    idCriado.current = null
+    // Só reinicia ao abrir ou trocar de adicional; recargas em tempo real não apagam o que foi digitado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, idEdicao])
+
+  const confirmarNovaCategoria = async () => {
+    const criada = await aoCriarCategoria(nomeNovaCategoria)
+    if (!criada) return
+    setCategoria(criada)
+    setCriandoCategoria(false)
+    setNomeNovaCategoria('')
+  }
+
+  async function salvar() {
+    const precoNumero = lerPreco(preco)
+    const proximosErros: typeof erros = {}
+    if (!nome.trim()) proximosErros.nome = 'Informe o nome do adicional.'
+    if (precoNumero === null || (!adicional && precoNumero <= 0)) proximosErros.preco = 'Informe um preço válido.'
+    if (categoria && !categorias.includes(categoria)) proximosErros.categoria = 'Categoria inválida. Atualize a tela e tente novamente.'
+    setErros(proximosErros)
+    if (Object.keys(proximosErros).length > 0 || precoNumero === null) return
+
+    const dados = { nome: nome.trim(), preco: precoNumero, categoria: categoria || null }
+    const vinculosMudaram =
+      selecionados.length !== vinculosIniciais.length || selecionados.some((id) => !vinculosIniciais.includes(id))
+
+    setSalvando(true)
+    try {
+      if (adicional) {
+        const { error } = await supabase.from('adicionais').update(dados).eq('id', adicional.id)
+        if (error) throw error
+        aoAtualizado({ ...adicional, ...dados })
+        if (vinculosMudaram) await aoSalvarVinculos(adicional.id, selecionados)
+        toast.success('Adicional salvo', { description: dados.nome })
+      } else {
+        if (!idCriado.current) {
+          const { data: novoRegistro, error } = await supabase
+            .from('adicionais')
+            .insert({ ...dados, disponivel: true })
+            .select('id')
+            .single()
+          if (error) throw error
+          idCriado.current = novoRegistro?.id ?? null
+        }
+
+        if (idCriado.current && selecionados.length > 0) {
+          const registros = selecionados.map((produtoId) => ({
+            produto_id: produtoId,
+            adicional_id: idCriado.current as string,
+          }))
+          await supabase.from('produto_adicionais').insert(registros)
+        }
+
+        await aoRecarregar()
+        toast.success('Adicional criado', { description: dados.nome })
+      }
+      aoFechar()
+    } catch (erro: unknown) {
+      console.error('Erro ao salvar adicional:', erro)
+      const code = (erro as { code?: string })?.code
+      const msg = (erro as { message?: string })?.message
+      const erroFK = code === '23503' && typeof msg === 'string' && msg.includes('adicionais_categoria_fkey')
+      toast.error(
+        erroFK
+          ? 'Categoria inválida. Atualize e tente novamente.'
+          : adicional
+            ? 'Não foi possível salvar o adicional.'
+            : 'Não foi possível criar o adicional.',
+      )
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function excluir() {
+    if (!adicional) return
+    const ok = await confirmar({
+      titulo: `Excluir "${adicional.nome}"?`,
+      descricao: 'O adicional some do cardápio e dos produtos. Não dá para desfazer.',
+      confirmar: 'Excluir adicional',
+      perigo: true,
+    })
+    if (!ok) return
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('adicionais').delete().eq('id', adicional.id)
+      if (error) throw error
+      aoExcluido(adicional.id)
+      toast.success('Adicional excluído', { description: adicional.nome })
+      aoFechar()
+    } catch (erro) {
+      console.error('Erro ao excluir adicional:', erro)
+      toast.error('Não foi possível excluir o adicional.', { description: 'Pause o adicional para tirá-lo do cardápio.' })
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const idNome = adicional ? `nome-${adicional.id}` : 'novo-nome'
+  const idPreco = adicional ? `preco-${adicional.id}` : 'novo-preco'
+
+  return (
+    <Gaveta
+      aberto={aberto}
+      aoFechar={aoFechar}
+      bloqueada={salvando}
+      largura="lg"
+      titulo={adicional ? 'Editar adicional' : 'Novo adicional'}
+      descricao="Nome e preço que o cliente vê ao montar o pedido."
+      rodape={
+        adicional ? (
+          <>
+            <Botao variante="perigoSuave" className="md:mr-auto" onClick={() => void excluir()} disabled={salvando}>
+              Excluir
+            </Botao>
+            <Botao carregando={salvando} onClick={() => void salvar()}>Salvar</Botao>
+          </>
+        ) : (
+          <>
+            <Botao variante="contorno" onClick={aoFechar} disabled={salvando}>Cancelar</Botao>
+            <Botao carregando={salvando} onClick={() => void salvar()}>Criar adicional</Botao>
+          </>
+        )
+      }
     >
-      {label}
-    </button>
+      <form
+        className="space-y-5"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void salvar()
+        }}
+      >
+        <Campo rotulo="Nome" htmlFor={idNome} erro={erros.nome}>
+          <Entrada
+            id={idNome}
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder="Ex.: Bacon extra"
+            autoComplete="off"
+          />
+        </Campo>
+
+        <Campo rotulo="Preço" htmlFor={idPreco} erro={erros.preco}>
+          <EntradaPreco id={idPreco} valor={preco} aoMudar={setPreco} />
+        </Campo>
+
+        <Campo rotulo="Categoria" htmlFor="adicional-categoria" erro={erros.categoria} opcional>
+          {criandoCategoria ? (
+            <div className="flex gap-2">
+              <Entrada
+                id="adicional-categoria"
+                value={nomeNovaCategoria}
+                onChange={(e) => setNomeNovaCategoria(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void confirmarNovaCategoria()
+                  }
+                }}
+                placeholder="Nome da nova categoria"
+                autoFocus
+                className="flex-1"
+              />
+              <Botao className="h-11 md:h-10" onClick={() => void confirmarNovaCategoria()}>
+                Criar
+              </Botao>
+              <Botao
+                variante="fantasma"
+                tamanho="icone"
+                className="size-11 md:size-10"
+                onClick={() => {
+                  setCriandoCategoria(false)
+                  setNomeNovaCategoria('')
+                }}
+                aria-label="Cancelar criação de categoria"
+              >
+                <X className="size-4" />
+              </Botao>
+            </div>
+          ) : (
+            <Selecao
+              id="adicional-categoria"
+              value={categoria}
+              onChange={(e) => {
+                if (e.target.value === '__nova__') {
+                  setCriandoCategoria(true)
+                  setNomeNovaCategoria('')
+                  return
+                }
+                setCategoria(e.target.value)
+              }}
+            >
+              <option value="">Sem categoria</option>
+              {categorias.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+              <option value="__nova__">+ Criar nova categoria</option>
+            </Selecao>
+          )}
+        </Campo>
+
+        {adicional && (
+          <Campo rotulo="Foto" opcional>
+            <div className="flex items-center gap-3">
+              <Miniatura adicional={adicional} enviando={enviandoImagem} />
+              <div className="flex flex-wrap gap-2">
+                <Botao
+                  variante="contorno"
+                  tamanho="sm"
+                  className="h-11 md:h-9"
+                  onClick={() => aoTrocarFoto(adicional.id)}
+                  disabled={enviandoImagem}
+                >
+                  <Camera className="size-4" />
+                  {adicional.imagem_url ? 'Trocar foto' : 'Adicionar foto'}
+                </Botao>
+                {adicional.imagem_url && (
+                  <>
+                    <Botao
+                      variante="fantasma"
+                      tamanho="sm"
+                      className="h-11 md:h-9"
+                      onClick={() => aoRecortarFoto(adicional)}
+                      disabled={enviandoImagem}
+                    >
+                      <Crop className="size-4" />
+                      Recortar
+                    </Botao>
+                    <Botao
+                      variante="perigoSuave"
+                      tamanho="sm"
+                      className="h-11 md:h-9"
+                      onClick={() => aoRemoverFoto(adicional.id)}
+                      disabled={enviandoImagem || removendoImagem}
+                    >
+                      Remover
+                    </Botao>
+                  </>
+                )}
+              </div>
+            </div>
+          </Campo>
+        )}
+
+        <SeletorProdutos produtos={todosProdutos} selecionados={selecionados} aoMudar={setSelecionados} />
+
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+      </form>
+    </Gaveta>
+  )
+}
+
+function SeletorProdutos({
+  produtos,
+  selecionados,
+  aoMudar,
+}: {
+  produtos: ProdutoSimples[]
+  selecionados: string[]
+  aoMudar: (ids: string[]) => void
+}) {
+  const [busca, setBusca] = useState('')
+  const filtrados = produtos.filter((p) => !busca || p.nome.toLowerCase().includes(busca.toLowerCase()))
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">Em quais produtos aparece</p>
+          <p className="text-[13px] leading-5 text-muted-foreground">
+            {selecionados.length === 0
+              ? 'Nenhum marcado: aparece em todos os produtos.'
+              : `${selecionados.length} de ${produtos.length} marcados.`}
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <Botao variante="fantasma" tamanho="xs" onClick={() => aoMudar(produtos.map((p) => p.id))}>
+            Marcar todos
+          </Botao>
+          <Botao variante="fantasma" tamanho="xs" onClick={() => aoMudar([])} disabled={selecionados.length === 0}>
+            Limpar
+          </Botao>
+        </div>
+      </div>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Entrada
+          type="search"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar produto"
+          aria-label="Buscar produto"
+          className="pl-9"
+        />
+      </div>
+      {filtrados.length === 0 ? (
+        <p className="px-1 py-4 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</p>
+      ) : (
+        <Lista className="max-h-72 overflow-y-auto">
+          {filtrados.map((produto) => {
+            const marcado = selecionados.includes(produto.id)
+            return (
+              <li key={produto.id}>
+                <button
+                  type="button"
+                  aria-pressed={marcado}
+                  onClick={() =>
+                    aoMudar(marcado ? selecionados.filter((id) => id !== produto.id) : [...selecionados, produto.id])
+                  }
+                  className={cn(
+                    'flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-muted/40',
+                    marcado && 'bg-primary/5',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'flex size-5 shrink-0 items-center justify-center rounded border',
+                      marcado ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
+                    )}
+                  >
+                    {marcado && <Check weight="bold" className="size-3" />}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-foreground">{produto.nome}</span>
+                  <span className="shrink-0 text-[13px] text-muted-foreground">{produto.categoria}</span>
+                </button>
+              </li>
+            )
+          })}
+        </Lista>
+      )}
+    </section>
   )
 }

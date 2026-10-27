@@ -3,39 +3,29 @@
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import {
-  AlertCircle,
-  Bell,
-  BellOff,
-  Check,
-  CheckCircle2,
-  Copy,
-  Phone,
-  QrCode,
-  RefreshCw,
-  Router,
-  Send,
-  Settings,
-  ShieldAlert,
-  Trash2,
-  Trophy,
-  Users,
-  Wifi,
-  WifiOff,
-  XCircle,
-} from 'lucide-react'
+import { WarningCircle as AlertCircle, Bell, Check, CheckCircle as CheckCircle2, Copy, Phone, QrCode, ArrowsClockwise as RefreshCw, PaperPlaneRight as Send, Gear as Settings, ShieldWarning as ShieldAlert, Trash as Trash2, Trophy, Users, WifiHigh as Wifi, WifiSlash as WifiOff, X } from '@phosphor-icons/react'
+import { toast } from 'sonner'
 import IconeWhatsApp from '@/components/icons/IconeWhatsApp'
 import AdminLayout from '@/components/admin/AdminLayout'
 import AvisoJogoBot from '@/components/admin/AvisoJogoBot'
 import ConfiguracoesBot from '@/components/admin/ConfiguracoesBot'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Botao,
+  CabecalhoPagina,
+  Campo,
+  Cartao,
+  Chip,
+  Entrada,
+  Interruptor,
+  Lista,
+  ListaVazia,
+  Pagina,
+  Secao,
+  Segmentos,
+  Selo,
+  useConfirmar,
+} from '@/components/admin/ui'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
@@ -186,19 +176,28 @@ const statusVisual = (status?: StatusBot['status']) => {
 
 const normalizarTelefone = (valor: string) => valor.replace(/\D/g, '')
 
+type Aba = 'conexao' | 'notificacoes' | 'jogo' | 'configuracoes'
+
+const ABAS: { valor: Aba; rotulo: string; icone: typeof Wifi }[] = [
+  { valor: 'conexao', rotulo: 'Conexão', icone: Wifi },
+  { valor: 'notificacoes', rotulo: 'Notificações', icone: Users },
+  { valor: 'jogo', rotulo: 'Jogo', icone: Trophy },
+  { valor: 'configuracoes', rotulo: 'Configurações', icone: Settings },
+]
+
 export default function WhatsAppBotPage() {
+  const confirmar = useConfirmar()
+  const [aba, setAba] = useState<Aba>('conexao')
   const [statusBot, setStatusBot] = useState<StatusBot | null>(null)
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [codigoPareamento, setCodigoPareamento] = useState<string | null>(null)
   const [numeroPareamento, setNumeroPareamento] = useState('')
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
   const [erro, setErro] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<string | null>(null)
   const [codigoCopiado, setCodigoCopiado] = useState(false)
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<AcaoBot | null>('status')
   const [abaPareamento, setAbaPareamento] = useState<'qr' | 'codigo'>('qr')
   const [diagnostico, setDiagnostico] = useState<DiagnosticoBot | null>(null)
-  const [dialogLimparAberto, setDialogLimparAberto] = useState(false)
   const pollingRef = useRef<number | null>(null)
 
   const visual = statusVisual(statusBot?.status)
@@ -211,10 +210,7 @@ export default function WhatsAppBotPage() {
   )
 
   const definirFeedback = (mensagem: string) => {
-    setFeedback(mensagem)
-    window.setTimeout(() => {
-      setFeedback((atual) => (atual === mensagem ? null : atual))
-    }, 3200)
+    toast.success(mensagem)
   }
 
   const buscarStatus = useCallback(async () => {
@@ -317,7 +313,6 @@ export default function WhatsAppBotPage() {
       setErro(mensagem)
     } finally {
       setAcaoEmAndamento(null)
-      setDialogLimparAberto(false)
     }
   }
 
@@ -351,6 +346,16 @@ export default function WhatsAppBotPage() {
     } finally {
       setAcaoEmAndamento(null)
     }
+  }
+
+  const pedirLimparSessao = async () => {
+    const ok = await confirmar({
+      titulo: 'Limpar sessão do WhatsApp?',
+      descricao: 'Isso remove a sessão salva e vai pedir um novo pareamento. Use só quando o WhatsApp travar ou trocar de aparelho.',
+      confirmar: 'Limpar sessão',
+      perigo: true,
+    })
+    if (ok) await executarAcao('limpar')
   }
 
   const copiarCodigo = async () => {
@@ -412,169 +417,124 @@ export default function WhatsAppBotPage() {
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="mx-auto w-full max-w-6xl min-w-0 space-y-5 p-4 sm:p-6">
-          <div className="flex w-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border/70 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#25D366]/15 text-[#25D366]">
-                <IconeWhatsApp className="size-7" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">WhatsApp</h1>
-                <p className="text-sm text-muted-foreground">
-                  Sessão da Carol, pareamento e notificações operacionais.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="h-9 gap-1.5 rounded-lg px-3 font-mono text-[11px] shadow-none">
-                <Router className="size-3.5" />
-                {BOT_URL_DISPLAY}
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 shadow-none"
-                onClick={atualizarTudo}
-                disabled={acaoEmAndamento === 'status'}
-              >
-                <RefreshCw className={cn('mr-2 size-4', acaoEmAndamento === 'status' && 'animate-spin')} />
+        <Pagina className="max-w-6xl">
+          <CabecalhoPagina
+            titulo="WhatsApp"
+            descricao="Conexão da Carol, quem recebe avisos e ajustes do bot."
+            acoes={
+              <Botao variante="contorno" onClick={atualizarTudo} disabled={acaoEmAndamento === 'status'}>
+                <RefreshCw className={cn('size-4', acaoEmAndamento === 'status' && 'animate-spin')} />
                 Atualizar
-              </Button>
-            </div>
-          </div>
+              </Botao>
+            }
+          />
 
-          <div className="grid grid-cols-2 gap-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 shadow-sm sm:grid-cols-4 sm:p-4">
-            <div className="min-w-0 rounded-lg bg-muted/30 px-3 py-2.5">
-              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">Status</p>
-              <div className="mt-1 flex items-center gap-1.5">
-                <IconeStatus
-                  className={cn(
-                    'size-4 shrink-0 text-primary',
-                    statusBot?.status === 'conectando' && 'animate-spin',
-                  )}
-                />
-                <p className="truncate text-sm font-semibold text-foreground">{visual.texto}</p>
+          <Cartao className="flex items-center gap-3 p-4">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/15 text-[#25D366]">
+              <IconeWhatsApp className="size-6" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium text-foreground">{visual.texto}</p>
+                <Selo tom={botConectado ? 'sucesso' : statusBot?.status === 'desconectado' || !statusBot ? 'perigo' : 'alerta'}>
+                  <IconeStatus className={cn('size-3', statusBot?.status === 'conectando' && 'animate-spin')} />
+                  {visual.descricao}
+                </Selo>
               </div>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">{visual.descricao}</p>
-            </div>
-            <div className="min-w-0 rounded-lg bg-muted/30 px-3 py-2.5">
-              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">Número</p>
-              <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                {statusBot?.numeroConectado || 'Não conectado'}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {statusBot?.nomePerfil || 'Sem perfil ativo'}
+              <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                {statusBot?.numeroConectado
+                  ? `${statusBot.numeroConectado}${statusBot.nomePerfil ? ` · ${statusBot.nomePerfil}` : ''}`
+                  : 'Nenhum número conectado'}
               </p>
             </div>
-            <div className="min-w-0 rounded-lg bg-muted/30 px-3 py-2.5">
-              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">Mensagens</p>
-              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-foreground">
+          </Cartao>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Cartao className="p-4">
+              <p className="text-sm text-muted-foreground">Mensagens enviadas</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">
                 {statusBot?.estatisticas?.mensagensEnviadas || 0}
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
                 {statusBot?.estatisticas?.mensagensRecebidas || 0} recebidas em 24h
               </p>
-            </div>
-            <div className="min-w-0 rounded-lg bg-muted/30 px-3 py-2.5">
-              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">Notificações</p>
-              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-foreground">
-                {funcionariosNotificados}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+            </Cartao>
+            <Cartao className="p-4">
+              <p className="text-sm text-muted-foreground">Recebem avisos</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{funcionariosNotificados}</p>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
                 {statusBot?.estatisticas?.pedidosNotificados || 0} pedidos em 7 dias
               </p>
-            </div>
+            </Cartao>
           </div>
 
-          {(erro || feedback) && (
+          {erro && (
             <div
-              className={cn(
-                'flex items-start gap-3 rounded-xl border p-3 text-sm',
-                erro
-                  ? 'border-destructive/30 bg-destructive/10 text-destructive'
-                  : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-              )}
+              role="alert"
+              className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
             >
-              {erro ? (
-                <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              ) : (
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-              )}
-              <span className="flex-1">{erro || feedback}</span>
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span className="min-w-0 flex-1 break-words">{erro}</span>
               <button
                 type="button"
-                onClick={() => {
-                  setErro(null)
-                  setFeedback(null)
-                }}
+                onClick={() => setErro(null)}
                 aria-label="Fechar aviso"
+                className="-m-2.5 flex size-10 shrink-0 items-center justify-center rounded-lg"
               >
-                <XCircle className="size-4" />
+                <X className="size-4" />
               </button>
             </div>
           )}
 
-          <Tabs defaultValue="conexao" className="space-y-4">
-            <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl sm:grid-cols-4 md:w-fit">
-              <TabsTrigger value="conexao" className="gap-2">
-                <Wifi className="size-4" />
-                Conexão
-              </TabsTrigger>
-              <TabsTrigger value="notificacoes" className="gap-2">
-                <Users className="size-4" />
-                Notificações
-              </TabsTrigger>
-              <TabsTrigger value="jogo" className="gap-2">
-                <Trophy className="size-4" />
-                Jogo
-              </TabsTrigger>
-              <TabsTrigger value="configuracoes" className="gap-2">
-                <Settings className="size-4" />
-                Configurações
-              </TabsTrigger>
-            </TabsList>
+          <div role="tablist" aria-label="Seções do WhatsApp" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
+            {ABAS.map(({ valor, rotulo, icone: Icone }) => (
+              <Chip
+                key={valor}
+                role="tab"
+                aria-selected={aba === valor}
+                ativo={aba === valor}
+                onClick={() => setAba(valor)}
+                className="h-10"
+              >
+                <Icone className="size-4" />
+                {rotulo}
+              </Chip>
+            ))}
+          </div>
 
-            <TabsContent value="conexao" className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
-              <Card className="border-border/70 shadow-none">
-                <CardHeader className="p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-base">Pareamento</CardTitle>
-                      <CardDescription>Use QR Code ou código por número para conectar o WhatsApp.</CardDescription>
-                    </div>
-                    <Badge variant={botConectado ? 'success' : 'outline'} className="rounded-lg">
-                      {botConectado ? 'ativo' : 'precisa conectar'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 p-5 pt-0">
+          {aba === 'conexao' && (
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+              <Secao
+                titulo="Conectar o WhatsApp"
+                descricao={botConectado ? undefined : 'Use o QR Code ou um código enviado para o número.'}
+              >
+                <Cartao className="space-y-4 p-4">
                   {botConectado ? (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
-                      <div className="flex items-start gap-3">
-                        <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
-                        <div>
-                          <p className="font-medium">WhatsApp conectado.</p>
-                          <p className="text-sm opacity-80">Desde {formatarDataHora(statusBot?.conectadoEm || null)}.</p>
-                        </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" weight="fill" />
+                      <div>
+                        <p className="font-medium text-foreground">WhatsApp conectado</p>
+                        <p className="text-sm text-muted-foreground">
+                          Desde {formatarDataHora(statusBot?.conectadoEm || null)}.
+                        </p>
                       </div>
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button type="button" variant={abaPareamento === 'qr' ? 'default' : 'outline'} onClick={() => setAbaPareamento('qr')}>
-                          <QrCode className="mr-2 size-4" />
-                          QR Code
-                        </Button>
-                        <Button type="button" variant={abaPareamento === 'codigo' ? 'default' : 'outline'} onClick={() => setAbaPareamento('codigo')}>
-                          <Phone className="mr-2 size-4" />
-                          Código
-                        </Button>
-                      </div>
+                      <Segmentos
+                        opcoes={[
+                          { valor: 'qr', rotulo: 'QR Code' },
+                          { valor: 'codigo', rotulo: 'Código por número' },
+                        ]}
+                        valor={abaPareamento}
+                        aoMudar={setAbaPareamento}
+                        rotuloAcessivel="Forma de conectar"
+                      />
 
                       {abaPareamento === 'qr' ? (
-                        <div className="flex flex-col items-center gap-4 rounded-xl border border-border/70 bg-muted/20 p-5">
+                        <div className="flex flex-col items-center gap-3 py-2">
                           {qrCode ? (
-                            <div className="rounded-xl border bg-white p-4">
+                            <div className="rounded-xl border border-border/70 bg-white p-3">
                               {qrCodeEhImagem(qrCode) ? (
                                 <Image src={qrCode} alt="QR Code do WhatsApp" width={220} height={220} unoptimized />
                               ) : (
@@ -582,41 +542,53 @@ export default function WhatsAppBotPage() {
                               )}
                             </div>
                           ) : (
-                            <div className="flex size-[254px] items-center justify-center rounded-xl border border-dashed bg-background">
+                            <div className="flex size-[246px] max-w-full items-center justify-center rounded-xl border border-dashed border-border/70">
                               <RefreshCw className="size-6 animate-spin text-muted-foreground" />
                             </div>
                           )}
                           <p className="max-w-sm text-center text-sm text-muted-foreground">
-                            Abra o WhatsApp, entre em aparelhos conectados e escaneie o código.
+                            No celular, abra o WhatsApp, toque em Aparelhos conectados e escaneie o código.
                           </p>
                         </div>
                       ) : (
-                        <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="numero-pareamento">Número com DDD</Label>
+                        <div className="space-y-4">
+                          <Campo rotulo="Número com DDD" htmlFor="numero-pareamento" ajuda="Com código do país, só números.">
                             <div className="flex flex-col gap-2 sm:flex-row">
-                              <Input
+                              <Entrada
                                 id="numero-pareamento"
                                 inputMode="tel"
                                 value={numeroPareamento}
                                 onChange={(event) => setNumeroPareamento(event.target.value)}
                                 placeholder="5586999999999"
                               />
-                              <Button type="button" onClick={solicitarPareamento} disabled={acaoEmAndamento === 'pareamento'}>
-                                <Send className="mr-2 size-4" />
-                                Gerar
-                              </Button>
+                              <Botao
+                                tamanho="lg"
+                                className="sm:h-10 sm:text-sm"
+                                onClick={solicitarPareamento}
+                                carregando={acaoEmAndamento === 'pareamento'}
+                              >
+                                <Send className="size-4" />
+                                Gerar código
+                              </Botao>
                             </div>
-                          </div>
+                          </Campo>
 
                           {codigoPareamento && (
-                            <div className="rounded-xl border bg-background p-4">
-                              <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Código</p>
+                            <div className="rounded-xl border border-border/70 p-4">
+                              <p className="text-sm text-muted-foreground">Digite este código no WhatsApp</p>
                               <div className="mt-2 flex items-center justify-between gap-3">
-                                <span className="font-mono text-3xl font-semibold tracking-[0.18em]">{codigoPareamento}</span>
-                                <Button type="button" variant="outline" size="icon" onClick={copiarCodigo}>
+                                <span className="font-mono text-2xl font-semibold tracking-widest text-foreground sm:text-3xl">
+                                  {codigoPareamento}
+                                </span>
+                                <Botao
+                                  variante="contorno"
+                                  tamanho="icone"
+                                  className="size-11"
+                                  onClick={copiarCodigo}
+                                  aria-label={codigoCopiado ? 'Código copiado' : 'Copiar código'}
+                                >
                                   {codigoCopiado ? <Check className="size-4" /> : <Copy className="size-4" />}
-                                </Button>
+                                </Botao>
                               </div>
                             </div>
                           )}
@@ -624,153 +596,125 @@ export default function WhatsAppBotPage() {
                       )}
                     </>
                   )}
-                </CardContent>
-              </Card>
+                </Cartao>
+              </Secao>
 
-              <div className="space-y-4">
-                <Card className="border-border/70 shadow-none">
-                  <CardHeader className="p-5">
-                    <CardTitle className="text-base">Administração</CardTitle>
-                    <CardDescription>Controle direto da sessão e cache da Carol.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid gap-2 p-5 pt-0">
-                    <Button
-                      variant="outline"
-                      className="h-11 justify-start shadow-none sm:h-10"
-                      onClick={() => executarAcao('reconectar')}
-                      disabled={acaoEmAndamento === 'reconectar' || botConectado}
-                    >
-                      <RefreshCw className={cn('mr-2 size-4', acaoEmAndamento === 'reconectar' && 'animate-spin')} />
-                      Reconectar sessão
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-11 justify-start shadow-none sm:h-10"
-                      onClick={() => executarAcao('desconectar')}
-                      disabled={acaoEmAndamento === 'desconectar' || !botConectado}
-                    >
-                      <WifiOff className="mr-2 size-4" />
-                      Desconectar WhatsApp
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-11 justify-start shadow-none sm:h-10"
-                      onClick={executarDiagnostico}
-                      disabled={acaoEmAndamento === 'diagnostico'}
-                    >
-                      <ShieldAlert className="mr-2 size-4" />
-                      Testar servidor do bot
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      className="h-11 justify-start shadow-none sm:h-10"
-                      onClick={() => setDialogLimparAberto(true)}
-                      disabled={acaoEmAndamento === 'limpar'}
-                    >
-                      <Trash2 className="mr-2 size-4" />
-                      Limpar sessão
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-border/70 shadow-none">
-                  <CardHeader className="p-5">
-                    <CardTitle className="text-base">Diagnóstico</CardTitle>
-                    <CardDescription>Última checagem feita pelo painel.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-2 p-5 pt-0">
-                    {diagnostico ? (
-                      <>
-                        <Badge variant={diagnostico.status === 'online' ? 'success' : 'destructive'} className="rounded-lg">
-                          {diagnostico.status === 'online' ? 'online' : 'erro'}
-                        </Badge>
-                        <p className="text-sm">{diagnostico.mensagem}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          HTTP {diagnostico.codigoHttp} em {diagnostico.duracaoMs}ms
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Nenhum teste executado nesta sessão.</p>
-                    )}
-                  </CardContent>
-                </Card>
+              <div className="space-y-5">
+                <Secao titulo="Sessão" descricao={`Servidor: ${BOT_URL_DISPLAY}`}>
+                  <Lista>
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => executarAcao('reconectar')}
+                        disabled={acaoEmAndamento === 'reconectar' || botConectado}
+                        className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50"
+                      >
+                        <RefreshCw className={cn('size-4 text-muted-foreground', acaoEmAndamento === 'reconectar' && 'animate-spin')} />
+                        Reconectar sessão
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => executarAcao('desconectar')}
+                        disabled={acaoEmAndamento === 'desconectar' || !botConectado}
+                        className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50"
+                      >
+                        <WifiOff className="size-4 text-muted-foreground" />
+                        Desconectar WhatsApp
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        onClick={executarDiagnostico}
+                        disabled={acaoEmAndamento === 'diagnostico'}
+                        className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50"
+                      >
+                        <ShieldAlert className="size-4 text-muted-foreground" />
+                        <span className="flex-1">Testar servidor do bot</span>
+                        {diagnostico && (
+                          <Selo tom={diagnostico.status === 'online' ? 'sucesso' : 'perigo'}>
+                            {diagnostico.status === 'online' ? 'Respondendo' : 'Com erro'}
+                          </Selo>
+                        )}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => void pedirLimparSessao()}
+                        disabled={acaoEmAndamento === 'limpar'}
+                        className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400"
+                      >
+                        <Trash2 className="size-4" />
+                        Limpar sessão
+                      </button>
+                    </li>
+                  </Lista>
+                  {diagnostico ? (
+                    <p className="px-1 text-[13px] text-muted-foreground">
+                      {diagnostico.mensagem}{' '}
+                      <span className="font-mono">HTTP {diagnostico.codigoHttp} · {diagnostico.duracaoMs}ms</span>
+                    </p>
+                  ) : null}
+                </Secao>
               </div>
-            </TabsContent>
+            </div>
+          )}
 
-            <TabsContent value="notificacoes">
-              <Card className="border-border/70 shadow-none">
-                <CardHeader className="p-5">
-                  <CardTitle className="text-base">Funcionários notificados</CardTitle>
-                  <CardDescription>Quem recebe alertas operacionais enviados pela Carol.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3 p-5 pt-0 md:grid-cols-2 xl:grid-cols-3">
-                  {funcionarios.length === 0 ? (
-                    <div className="col-span-full rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                      Nenhum funcionário ativo encontrado.
-                    </div>
-                  ) : funcionarios.map((funcionario) => {
+          {aba === 'notificacoes' && (
+            <Secao titulo="Quem recebe avisos" descricao="Funcionários ativos que recebem alertas da Carol pelo WhatsApp.">
+              {funcionarios.length === 0 ? (
+                <ListaVazia icone={<Bell />} titulo="Nenhum funcionário ativo" descricao="Cadastre a equipe em Funcionários." />
+              ) : (
+                <Lista>
+                  {funcionarios.map((funcionario) => {
                     const ativo = Boolean(funcionario.recebe_mensagem)
                     return (
-                      <div key={funcionario.id} className="rounded-xl border border-border/70 bg-card p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{funcionario.nome}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">{funcionario.telefone || 'Sem telefone'}</p>
-                          </div>
-                          <Badge variant="outline" className="rounded-lg capitalize">{funcionario.tipo}</Badge>
-                        </div>
-                        <Button
-                          type="button"
-                          variant={ativo ? 'default' : 'outline'}
-                          size="sm"
-                          className="mt-4 w-full"
+                      <li key={funcionario.id}>
+                        <div
+                          role="button"
+                          tabIndex={0}
                           onClick={() => alternarNotificacaoFuncionario(funcionario)}
+                          onKeyDown={(evento) => {
+                            if (evento.key === 'Enter') void alternarNotificacaoFuncionario(funcionario)
+                          }}
+                          className="flex min-h-16 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                         >
-                          {ativo ? <Bell className="mr-2 size-4" /> : <BellOff className="mr-2 size-4" />}
-                          {ativo ? 'Recebe notificações' : 'Não recebe'}
-                        </Button>
-                      </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium text-foreground">{funcionario.nome}</p>
+                            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <Phone className="size-3.5 shrink-0" />
+                              <span className="truncate">{funcionario.telefone || 'Sem telefone'}</span>
+                              <span aria-hidden>·</span>
+                              <span className="capitalize">{funcionario.tipo}</span>
+                            </p>
+                          </div>
+                          <Interruptor
+                            marcado={ativo}
+                            aoMudar={() => void alternarNotificacaoFuncionario(funcionario)}
+                            rotuloAcessivel={`${funcionario.nome} recebe avisos`}
+                          />
+                        </div>
+                      </li>
                     )
                   })}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                </Lista>
+              )}
+            </Secao>
+          )}
 
-            <TabsContent value="jogo">
-              <AvisoJogoBot />
-            </TabsContent>
+          {aba === 'jogo' && <AvisoJogoBot />}
 
-            <TabsContent value="configuracoes">
-              <ConfiguracoesBot
-                automacao={statusBot?.automacao}
-                operacao={statusBot?.operacao}
-                onAtualizarStatus={buscarStatus}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        <AlertDialog open={dialogLimparAberto} onOpenChange={setDialogLimparAberto}>
-          <AlertDialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
-            <AlertDialogHeader className="space-y-1 border-b border-border/60 px-5 pb-4 pt-5 text-left">
-              <AlertDialogTitle className="text-[15px] font-semibold tracking-tight">
-                Limpar sessão do WhatsApp?
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-[13px]">
-                Isso remove a sessão salva e vai exigir um novo pareamento. Use apenas quando o WhatsApp travar ou trocar de aparelho.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2 border-t border-border/60 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-4">
-              <AlertDialogCancel className="h-11 w-full shadow-none sm:h-9 sm:w-auto">Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                className="h-11 w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-none sm:h-9 sm:w-auto"
-                onClick={() => executarAcao('limpar')}
-              >
-                Limpar sessão
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          {aba === 'configuracoes' && (
+            <ConfiguracoesBot
+              automacao={statusBot?.automacao}
+              operacao={statusBot?.operacao}
+              onAtualizarStatus={buscarStatus}
+            />
+          )}
+        </Pagina>
       </AdminLayout>
     </ProtectedRoute>
   )

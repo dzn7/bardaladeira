@@ -1,6 +1,6 @@
 'use client'
 
-import { Package, Store, Truck } from 'lucide-react'
+import { Package, Storefront as Store, Truck } from '@phosphor-icons/react'
 import type { DadosDiarios } from '../../types'
 import { formatarMoeda } from '../../lib/formatadores'
 
@@ -40,15 +40,15 @@ export const RelatorioCanais = ({ dados }: RelatorioCanaisProps) => {
         return (
           <div key={tipo.label} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
             <div className="flex min-w-0 items-center gap-2.5">
-              <Icone className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.6} />
+              <Icone className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">{tipo.label}</p>
-                <p className="text-[11px] text-muted-foreground">{pct.toFixed(0)}% dos pedidos</p>
+                <p className="text-[13px] text-muted-foreground">{pct.toFixed(0)}% dos pedidos</p>
               </div>
             </div>
             <div className="shrink-0 text-right">
               <p className="text-sm font-semibold tabular-nums text-foreground">{tipo.quantidade}</p>
-              <p className="text-[11px] tabular-nums text-muted-foreground">{formatarMoeda(tipo.total)}</p>
+              <p className="text-[13px] tabular-nums text-muted-foreground">{formatarMoeda(tipo.total)}</p>
             </div>
           </div>
         )

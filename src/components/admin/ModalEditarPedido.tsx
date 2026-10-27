@@ -2,26 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { toast } from 'sonner'
-import {
-  X,
-  Save,
-  Loader2,
-  Plus,
-  Minus,
-  Trash2,
-  Search,
-  Banknote,
-  CreditCard,
-  QrCode,
-  MapPin,
-  Split,
-  ShoppingCart,
-  User,
-  ChevronDown,
-  ChevronUp,
-  Check,
-  Wallet,
-} from 'lucide-react'
+import { X, FloppyDisk as Save, CircleNotch as Loader2, Plus, Minus, Trash as Trash2, MagnifyingGlass as Search, Money as Banknote, CreditCard, QrCode, MapPin, ArrowsSplit as Split, ShoppingCart, User, CaretDown as ChevronDown, CaretUp as ChevronUp, Check, Wallet } from '@phosphor-icons/react'
 import { supabase } from '@/lib/supabase'
 import { normalizarNomeCategoria } from '@/lib/categoriasCardapio'
 import {
@@ -31,7 +12,24 @@ import {
   type PedidoSnapshotImpressao,
 } from '@/lib/filaImpressao'
 import { limparSnapshotsOrfaosPagamentos } from '@/lib/pagamentoParcial'
-import { ModalSheet } from '@/components/ui/modal-sheet'
+import { cn } from '@/lib/utils'
+import {
+  AreaTexto,
+  Botao,
+  Campo,
+  Cartao,
+  Chip,
+  Contador,
+  Entrada,
+  Gaveta,
+  LinhaInterruptor,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Secao,
+  Segmentos,
+  Selecao,
+} from '@/components/admin/ui'
 import { criarVinculoCatalogoItemPedido } from '@/lib/vinculo-catalogo-item-pedido.mjs'
 import { formatarErroEstoque } from '@/lib/estoque-produto.mjs'
 
@@ -155,7 +153,6 @@ export default function ModalEditarPedido({ pedido, aberto, onFechar, onSucesso 
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([])
   const [novoPagamentoForma, setNovoPagamentoForma] = useState('')
   const [novoPagamentoValor, setNovoPagamentoValor] = useState('')
-  const [secaoExpandida, setSecaoExpandida] = useState<'dados' | 'itens' | 'pagamento' | null>('itens')
 
   type SnapshotCrediario = { id: string; valor: number; itens: unknown }
   const [snapshotCrediario, setSnapshotCrediario] = useState<SnapshotCrediario | null>(null)
@@ -192,7 +189,6 @@ export default function ModalEditarPedido({ pedido, aberto, onFechar, onSucesso 
       carregarProdutos()
       carregarAdicionais()
       carregarSnapshotCrediario()
-      setSecaoExpandida('itens')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedido])
@@ -832,712 +828,537 @@ export default function ModalEditarPedido({ pedido, aberto, onFechar, onSucesso 
     }
   }
 
-  const toggleSecao = (secao: 'dados' | 'itens' | 'pagamento') => {
-    setSecaoExpandida((prev) => (prev === secao ? null : secao))
-  }
-
   return (
     <>
-      <ModalSheet
-        open={Boolean(aberto && pedido)}
-        onOpenChange={(open) => {
-          if (!open) onFechar()
-        }}
-        title="Editar Pedido"
-        showCloseButton={false}
-        className="max-h-[100dvh] overflow-hidden sm:max-h-[92dvh] sm:max-w-2xl"
+      <Gaveta
+        aberto={Boolean(aberto && pedido)}
+        aoFechar={onFechar}
+        bloqueada={salvando}
+        largura="lg"
+        titulo="Editar pedido"
+        descricao={
+          pedido ? (
+            <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-mono tabular-nums">#{pedido.id.slice(0, 8).toUpperCase()}</span>
+              {pedido.mesa ? <span>· Mesa {pedido.mesa}</span> : null}
+              {pedido.comanda ? <span>· Comanda {pedido.comanda}</span> : null}
+              <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', statusAtual.cor)}>
+                {statusAtual.label}
+              </span>
+            </span>
+          ) : undefined
+        }
+        rodape={
+          pedido ? (
+            <>
+              <Botao variante="contorno" onClick={onFechar} disabled={salvando}>
+                Cancelar
+              </Botao>
+              <Botao
+                onClick={salvarAlteracoes}
+                carregando={salvando}
+                disabled={!nomeCliente || itens.length === 0}
+              >
+                {!salvando && <Save className="size-4" />}
+                {salvando ? 'Salvando...' : `Salvar · R$ ${totalFinal.toFixed(2)}`}
+              </Botao>
+            </>
+          ) : undefined
+        }
       >
         {pedido ? (
-          <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex flex-shrink-0 items-center justify-between border-b border-zinc-200 bg-zinc-50 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/80">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-bordo-100 dark:bg-bordo-950/40">
-                  <ShoppingCart className="h-5 w-5 text-bordo-600 dark:text-bordo-400" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Editar Pedido</h2>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-                    #{pedido.id.slice(0, 8).toUpperCase()}
-                    {pedido.mesa ? ` · Mesa ${pedido.mesa}` : ''}
-                    {pedido.comanda ? ` · Comanda ${pedido.comanda}` : ''}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${statusAtual.cor}`}>
-                  {statusAtual.label}
-                </span>
-                <button
-                  onClick={onFechar}
-                  className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
-                >
-                  <X className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
-                </button>
-              </div>
-            </div>
+          <div className="space-y-6">
+            <Secao titulo="Cliente">
+              <div className="space-y-4">
+                <Campo rotulo="Nome do cliente" htmlFor="editar-pedido-nome">
+                  <Entrada
+                    id="editar-pedido-nome"
+                    value={nomeCliente}
+                    onChange={(e) => setNomeCliente(e.target.value)}
+                    placeholder="Nome do cliente"
+                    autoComplete="off"
+                  />
+                </Campo>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto overscroll-contain">
-              {/* Seção: Dados do Cliente */}
-              <div className="border-b border-zinc-200 dark:border-zinc-800">
-                <button
-                  onClick={() => toggleSecao('dados')}
-                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <User className="w-4 h-4 text-bordo-500 dark:text-bordo-400" />
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-white">Dados do Cliente</span>
-                  </div>
-                  {secaoExpandida === 'dados' ? (
-                    <ChevronUp className="w-4 h-4 text-zinc-400" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-zinc-400" />
-                  )}
-                </button>
+                <Campo rotulo="Como o pedido sai">
+                  <Segmentos
+                    rotuloAcessivel="Tipo do pedido"
+                    valor={tipoEntrega}
+                    aoMudar={setTipoEntrega}
+                    opcoes={[
+                      { valor: 'entrega', rotulo: 'Entrega' },
+                      { valor: 'retirada', rotulo: 'Retirada' },
+                      { valor: 'local', rotulo: 'No local' },
+                    ]}
+                  />
+                </Campo>
 
-                {secaoExpandida === 'dados' && (
-                  <div className="px-5 pb-4 space-y-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">
-                        Nome do Cliente
-                      </label>
-                      <input
-                        type="text"
-                        value={nomeCliente}
-                        onChange={(e) => setNomeCliente(e.target.value)}
-                        placeholder="Nome do cliente"
-                        className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bordo-500 focus:border-transparent"
-                      />
-                    </div>
+                <Campo rotulo="Status" htmlFor="editar-pedido-status">
+                  <Selecao id="editar-pedido-status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                    {OPCOES_STATUS.map((opcao) => (
+                      <option key={opcao.valor} value={opcao.valor}>
+                        {opcao.label}
+                      </option>
+                    ))}
+                  </Selecao>
+                </Campo>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">
-                        Endereço
-                      </label>
-                      <textarea
-                        value={endereco}
-                        onChange={(e) => setEndereco(e.target.value)}
-                        rows={2}
-                        className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bordo-500 focus:border-transparent resize-none"
-                      />
-                    </div>
+                {(tipoEntrega === 'entrega' || pedido.endereco) && (
+                  <Campo rotulo="Endereço" htmlFor="editar-pedido-endereco" opcional>
+                    <AreaTexto
+                      id="editar-pedido-endereco"
+                      value={endereco}
+                      onChange={(e) => setEndereco(e.target.value)}
+                      rows={2}
+                    />
+                  </Campo>
+                )}
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">
-                          Tipo
-                        </label>
-                        <select
-                          value={tipoEntrega}
-                          onChange={(e) => setTipoEntrega(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bordo-500 cursor-pointer"
-                        >
-                          <option value="entrega">Entrega</option>
-                          <option value="retirada">Retirada</option>
-                          <option value="local">Local</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">
-                          Status
-                        </label>
-                        <select
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value)}
-                          className={`w-full px-3.5 py-2.5 border rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-bordo-500 cursor-pointer ${statusAtual.cor}`}
-                        >
-                          {OPCOES_STATUS.map((opcao) => (
-                            <option key={opcao.valor} value={opcao.valor}>
-                              {opcao.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {tipoEntrega === 'entrega' && (
-                      <>
-                        <div>
-                          <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">
-                            Bairro
-                          </label>
-                          <select
-                            value={bairro}
-                            onChange={(e) => setBairro(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bordo-500 cursor-pointer"
-                          >
-                            <option value="">Não informado (mantém a taxa atual)</option>
-                            {/* Bairro do pedido que saiu do cadastro continua selecionável,
-                                senão salvar o pedido o apagaria sem o operador perceber. */}
-                            {bairro && !bairroSelecionado && (
-                              <option value={bairro}>{bairro} (fora do cadastro)</option>
-                            )}
-                            {bairros.map((b) => (
-                              <option key={b.id} value={b.nome}>
-                                {b.nome} — {b.entrega_gratis ? 'grátis' : `R$ ${b.taxa_entrega.toFixed(2).replace('.', ',')}`}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="flex items-center gap-2 px-3 py-2 bg-bordo-50 dark:bg-bordo-950/20 border border-bordo-200 dark:border-bordo-800 rounded-lg">
-                          <MapPin className="w-4 h-4 text-bordo-500" />
-                          <span className="text-sm text-bordo-700 dark:text-bordo-300">
-                            Taxa de entrega: R$ {taxaEntrega.toFixed(2).replace('.', ',')}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                {tipoEntrega === 'entrega' && (
+                  <>
+                    <Campo
+                      rotulo="Bairro"
+                      htmlFor="editar-pedido-bairro"
+                      ajuda={`Taxa de entrega: R$ ${taxaEntrega.toFixed(2).replace('.', ',')}`}
+                    >
+                      <Selecao id="editar-pedido-bairro" value={bairro} onChange={(e) => setBairro(e.target.value)}>
+                        <option value="">Não informado (mantém a taxa atual)</option>
+                        {/* Bairro do pedido que saiu do cadastro continua selecionável,
+                            senão salvar o pedido o apagaria sem o operador perceber. */}
+                        {bairro && !bairroSelecionado && (
+                          <option value={bairro}>{bairro} (fora do cadastro)</option>
+                        )}
+                        {bairros.map((b) => (
+                          <option key={b.id} value={b.nome}>
+                            {b.nome} — {b.entrega_gratis ? 'grátis' : `R$ ${b.taxa_entrega.toFixed(2).replace('.', ',')}`}
+                          </option>
+                        ))}
+                      </Selecao>
+                    </Campo>
+                  </>
                 )}
               </div>
+            </Secao>
 
-              {/* Seção: Itens do Pedido */}
-              <div className="border-b border-zinc-200 dark:border-zinc-800">
-                <button
-                  onClick={() => toggleSecao('itens')}
-                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ShoppingCart className="w-4 h-4 text-bordo-500 dark:text-bordo-400" />
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-white">Itens do Pedido</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-bordo-100 dark:bg-bordo-950/40 px-2.5 py-0.5 text-[11px] font-bold text-bordo-700 dark:text-bordo-300">
-                      {totalItensPedido} {totalItensPedido === 1 ? 'item' : 'itens'}
-                    </span>
-                    {secaoExpandida === 'itens' ? (
-                      <ChevronUp className="w-4 h-4 text-zinc-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-zinc-400" />
-                    )}
-                  </div>
-                </button>
+            <Secao
+              titulo="Itens"
+              descricao={`${totalItensPedido} ${totalItensPedido === 1 ? 'item' : 'itens'} · R$ ${subtotalItens.toFixed(2)}`}
+            >
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Entrada
+                    type="search"
+                    value={buscaProduto}
+                    onChange={(e) => {
+                      setBuscaProduto(e.target.value)
+                      setMostrarProdutos(e.target.value.length > 0)
+                    }}
+                    onFocus={() => setMostrarProdutos(buscaProduto.length > 0)}
+                    placeholder="Buscar produto para adicionar"
+                    aria-label="Buscar produto para adicionar"
+                    className="pl-9"
+                  />
+                </div>
 
-                {secaoExpandida === 'itens' && (
-                  <div className="px-5 pb-4">
-                    {/* Buscar Produtos */}
-                    <div className="relative mb-3">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                      <input
-                        type="text"
-                        value={buscaProduto}
-                        onChange={(e) => {
-                          setBuscaProduto(e.target.value)
-                          setMostrarProdutos(e.target.value.length > 0)
-                        }}
-                        onFocus={() => setMostrarProdutos(buscaProduto.length > 0)}
-                        placeholder="Buscar produto para adicionar..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-bordo-500 focus:border-transparent"
-                      />
+                {mostrarProdutos && produtosFiltrados.length > 0 && (
+                  <Lista className="max-h-64 overflow-y-auto">
+                    {produtosFiltrados.map((produto) => (
+                      <li key={produto.id}>
+                        <button
+                          type="button"
+                          onClick={() => adicionarItem(produto)}
+                          className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/40"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-foreground">{produto.nome}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{produto.categoria}</span>
+                          </span>
+                          <span className="flex shrink-0 items-center gap-2 text-sm tabular-nums text-foreground">
+                            R$ {produto.preco.toFixed(2)}
+                            <Plus className="size-4 text-primary" />
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </Lista>
+                )}
+                {mostrarProdutos && produtosFiltrados.length === 0 && (
+                  <p className="px-1 text-sm text-muted-foreground">Nenhum produto encontrado.</p>
+                )}
 
-                      {mostrarProdutos && produtosFiltrados.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl max-h-56 overflow-y-auto">
-                          {produtosFiltrados.map((produto) => (
-                            <button
-                              key={produto.id}
-                              onClick={() => adicionarItem(produto)}
-                              className="w-full px-4 py-2.5 text-left hover:bg-bordo-50 dark:hover:bg-bordo-950/20 transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-0 cursor-pointer"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-zinc-900 dark:text-white">{produto.nome}</p>
-                                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{produto.categoria}</p>
-                                </div>
-                                <span className="text-sm font-bold text-bordo-600 dark:text-bordo-400">
-                                  R$ {produto.preco.toFixed(2)}
+                {carregandoItens ? (
+                  <ListaCarregando linhas={3} />
+                ) : itens.length === 0 ? (
+                  <ListaVazia
+                    icone={<ShoppingCart />}
+                    titulo="Nenhum item no pedido"
+                    descricao="Busque um produto acima para adicionar."
+                  />
+                ) : (
+                  <Lista>
+                    {itens.map((item) => {
+                      const adicionaisUnitarios = (item.adicionais || []).reduce((t, a) => t + Number(a.preco), 0)
+                      const painelAberto = itemSelecionadoParaAdicional === item.id
+
+                      return (
+                        <li key={item.id} className="space-y-3 px-4 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {item.nome_item || 'Produto'}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                R$ {item.preco_unitario.toFixed(2)}
+                                {adicionaisUnitarios > 0 ? ` + R$ ${adicionaisUnitarios.toFixed(2)} adicionais/un.` : ''}
+                              </p>
+                            </div>
+                            <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                              R$ {item.subtotal.toFixed(2)}
+                            </p>
+                          </div>
+
+                          {item.adicionais && item.adicionais.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {item.adicionais.map((adicional) => (
+                                <span
+                                  key={adicional.id}
+                                  className="inline-flex h-8 items-center gap-1 rounded-full bg-muted pl-3 pr-1 text-xs font-medium text-foreground"
+                                >
+                                  {adicional.nome}
+                                  <button
+                                    type="button"
+                                    onClick={() => removerAdicionalDoItem(item.id, adicional.id)}
+                                    aria-label={`Remover ${adicional.nome}`}
+                                    className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-destructive"
+                                  >
+                                    <X className="size-3.5" />
+                                  </button>
                                 </span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-2">
+                            <Contador
+                              valor={item.quantidade}
+                              aoMudar={(quantidade) => atualizarQuantidade(item.id, quantidade)}
+                              minimo={1}
+                              maximo={999}
+                              rotuloAcessivel={`quantidade de ${item.nome_item || 'produto'}`}
+                            />
+                            <div className="flex items-center gap-1">
+                              {adicionaisDisponiveis.length > 0 && (
+                                <Botao
+                                  variante={painelAberto ? 'fantasma' : 'contorno'}
+                                  tamanho="sm"
+                                  className="h-11"
+                                  aria-expanded={painelAberto}
+                                  onClick={() => setItemSelecionadoParaAdicional(painelAberto ? null : item.id)}
+                                >
+                                  {painelAberto ? 'Ocultar' : 'Adicionais'}
+                                </Botao>
+                              )}
+                              <Botao
+                                variante="perigoSuave"
+                                tamanho="icone"
+                                className="size-11"
+                                aria-label={`Remover ${item.nome_item || 'item'}`}
+                                onClick={() => removerItem(item.id)}
+                              >
+                                <Trash2 className="size-4" />
+                              </Botao>
+                            </div>
+                          </div>
+
+                          {painelAberto && (
+                            <div className="flex flex-wrap gap-2">
+                              {adicionaisDisponiveis.map((adicional) => {
+                                const jaAdicionado = Boolean(item.adicionais?.some((a) => a.id === adicional.id))
+                                return (
+                                  <Chip
+                                    key={adicional.id}
+                                    ativo={jaAdicionado}
+                                    disabled={jaAdicionado}
+                                    onClick={() => adicionarAdicionalAoItem(item.id, adicional)}
+                                    className="h-11 normal-case"
+                                  >
+                                    {jaAdicionado && <Check className="size-3.5" />}
+                                    {adicional.nome}
+                                    <span className="tabular-nums text-muted-foreground">+R$ {adicional.preco.toFixed(2)}</span>
+                                  </Chip>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                          <Entrada
+                            value={item.observacoes || ''}
+                            onChange={(e) => atualizarObservacoes(item.id, e.target.value)}
+                            placeholder="Observação do item (opcional)"
+                            aria-label={`Observação de ${item.nome_item || 'item'}`}
+                          />
+                        </li>
+                      )
+                    })}
+                  </Lista>
+                )}
+              </div>
+            </Secao>
+
+            <Secao
+              titulo="Pagamento"
+              acao={
+                <Botao
+                  variante={pagamentoDividido ? 'fantasma' : 'contorno'}
+                  tamanho="sm"
+                  aria-pressed={pagamentoDividido}
+                  onClick={() => {
+                    setPagamentoDividido(!pagamentoDividido)
+                    if (!pagamentoDividido) {
+                      setFormaPagamento('')
+                      setPrecisaTroco(false)
+                      setTrocoPara('')
+                    } else {
+                      setPagamentos([])
+                    }
+                  }}
+                >
+                  <Split className="size-4" />
+                  {pagamentoDividido ? 'Pagamento único' : 'Dividir'}
+                </Botao>
+              }
+            >
+              {!pagamentoDividido ? (
+                <div className="space-y-3">
+                  <div role="radiogroup" aria-label="Forma de pagamento" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {FORMAS_PAGAMENTO.map(({ id, nome, icone: Icone }) => {
+                      const ativo = formaPagamento === id
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          role="radio"
+                          aria-checked={ativo}
+                          onClick={() => {
+                            setFormaPagamento(id)
+                            if (id !== 'Dinheiro') {
+                              setPrecisaTroco(false)
+                              setTrocoPara('')
+                            }
+                          }}
+                          className={cn(
+                            'flex min-h-14 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors',
+                            ativo
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border/70 bg-card text-muted-foreground hover:bg-accent hover:text-foreground',
+                          )}
+                        >
+                          <Icone className="size-5" />
+                          {nome}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {formaPagamento === 'Dinheiro' && (
+                    <div className="space-y-3">
+                      <LinhaInterruptor
+                        titulo="Precisa de troco"
+                        marcado={precisaTroco}
+                        aoMudar={(marcado) => {
+                          setPrecisaTroco(marcado)
+                          if (!marcado) setTrocoPara('')
+                        }}
+                      />
+                      {precisaTroco && (
+                        <Campo
+                          rotulo="Troco para"
+                          htmlFor="editar-pedido-troco"
+                          ajuda={
+                            trocoPara && parseFloat(trocoPara) > 0
+                              ? `Troco: R$ ${Math.max(0, parseFloat(trocoPara) - totalFinal).toFixed(2)}`
+                              : undefined
+                          }
+                        >
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                R$
+                              </span>
+                              <Entrada
+                                id="editar-pedido-troco"
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                value={trocoPara}
+                                onChange={(e) => setTrocoPara(e.target.value)}
+                                placeholder="0,00"
+                                className="pl-10 font-mono tabular-nums"
+                              />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {[20, 50, 100, 200].map((valor) => (
+                                <Chip
+                                  key={valor}
+                                  ativo={trocoPara === valor.toString()}
+                                  onClick={() => setTrocoPara(valor.toString())}
+                                  className="h-11 px-4"
+                                >
+                                  R$ {valor}
+                                </Chip>
+                              ))}
+                            </div>
+                          </div>
+                        </Campo>
                       )}
                     </div>
-
-                    {/* Lista de Itens */}
-                    {carregandoItens ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin text-bordo-600" />
-                      </div>
-                    ) : itens.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-8 text-center">
-                        <ShoppingCart className="mx-auto mb-2 h-8 w-8 text-zinc-400" />
-                        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">Nenhum item no pedido</p>
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Busque produtos acima para adicionar.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {itens.map((item) => {
-                          const adicionaisUnitarios = (item.adicionais || []).reduce((t, a) => t + Number(a.preco), 0)
-
-                          return (
-                            <article
-                              key={item.id}
-                              className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/70"
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pagamentos.length > 0 && (
+                    <Lista>
+                      {pagamentos.map((p) => (
+                        <li key={p.id} className="flex min-h-12 items-center justify-between gap-2 py-1 pl-4 pr-1">
+                          <span className="text-sm font-medium text-foreground">{p.forma}</span>
+                          <span className="flex items-center gap-1">
+                            <span className="text-sm font-semibold tabular-nums text-foreground">
+                              R$ {p.valor.toFixed(2)}
+                            </span>
+                            <Botao
+                              variante="perigoSuave"
+                              tamanho="icone"
+                              className="size-11"
+                              aria-label={`Remover pagamento ${p.forma}`}
+                              onClick={() => removerPagamento(p.id)}
                             >
-                              {/* Header do item */}
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
-                                    {item.nome_item || 'Produto'}
-                                  </p>
-                                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                    R$ {item.preco_unitario.toFixed(2)}
-                                    {adicionaisUnitarios > 0 ? ` + R$ ${adicionaisUnitarios.toFixed(2)} adicionais/un.` : ''}
-                                  </p>
-                                </div>
-                                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex-shrink-0">
-                                  R$ {item.subtotal.toFixed(2)}
-                                </p>
-                              </div>
+                              <Trash2 className="size-4" />
+                            </Botao>
+                          </span>
+                        </li>
+                      ))}
+                    </Lista>
+                  )}
 
-                              {/* Adicionais do item */}
-                              {item.adicionais && item.adicionais.length > 0 && (
-                                <div className="mb-2 flex flex-wrap gap-1.5">
-                                  {item.adicionais.map((adicional) => (
-                                    <span
-                                      key={adicional.id}
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-bordo-50 dark:bg-bordo-950/30 text-bordo-700 dark:text-bordo-300 border border-bordo-200 dark:border-bordo-800"
-                                    >
-                                      {adicional.nome}
-                                      <button
-                                        onClick={() => removerAdicionalDoItem(item.id, adicional.id)}
-                                        className="ml-0.5 hover:text-red-600 transition-colors cursor-pointer"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-
-                              {/* Controles de quantidade */}
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="inline-flex items-center rounded-lg border border-zinc-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
-                                  <button
-                                    onClick={() => atualizarQuantidade(item.id, item.quantidade - 1)}
-                                    disabled={item.quantidade <= 1}
-                                    className="h-8 w-8 rounded-md text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-40 dark:text-zinc-300 dark:hover:bg-zinc-800 text-base font-medium cursor-pointer"
-                                  >
-                                    -
-                                  </button>
-                                  <span className="w-8 text-center text-sm font-bold text-zinc-900 dark:text-white">
-                                    {item.quantidade}
-                                  </span>
-                                  <button
-                                    onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)}
-                                    className="h-8 w-8 rounded-md text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 text-base font-medium cursor-pointer"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-
-                                <div className="flex items-center gap-1">
-                                  {adicionaisDisponiveis.length > 0 && (
-                                    <button
-                                      onClick={() =>
-                                        setItemSelecionadoParaAdicional(
-                                          itemSelecionadoParaAdicional === item.id ? null : item.id
-                                        )
-                                      }
-                                      className={`px-2.5 py-1.5 text-[11px] font-medium rounded-lg border transition-colors cursor-pointer ${
-                                        itemSelecionadoParaAdicional === item.id
-                                          ? 'bg-bordo-50 dark:bg-bordo-950/30 text-bordo-700 dark:text-bordo-300 border-bordo-300 dark:border-bordo-700'
-                                          : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-bordo-300'
-                                      }`}
-                                    >
-                                      {itemSelecionadoParaAdicional === item.id ? 'Ocultar' : '+ Adicionais'}
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => removerItem(item.id)}
-                                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors cursor-pointer"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Painel de adicionais */}
-                              {itemSelecionadoParaAdicional === item.id && (
-                                <div className="mt-2 grid grid-cols-2 gap-1.5">
-                                  {adicionaisDisponiveis.map((adicional) => {
-                                    const jaAdicionado = item.adicionais?.some((a) => a.id === adicional.id)
-                                    return (
-                                      <button
-                                        key={adicional.id}
-                                        onClick={() => adicionarAdicionalAoItem(item.id, adicional)}
-                                        disabled={jaAdicionado}
-                                        className={`px-2.5 py-2 text-left text-xs rounded-lg border transition-colors cursor-pointer ${
-                                          jaAdicionado
-                                            ? 'bg-bordo-50 dark:bg-bordo-950/20 border-bordo-300 dark:border-bordo-700 opacity-60'
-                                            : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:border-bordo-400 hover:bg-bordo-50 dark:hover:bg-bordo-950/20'
-                                        }`}
-                                      >
-                                        <p className="font-medium text-zinc-900 dark:text-white truncate">{adicional.nome}</p>
-                                        <p className="text-bordo-600 dark:text-bordo-400">+ R$ {adicional.preco.toFixed(2)}</p>
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              )}
-
-                              {/* Observações */}
-                              <input
-                                type="text"
-                                value={item.observacoes || ''}
-                                onChange={(e) => atualizarObservacoes(item.id, e.target.value)}
-                                placeholder="Observações..."
-                                className="mt-2 w-full px-3 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-bordo-500"
-                              />
-                            </article>
-                          )
-                        })}
-                      </div>
-                    )}
+                  <div className="flex gap-2">
+                    <Selecao
+                      value={novoPagamentoForma}
+                      onChange={(e) => setNovoPagamentoForma(e.target.value)}
+                      aria-label="Forma do pagamento"
+                      className="min-w-0 flex-1"
+                    >
+                      <option value="">Forma...</option>
+                      <option value="PIX">PIX</option>
+                      <option value="Dinheiro">Dinheiro</option>
+                      <option value="Cartão de Crédito">Crédito</option>
+                      <option value="Cartão de Débito">Débito</option>
+                    </Selecao>
+                    <Entrada
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      value={novoPagamentoValor}
+                      onChange={(e) => setNovoPagamentoValor(e.target.value)}
+                      placeholder={valorRestante > 0 ? valorRestante.toFixed(2) : '0'}
+                      aria-label="Valor do pagamento"
+                      className="w-28 text-center tabular-nums"
+                    />
+                    <Botao
+                      tamanho="icone"
+                      className="size-11 shrink-0"
+                      aria-label="Adicionar pagamento"
+                      onClick={adicionarPagamento}
+                      disabled={!novoPagamentoForma || valorRestante <= 0}
+                    >
+                      <Plus className="size-4" />
+                    </Botao>
                   </div>
-                )}
-              </div>
 
-              {/* Seção: Pagamento */}
-              <div className="border-b border-zinc-200 dark:border-zinc-800">
-                <button
-                  onClick={() => toggleSecao('pagamento')}
-                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <CreditCard className="w-4 h-4 text-bordo-500 dark:text-bordo-400" />
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-white">Pagamento</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {formaPagamento && !pagamentoDividido && (
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400">{formaPagamento}</span>
+                  <p
+                    className={cn(
+                      'text-sm font-medium',
+                      Math.abs(valorRestante) < 0.01 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive',
                     )}
-                    {pagamentoDividido && (
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Dividido</span>
-                    )}
-                    {secaoExpandida === 'pagamento' ? (
-                      <ChevronUp className="w-4 h-4 text-zinc-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-zinc-400" />
-                    )}
-                  </div>
-                </button>
+                  >
+                    {Math.abs(valorRestante) < 0.01
+                      ? 'Pagamento completo'
+                      : valorRestante > 0
+                        ? `Falta: R$ ${valorRestante.toFixed(2)}`
+                        : `Excesso: R$ ${Math.abs(valorRestante).toFixed(2)}`}
+                  </p>
+                </div>
+              )}
+            </Secao>
 
-                {secaoExpandida === 'pagamento' && (
-                  <div className="px-5 pb-4 space-y-3">
-                    {/* Toggle dividir */}
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPagamentoDividido(!pagamentoDividido)
-                          if (!pagamentoDividido) {
-                            setFormaPagamento('')
-                            setPrecisaTroco(false)
-                            setTrocoPara('')
-                          } else {
-                            setPagamentos([])
-                          }
-                        }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                          pagamentoDividido
-                            ? 'bg-bordo-100 dark:bg-bordo-950/30 text-bordo-700 dark:text-bordo-400 border border-bordo-300 dark:border-bordo-700'
-                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                        }`}
-                      >
-                        <Split className="w-3.5 h-3.5" />
-                        Dividir pagamento
-                      </button>
-                    </div>
-
-                    {!pagamentoDividido ? (
-                      <>
-                        {/* Botões de forma de pagamento */}
-                        <div className="grid grid-cols-3 gap-2">
-                          {FORMAS_PAGAMENTO.map(({ id, nome, icone: Icone }) => (
-                            <button
-                              key={id}
-                              type="button"
-                              onClick={() => {
-                                setFormaPagamento(id)
-                                if (id !== 'Dinheiro') {
-                                  setPrecisaTroco(false)
-                                  setTrocoPara('')
-                                }
-                              }}
-                              className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 transition-all cursor-pointer ${
-                                formaPagamento === id
-                                  ? 'border-bordo-500 bg-bordo-50 dark:bg-bordo-950/30 text-bordo-700 dark:text-bordo-400'
-                                  : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 text-zinc-600 dark:text-zinc-400'
-                              }`}
-                            >
-                              <Icone className={`w-5 h-5 ${formaPagamento === id ? 'text-bordo-600 dark:text-bordo-400' : ''}`} />
-                              <span className="text-xs font-medium">{nome}</span>
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Troco */}
-                        {formaPagamento === 'Dinheiro' && (
-                          <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 space-y-3">
-                            <label className="flex items-center gap-2.5 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={precisaTroco}
-                                onChange={(e) => {
-                                  setPrecisaTroco(e.target.checked)
-                                  if (!e.target.checked) setTrocoPara('')
-                                }}
-                                className="w-4 h-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                              />
-                              <span className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
-                                Precisa de troco
-                              </span>
-                            </label>
-
-                            {precisaTroco && (
-                              <div className="space-y-2">
-                                <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 text-sm font-medium">
-                                    R$
-                                  </span>
-                                  <input
-                                    type="number"
-                                    value={trocoPara}
-                                    onChange={(e) => setTrocoPara(e.target.value)}
-                                    placeholder="0,00"
-                                    step="0.01"
-                                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-emerald-300 dark:border-emerald-700 rounded-lg text-sm text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                  />
-                                </div>
-                                <div className="flex gap-1.5">
-                                  {[20, 50, 100, 200].map((valor) => (
-                                    <button
-                                      key={valor}
-                                      type="button"
-                                      onClick={() => setTrocoPara(valor.toString())}
-                                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-                                        trocoPara === valor.toString()
-                                          ? 'bg-emerald-600 text-white'
-                                          : 'bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
-                                      }`}
-                                    >
-                                      R$ {valor}
-                                    </button>
-                                  ))}
-                                </div>
-                                {trocoPara && parseFloat(trocoPara) > 0 && (
-                                  <div className="flex justify-between items-center px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Troco:</span>
-                                    <span className="text-sm font-bold text-emerald-600">
-                                      R$ {Math.max(0, parseFloat(trocoPara) - totalFinal).toFixed(2)}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      /* Pagamento dividido */
-                      <div className="bg-bordo-50 dark:bg-bordo-950/20 border border-bordo-200 dark:border-bordo-800 rounded-xl p-3 space-y-3">
-                        {pagamentos.length > 0 && (
-                          <div className="space-y-1.5">
-                            {pagamentos.map((p) => (
-                              <div
-                                key={p.id}
-                                className="flex items-center justify-between bg-white dark:bg-zinc-900 px-3 py-2 rounded-lg border border-bordo-200 dark:border-bordo-800"
-                              >
-                                <span className="text-sm font-medium text-zinc-900 dark:text-white">{p.forma}</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-bold text-bordo-600 dark:text-bordo-400">
-                                    R$ {p.valor.toFixed(2)}
-                                  </span>
-                                  <button
-                                    onClick={() => removerPagamento(p.id)}
-                                    className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex gap-2">
-                          <select
-                            value={novoPagamentoForma}
-                            onChange={(e) => setNovoPagamentoForma(e.target.value)}
-                            className="flex-1 min-w-0 px-3 py-2 bg-white dark:bg-zinc-900 border border-bordo-200 dark:border-bordo-700 rounded-lg text-sm cursor-pointer"
-                          >
-                            <option value="">Forma...</option>
-                            <option value="PIX">PIX</option>
-                            <option value="Dinheiro">Dinheiro</option>
-                            <option value="Cartão de Crédito">Crédito</option>
-                            <option value="Cartão de Débito">Débito</option>
-                          </select>
-                          <input
-                            type="number"
-                            value={novoPagamentoValor}
-                            onChange={(e) => setNovoPagamentoValor(e.target.value)}
-                            placeholder={valorRestante > 0 ? valorRestante.toFixed(2) : '0'}
-                            step="0.01"
-                            className="w-24 px-3 py-2 bg-white dark:bg-zinc-900 border border-bordo-200 dark:border-bordo-700 rounded-lg text-sm text-center"
-                          />
-                          <button
-                            type="button"
-                            onClick={adicionarPagamento}
-                            disabled={!novoPagamentoForma || valorRestante <= 0}
-                            className="px-3 py-2 bg-bordo-600 text-white rounded-lg hover:bg-bordo-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                        <div className={`text-center text-sm font-bold ${Math.abs(valorRestante) < 0.01 ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {Math.abs(valorRestante) < 0.01
-                            ? 'Pagamento completo'
-                            : valorRestante > 0
-                              ? `Falta: R$ ${valorRestante.toFixed(2)}`
-                              : `Excesso: R$ ${Math.abs(valorRestante).toFixed(2)}`}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Footer - Ticket resumo + Salvar */}
-            <div className="flex-shrink-0 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 px-5 py-4 space-y-3">
-              {/* Resumo */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
+            <Secao titulo="Resumo">
+              <Cartao className="space-y-1.5 p-4 text-sm">
+                <div className="flex items-center justify-between text-muted-foreground">
                   <span>Subtotal ({totalItensPedido} {totalItensPedido === 1 ? 'item' : 'itens'})</span>
-                  <span>R$ {subtotalItens.toFixed(2)}</span>
+                  <span className="tabular-nums">R$ {subtotalItens.toFixed(2)}</span>
                 </div>
                 {taxaEntrega > 0 && (
-                  <div className="flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
+                  <div className="flex items-center justify-between text-muted-foreground">
                     <span>Taxa de entrega</span>
-                    <span>R$ {taxaEntrega.toFixed(2)}</span>
+                    <span className="tabular-nums">R$ {taxaEntrega.toFixed(2)}</span>
                   </div>
                 )}
                 {taxaServico > 0 && (
-                  <div className="flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
+                  <div className="flex items-center justify-between text-muted-foreground">
                     <span>Taxa de serviço</span>
-                    <span>R$ {taxaServico.toFixed(2)}</span>
+                    <span className="tabular-nums">R$ {taxaServico.toFixed(2)}</span>
                   </div>
                 )}
                 {descontos.manual > 0 && (
-                  <div className="flex items-center justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
                     <span>Desconto do pedido</span>
-                    <span>− R$ {descontos.manual.toFixed(2)}</span>
+                    <span className="tabular-nums">− R$ {descontos.manual.toFixed(2)}</span>
                   </div>
                 )}
                 {descontos.cupom > 0 && (
-                  <div className="flex items-center justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
                     <span>Cupom</span>
-                    <span>− R$ {descontos.cupom.toFixed(2)}</span>
+                    <span className="tabular-nums">− R$ {descontos.cupom.toFixed(2)}</span>
                   </div>
                 )}
                 {descontoFreteEfetivo > 0 && (
-                  <div className="flex items-center justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
                     <span>Desconto no frete</span>
-                    <span>− R$ {descontoFreteEfetivo.toFixed(2)}</span>
+                    <span className="tabular-nums">− R$ {descontoFreteEfetivo.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between pt-2 border-t border-zinc-200 dark:border-zinc-700">
-                  <span className="text-base font-bold text-zinc-900 dark:text-white">Total</span>
-                  <span className="text-xl font-extrabold text-bordo-600 dark:text-bordo-400">
-                    R$ {totalFinal.toFixed(2)}
-                  </span>
+                <div className="flex items-center justify-between border-t border-border/70 pt-2">
+                  <span className="font-medium text-foreground">Total</span>
+                  <span className="text-lg font-semibold tabular-nums text-foreground">R$ {totalFinal.toFixed(2)}</span>
                 </div>
-              </div>
-
-              {/* Botões */}
-              <div className="flex gap-3">
-                <button
-                  onClick={onFechar}
-                  disabled={salvando}
-                  className="flex-1 px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={salvarAlteracoes}
-                  disabled={salvando || !nomeCliente || itens.length === 0}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white bg-bordo-600 hover:bg-bordo-700 active:bg-bordo-800 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-bordo-600/20"
-                >
-                  {salvando ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      Salvar Alterações
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+              </Cartao>
+            </Secao>
           </div>
         ) : null}
-      </ModalSheet>
+      </Gaveta>
 
-      <ModalSheet
-        open={confirmacaoCrediarioAberta}
-        onOpenChange={(open) => {
-          if (!open && !salvando) setConfirmacaoCrediarioAberta(false)
+      <Gaveta
+        aberto={confirmacaoCrediarioAberta}
+        aoFechar={() => {
+          if (!salvando) setConfirmacaoCrediarioAberta(false)
         }}
-        title="Aplicar mudanças no crediário?"
-        showCloseButton={false}
-        className="sm:max-w-md"
+        bloqueada={salvando}
+        titulo="Aplicar mudanças no crediário?"
+        descricao="Este pedido já está num crediário aberto. As mudanças de itens e total podem ir para o crediário do cliente ou ficar só no pedido."
       >
-        <div className="p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <Wallet className="size-5 text-amber-600 dark:text-amber-400" />
-            <h4 className="text-base font-semibold text-zinc-900 dark:text-white">
-              Aplicar mudanças no crediário?
-            </h4>
-          </div>
-          <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-            Este pedido já está vinculado a um crediário aberto. As alterações feitas (itens, total)
-            podem ser sincronizadas no crediário do cliente ou mantidas apenas no pedido.
-          </p>
-          <div className="space-y-2">
-            <button
-              type="button"
-              disabled={salvando}
-              onClick={() => void executarSalvar(true)}
-              className="w-full rounded-xl bg-bordo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-bordo-700 disabled:opacity-50"
-            >
-              {salvando ? 'Salvando...' : 'Sim, refletir no crediário'}
-            </button>
-            <button
-              type="button"
-              disabled={salvando}
-              onClick={() => void executarSalvar(false)}
-              className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
-            >
-              Não, manter crediário como está
-            </button>
-            <button
-              type="button"
-              disabled={salvando}
-              onClick={() => setConfirmacaoCrediarioAberta(false)}
-              className="w-full rounded-xl px-4 py-2 text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-50 dark:hover:text-zinc-200"
-            >
-              Cancelar
-            </button>
-          </div>
+        <div className="flex flex-col gap-2">
+          <Botao tamanho="lg" carregando={salvando} onClick={() => void executarSalvar(true)}>
+            <Wallet className="size-4" />
+            Sim, refletir no crediário
+          </Botao>
+          <Botao variante="contorno" tamanho="lg" disabled={salvando} onClick={() => void executarSalvar(false)}>
+            Não, manter crediário como está
+          </Botao>
+          <Botao variante="fantasma" disabled={salvando} onClick={() => setConfirmacaoCrediarioAberta(false)}>
+            Cancelar
+          </Botao>
         </div>
-      </ModalSheet>
+      </Gaveta>
     </>
   )
 }

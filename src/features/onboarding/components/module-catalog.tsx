@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle2, PlayCircle, Trophy } from 'lucide-react'
+import { CheckCircle as CheckCircle2, PlayCircle, Trophy } from '@phosphor-icons/react'
 import { GRUPOS_MENU_ADMIN } from '@/lib/admin-sidebar-routes'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'

@@ -5,27 +5,20 @@ import { useRouter } from 'next/navigation'
 import { AvatarUsuario } from '@/components/admin/AvatarUsuario'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import {
-  ArrowLeft,
-  Bike,
-  Edit2,
-  Eye,
-  FileText,
-  Loader2,
-  Printer,
-  RefreshCw,
-  Search,
-  ShoppingBag,
-  Trash2,
-  UserRound,
-  Wallet,
-  X,
-} from 'lucide-react'
+import { ArrowLeft, Moped as Bike, PencilSimple as Edit2, Eye, FileText, Printer, ArrowsClockwise as RefreshCw, MagnifyingGlass as Search, ShoppingBag, Trash as Trash2, UserCircle as UserRound, Wallet, X } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { MenuAcoes, type MenuAcaoItem } from '@/components/ui/menu-acoes'
-import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
+import {
+  Botao,
+  Cartao,
+  Entrada,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Selo,
+  useConfirmar,
+} from '@/components/admin/ui'
 import { FiltrosAtivosChips, type ChipFiltroAtivo } from '@/components/admin/filtros/FiltrosAtivosChips'
 import {
   FiltroPedidosGarcom,
@@ -41,7 +34,6 @@ import PaginacaoPedidos from '@/features/pedidos/components/PaginacaoPedidos'
 import type { Pedido } from '@/components/admin/CardPedido'
 import ModalEditarPedido from '@/components/admin/ModalEditarPedido'
 import ModalDetalhesPedido from '@/components/admin/ModalDetalhesPedido'
-import ModalNotificacao from '@/components/ModalNotificacao'
 import { gerarPDFPedido } from '@/lib/pdf-generator'
 import { obterDataInicioAnoAtual } from '@/lib/filtros-ano'
 import { enfileirarImpressao, gerarHashEventoImpressao } from '@/lib/filaImpressao'
@@ -109,14 +101,6 @@ type PedidoBanco = {
   mesa_dados?: PedidoMesaDados
 }
 
-type ModalNotificacaoState = {
-  aberto: boolean
-  tipo: 'sucesso' | 'erro' | 'aviso' | 'info' | 'confirmacao'
-  titulo: string
-  mensagem: string
-  onConfirmar: () => void
-}
-
 type PedidosCriadosGarcomProps = {
   garcomId: string
 }
@@ -151,14 +135,6 @@ const moeda = new Intl.NumberFormat('pt-BR', {
   currency: 'BRL',
 })
 
-const criarModalInicial = (): ModalNotificacaoState => ({
-  aberto: false,
-  tipo: 'info',
-  titulo: '',
-  mensagem: '',
-  onConfirmar: () => {},
-})
-
 const rotuloStatus = (status: string) => {
   return STATUS_LABEL[normalizarStatusPedido(status)] || status
 }
@@ -167,18 +143,12 @@ const rotuloTipo = (tipo: string) => {
   return TIPOS_LABEL[String(tipo || '').toLowerCase()] || tipo
 }
 
-const classeStatus = (status: string) => {
+const tomStatus = (status: string): 'neutro' | 'primario' | 'sucesso' | 'alerta' => {
   const s = normalizarStatusPedido(status)
-  if (s === 'entregue') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
-  }
-  if (s === 'cancelado') {
-    return 'border-border/70 bg-muted/40 text-muted-foreground'
-  }
-  if (s === 'pendente' || s === 'confirmado') {
-    return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200'
-  }
-  return 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800/60 dark:bg-sky-950/40 dark:text-sky-200'
+  if (s === 'entregue') return 'sucesso'
+  if (s === 'cancelado') return 'neutro'
+  if (s === 'pendente' || s === 'confirmado') return 'alerta'
+  return 'primario'
 }
 
 const pontoSalao = (pedido: Pedido) => {
@@ -205,13 +175,6 @@ const iconeTipo = (tipo: string) => {
   return UserRound
 }
 
-const classeBordaTipo = (tipo: string) => {
-  const t = String(tipo || '').toLowerCase()
-  if (t === 'entrega') return 'bg-sky-500'
-  if (t === 'retirada') return 'bg-amber-500'
-  return 'bg-emerald-500'
-}
-
 export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomProps) {
   const router = useRouter()
   const [garcom, setGarcom] = useState<GarcomDetalhe | null>(null)
@@ -235,7 +198,7 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false)
   const [pedidoDetalhesId, setPedidoDetalhesId] = useState<string | null>(null)
   const [acoesPedido, setAcoesPedido] = useState<Record<string, AcoesPedido>>({})
-  const [modalNotificacao, setModalNotificacao] = useState<ModalNotificacaoState>(criarModalInicial)
+  const confirmar = useConfirmar()
 
   const intervalo = useMemo(() => {
     if (periodo === 'todos') return null
@@ -569,22 +532,10 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
 
       if (error) throw error
       recarregar(true)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'sucesso',
-        titulo: 'Pagamento confirmado',
-        mensagem: `O pagamento do pedido de ${pedido.nome_cliente} foi marcado como pago.`,
-        onConfirmar: () => {},
-      })
+      toast.success('Pagamento confirmado', { description: `O pagamento do pedido de ${pedido.nome_cliente} foi marcado como pago.` })
     } catch (erro) {
       console.error('[GarconsPedidos] Erro ao confirmar pagamento:', erro)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'erro',
-        titulo: 'Erro ao confirmar pagamento',
-        mensagem: 'Não foi possível confirmar o pagamento.',
-        onConfirmar: () => {},
-      })
+      toast.error('Erro ao confirmar pagamento', { description: 'Não foi possível confirmar o pagamento.' })
     }
   }
 
@@ -621,47 +572,23 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
       }
 
       recarregar(true)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'sucesso',
-        titulo: 'Pedido concluído',
-        mensagem: `O pedido de ${pedido.nome_cliente} foi marcado como entregue.`,
-        onConfirmar: () => {},
-      })
+      toast.success('Pedido concluído', { description: `O pedido de ${pedido.nome_cliente} foi marcado como entregue.` })
     } catch (erro) {
       console.error('[GarconsPedidos] Erro ao concluir pedido:', erro)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'erro',
-        titulo: 'Erro ao concluir pedido',
-        mensagem: 'Não foi possível concluir o pedido.',
-        onConfirmar: () => {},
-      })
+      toast.error('Erro ao concluir pedido', { description: 'Não foi possível concluir o pedido.' })
     }
   }
 
   const restaurarPedidoParaMesa = async (pedido: Pedido) => {
     if (!pedido.mesa_id) {
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'erro',
-        titulo: 'Mesa não encontrada',
-        mensagem: 'Este pedido não possui vínculo com uma mesa.',
-        onConfirmar: () => {},
-      })
+      toast.error('Mesa não encontrada', { description: 'Este pedido não possui vínculo com uma mesa.' })
       return
     }
 
     const { inicio, fim } = obterIntervaloDiaOperacionalAtual()
     const criado = new Date(pedido.created_at)
     if (criado < inicio || criado >= fim) {
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'aviso',
-        titulo: 'Pedido fora do dia',
-        mensagem: 'Só é possível voltar para o salão pedidos do dia operacional atual.',
-        onConfirmar: () => {},
-      })
+      toast.warning('Pedido fora do dia', { description: 'Só é possível voltar para o salão pedidos do dia operacional atual.' })
       return
     }
 
@@ -677,13 +604,7 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
       if (!mesa || mesa.tipo !== 'mesa') throw new Error('Ponto vinculado não é uma mesa do salão.')
 
       if (mesa.status === 'ocupada' && mesa.pedido_id && String(mesa.pedido_id) !== pedido.id) {
-        setModalNotificacao({
-          aberto: true,
-          tipo: 'aviso',
-          titulo: 'Mesa ocupada',
-          mensagem: `A Mesa ${mesa.numero} já está vinculada a outro pedido.`,
-          onConfirmar: () => {},
-        })
+        toast.warning('Mesa ocupada', { description: `A Mesa ${mesa.numero} já está vinculada a outro pedido.` })
         return
       }
 
@@ -716,22 +637,10 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
       if (error) throw error
 
       recarregar(true)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'sucesso',
-        titulo: 'Mesa restaurada',
-        mensagem: `O pedido voltou para a Mesa ${mesa.numero}.`,
-        onConfirmar: () => {},
-      })
+      toast.success('Mesa restaurada', { description: `O pedido voltou para a Mesa ${mesa.numero}.` })
     } catch (erro) {
       console.error('[GarconsPedidos] Erro ao voltar pedido para mesa:', erro)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'erro',
-        titulo: 'Erro ao voltar para mesa',
-        mensagem: 'Não foi possível recolocar o pedido no salão.',
-        onConfirmar: () => {},
-      })
+      toast.error('Erro ao voltar para mesa', { description: 'Não foi possível recolocar o pedido no salão.' })
     }
   }
 
@@ -745,22 +654,10 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
 
       if (error) throw error
       recarregar(true)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'sucesso',
-        titulo: 'Pedido enviado ao crediário',
-        mensagem: `O pedido de ${pedido.nome_cliente} foi vinculado ao crediário.`,
-        onConfirmar: () => {},
-      })
+      toast.success('Pedido enviado ao crediário', { description: `O pedido de ${pedido.nome_cliente} foi vinculado ao crediário.` })
     } catch (erro) {
       console.error('[GarconsPedidos] Erro ao enviar pedido para crediário:', erro)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'erro',
-        titulo: 'Erro no crediário',
-        mensagem: 'Não foi possível enviar o pedido ao crediário.',
-        onConfirmar: () => {},
-      })
+      toast.error('Erro no crediário', { description: 'Não foi possível enviar o pedido ao crediário.' })
     }
   }
 
@@ -783,68 +680,50 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
       })
 
       if (resultado.duplicado) {
-        setModalNotificacao({
-          aberto: true,
-          tipo: 'aviso',
-          titulo: 'Já está na fila',
-          mensagem: `Este pedido já está na fila de impressão (${tipo}).`,
-          onConfirmar: () => {},
-        })
+        toast.warning('Já está na fila', { description: `Este pedido já está na fila de impressão (${tipo}).` })
         return
       }
 
       if (!resultado.sucesso) throw new Error(resultado.erro || 'Falha ao enfileirar impressão.')
 
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'sucesso',
-        titulo: 'Enviado para impressão',
-        mensagem: `Pedido enviado para impressão (${tipo}).`,
-        onConfirmar: () => {},
-      })
+      toast.success('Enviado para impressão', { description: `Pedido enviado para impressão (${tipo}).` })
     } catch (erro) {
       console.error('[GarconsPedidos] Erro ao enviar para impressão:', erro)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'erro',
-        titulo: 'Erro na impressão',
-        mensagem: 'Não foi possível enviar para impressão.',
-        onConfirmar: () => {},
-      })
+      toast.error('Erro na impressão', { description: 'Não foi possível enviar para impressão.' })
     }
   }
 
-  const handleExcluirPedido = (pedidoId: string) => {
-    setModalNotificacao({
-      aberto: true,
-      tipo: 'confirmacao',
-      titulo: 'Excluir pedido',
-      mensagem: 'Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.',
-      onConfirmar: async () => {
-        try {
-          await supabase
-            .from('mesas')
-            .update({
-              status: 'livre',
-              nome_cliente: null,
-              ocupada_em: null,
-              liberar_em: null,
-              pedido_id: null,
-              observacoes: null,
-            })
-            .eq('pedido_id', pedidoId)
-
-          const { error } = await supabase.from('pedidos').delete().eq('id', pedidoId)
-          if (error) throw error
-
-          recarregar(true)
-          toast.success('Pedido excluído')
-        } catch (erro) {
-          console.error('[GarconsPedidos] Erro ao excluir pedido:', erro)
-          toast.error('Não foi possível excluir o pedido')
-        }
-      },
+  const handleExcluirPedido = async (pedidoId: string) => {
+    const ok = await confirmar({
+      titulo: 'Excluir pedido?',
+      descricao: 'O pedido some da lista e não dá para desfazer.',
+      confirmar: 'Excluir',
+      perigo: true,
     })
+    if (!ok) return
+
+    try {
+      await supabase
+        .from('mesas')
+        .update({
+          status: 'livre',
+          nome_cliente: null,
+          ocupada_em: null,
+          liberar_em: null,
+          pedido_id: null,
+          observacoes: null,
+        })
+        .eq('pedido_id', pedidoId)
+
+      const { error } = await supabase.from('pedidos').delete().eq('id', pedidoId)
+      if (error) throw error
+
+      recarregar(true)
+      toast.success('Pedido excluído')
+    } catch (erro) {
+      console.error('[GarconsPedidos] Erro ao excluir pedido:', erro)
+      toast.error('Não foi possível excluir o pedido')
+    }
   }
 
   const handlePeriodoChange = (novoPeriodo: Exclude<PeriodoEntrega, 'personalizado'>) => {
@@ -1054,107 +933,108 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
       icon: <Trash2 className="h-3.5 w-3.5" />,
       separatorBefore: true,
       variant: 'destructive',
-      onSelect: () => handleExcluirPedido(pedido.id),
+      onSelect: () => void handleExcluirPedido(pedido.id),
     })
 
     return itens
   }
 
+  const abrirDetalhes = (pedido: Pedido) => {
+    setPedidoDetalhesId(pedido.id)
+    setModalDetalhesAberto(true)
+  }
+
+  const indicadores = [
+    { rotulo: 'No período', valor: String(totalPedidos) },
+    { rotulo: 'Em aberto', valor: String(totalAbertos) },
+    { rotulo: 'Vendas', valor: moeda.format(valorTotalPeriodo) },
+  ]
+
   return (
-    <div className="space-y-5">
-      <div className="flex w-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border/70 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-9 w-9 shrink-0 shadow-none"
-            onClick={() => router.push('/admin/garcons')}
-            aria-label="Voltar para garçons"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <AvatarUsuario
-            nome={garcom?.nome || 'Garçom'}
-            src={garcom?.avatar_url}
-            cor={garcom?.cor_avatar || '#0296F9'}
-            size="md"
-          />
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-semibold tracking-tight text-foreground">
-              Pedidos de {garcom?.nome || 'garçom'}
-            </h1>
-            <p className="truncate text-sm text-muted-foreground">
-              @{garcom?.nome_usuario || 'usuario'}
-              {garcom && !garcom.ativo ? ' · inativo' : ''}
-            </p>
-          </div>
+    <Pagina>
+      <div className="flex items-center gap-3">
+        <Botao
+          variante="contorno"
+          tamanho="icone"
+          className="size-11 shrink-0 md:size-10"
+          onClick={() => router.push('/admin/garcons')}
+          aria-label="Voltar para garçons"
+        >
+          <ArrowLeft />
+        </Botao>
+        <AvatarUsuario
+          nome={garcom?.nome || 'Garçom'}
+          src={garcom?.avatar_url}
+          cor={garcom?.cor_avatar || '#0296F9'}
+          size="md"
+        />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-semibold tracking-tight text-foreground md:text-2xl">
+            {garcom?.nome || 'Garçom'}
+          </h1>
+          <p className="flex items-center gap-2 truncate text-sm text-muted-foreground">
+            @{garcom?.nome_usuario || 'usuario'}
+            {garcom && !garcom.ativo ? <Selo>Inativo</Selo> : null}
+          </p>
         </div>
-        <div className="flex flex-wrap items-end gap-4 md:gap-6">
-          <div className="min-w-[70px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-              No período
-            </p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{totalPedidos}</p>
-          </div>
-          <div className="min-w-[70px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-              Em aberto
-            </p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{totalAbertos}</p>
-          </div>
-          <div className="min-w-[100px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-              Vendas
-            </p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-              {moeda.format(valorTotalPeriodo)}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 shadow-none"
-            onClick={() => void carregarPedidos()}
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            Atualizar
-          </Button>
-        </div>
+        <Botao
+          variante="contorno"
+          className="hidden sm:inline-flex"
+          onClick={() => void carregarPedidos()}
+          disabled={loading}
+        >
+          <RefreshCw className={cn(loading && 'animate-spin')} />
+          Atualizar
+        </Botao>
+        <Botao
+          variante="contorno"
+          tamanho="icone"
+          className="size-11 shrink-0 sm:hidden"
+          onClick={() => void carregarPedidos()}
+          disabled={loading}
+          aria-label="Atualizar pedidos"
+        >
+          <RefreshCw className={cn(loading && 'animate-spin')} />
+        </Botao>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card p-3.5 shadow-sm md:p-5">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-base font-medium text-foreground/90">Pedidos</span>
-          <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+      <Cartao className="grid grid-cols-3 gap-px overflow-hidden bg-border/70">
+        {indicadores.map((item) => (
+          <div key={item.rotulo} className="min-w-0 bg-card p-3 md:p-4">
+            <p className="text-[13px] text-muted-foreground">{item.rotulo}</p>
+            <p className="mt-1 truncate text-base font-semibold tabular-nums text-foreground md:text-lg">
+              {item.valor}
+            </p>
+          </div>
+        ))}
+      </Cartao>
+
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3 px-1">
+          <h2 className="text-sm font-semibold text-foreground">Pedidos</h2>
+          <span className="text-[13px] text-muted-foreground">
             {totalPedidos} {totalPedidos === 1 ? 'pedido' : 'pedidos'}
           </span>
         </div>
 
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative min-w-0 flex-1 sm:max-w-[260px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="h-9 border-border/70 bg-background pl-9 pr-9 shadow-none"
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Entrada
+              className="pl-9 pr-11"
               onChange={(event) => setBusca(event.target.value)}
-              placeholder="Cliente, telefone ou ID"
+              placeholder="Cliente, telefone ou código"
               value={busca}
               aria-label="Buscar pedidos do garçom"
             />
             {busca ? (
               <button
                 aria-label="Limpar busca"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                className="absolute right-0 top-0 flex size-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground md:size-10"
                 onClick={() => setBusca('')}
                 type="button"
               >
-                <X className="h-4 w-4" />
+                <X className="size-4" />
               </button>
             ) : null}
           </div>
@@ -1175,61 +1055,58 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
           />
         </div>
 
-        <FiltrosAtivosChips chips={chipsFiltro} onLimpar={handleLimparFiltros} className="mb-4" />
+        <FiltrosAtivosChips chips={chipsFiltro} onLimpar={handleLimparFiltros} />
 
         {loading ? (
-          <TabelaSkeleton linhas={6} />
+          <ListaCarregando linhas={6} />
         ) : pedidos.length === 0 ? (
           <ListaVazia
-            icone={<UserRound className="h-5 w-5" />}
+            icone={<UserRound />}
             titulo="Nenhum pedido encontrado"
-            descricao="Ajuste o período ou os filtros para monitorar este garçom."
+            descricao="Mude o período ou os filtros para ver os pedidos deste garçom."
           />
         ) : (
           <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[820px] border-collapse text-sm">
+            {/* Desktop: tabela compacta */}
+            <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-card lg:block">
+              <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-border/60 bg-muted/30">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Horário</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Cliente</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Local</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Pagamento</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Total</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Ações</th>
+                  <tr className="border-b border-border/70 text-[13px] text-muted-foreground">
+                    <th className="px-4 py-2.5 text-left font-medium">Horário</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Cliente</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Local</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Status</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Pagamento</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Total</th>
+                    <th className="w-12 px-2 py-2.5">
+                      <span className="sr-only">Ações</span>
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border/70">
                   {pedidos.map((pedido) => (
-                    <tr
-                      key={pedido.id}
-                      className="border-b border-border/40 last:border-0 hover:bg-muted/20"
-                    >
-                      <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                    <tr key={pedido.id} className="transition-colors hover:bg-accent/40">
+                      <td className="px-4 py-2.5 tabular-nums text-muted-foreground">
                         {format(new Date(pedido.created_at), 'dd/MM HH:mm', { locale: ptBR })}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2.5">
                         <p className="font-medium text-foreground">{pedido.nome_cliente}</p>
-                        <p className="text-xs text-muted-foreground">{rotuloTipo(pedido.tipo_entrega)}</p>
+                        <p className="text-[13px] text-muted-foreground">{rotuloTipo(pedido.tipo_entrega)}</p>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{pontoSalao(pedido)}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                            classeStatus(pedido.status),
-                          )}
-                        >
-                          {rotuloStatus(pedido.status)}
-                        </span>
+                      <td className="px-4 py-2.5 text-muted-foreground">{pontoSalao(pedido)}</td>
+                      <td className="px-4 py-2.5">
+                        <Selo tom={tomStatus(pedido.status)}>{rotuloStatus(pedido.status)}</Selo>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{rotuloPagamento(pedido)}</td>
-                      <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
+                      <td className="px-4 py-2.5 text-muted-foreground">{rotuloPagamento(pedido)}</td>
+                      <td className="px-4 py-2.5 text-right font-medium tabular-nums text-foreground">
                         {moeda.format(pedido.total)}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <MenuAcoes ariaLabel={`Ações do pedido de ${pedido.nome_cliente}`} items={itensAcao(pedido)} />
+                      <td className="px-2 py-2.5 text-right">
+                        <MenuAcoes
+                          ariaLabel={`Ações do pedido de ${pedido.nome_cliente}`}
+                          items={itensAcao(pedido)}
+                          triggerClassName="size-9"
+                        />
                       </td>
                     </tr>
                   ))}
@@ -1237,88 +1114,50 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
               </table>
             </div>
 
-            <div className="divide-y divide-border/50 md:hidden">
+            {/* Celular e tablet: toque na linha abre os detalhes */}
+            <Lista className="lg:hidden">
               {pedidos.map((pedido) => {
                 const Icone = iconeTipo(pedido.tipo_entrega)
+                const local = pontoSalao(pedido)
                 return (
-                  <div
-                    key={pedido.id}
-                    className="relative flex items-start gap-3 py-3.5 pl-3"
-                  >
-                    <span
-                      className={cn(
-                        'absolute bottom-3 left-0 top-3 w-0.5 rounded-full',
-                        classeBordaTipo(pedido.tipo_entrega),
-                      )}
-                    />
-                    <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground">
-                      <Icone className="h-4 w-4" strokeWidth={1.6} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {pedido.nome_cliente}
-                          </p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {format(new Date(pedido.created_at), 'dd/MM HH:mm', { locale: ptBR })}
-                            {' · '}
-                            {rotuloTipo(pedido.tipo_entrega)}
-                            {pontoSalao(pedido) !== '—' ? ` · ${pontoSalao(pedido)}` : ''}
+                  <li key={pedido.id} className="flex items-center gap-1 pr-2">
+                    <button
+                      type="button"
+                      onClick={() => abrirDetalhes(pedido)}
+                      className="flex min-h-[64px] min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left transition-colors hover:bg-accent/40"
+                      aria-label={`Ver detalhes do pedido de ${pedido.nome_cliente}`}
+                    >
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                        <Icone className="size-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className="truncate text-sm font-medium text-foreground">{pedido.nome_cliente}</p>
+                          <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                            {moeda.format(pedido.total)}
                           </p>
                         </div>
-                        <MenuAcoes
-                          ariaLabel={`Ações do pedido de ${pedido.nome_cliente}`}
-                          items={itensAcao(pedido)}
-                        />
+                        <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                          {format(new Date(pedido.created_at), 'dd/MM HH:mm', { locale: ptBR })}
+                          {' · '}
+                          {rotuloTipo(pedido.tipo_entrega)}
+                          {local !== '—' ? ` · ${local}` : ''}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <Selo tom={tomStatus(pedido.status)}>{rotuloStatus(pedido.status)}</Selo>
+                          <Selo>{rotuloPagamento(pedido)}</Selo>
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                            classeStatus(pedido.status),
-                          )}
-                        >
-                          {rotuloStatus(pedido.status)}
-                        </span>
-                        <span className="inline-flex items-center rounded-md border border-border/60 px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                          {rotuloPagamento(pedido)}
-                        </span>
-                        <span className="ml-auto text-sm font-semibold tabular-nums text-foreground">
-                          {moeda.format(pedido.total)}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-8 flex-1 shadow-none"
-                          onClick={() => {
-                            setPedidoDetalhesId(pedido.id)
-                            setModalDetalhesAberto(true)
-                          }}
-                        >
-                          Detalhes
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-8 flex-1 shadow-none"
-                          onClick={() => {
-                            setPedidoSelecionado(pedido)
-                            setModalEditarAberto(true)
-                          }}
-                        >
-                          Editar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                    </button>
+                    <MenuAcoes
+                      ariaLabel={`Ações do pedido de ${pedido.nome_cliente}`}
+                      items={itensAcao(pedido)}
+                      triggerClassName="size-11"
+                    />
+                  </li>
                 )
               })}
-            </div>
+            </Lista>
 
             <PaginacaoPedidos
               paginaAtual={paginaAtual}
@@ -1334,7 +1173,7 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
             />
           </>
         )}
-      </div>
+      </section>
 
       <ModalEditarPedido
         pedido={pedidoSelecionado}
@@ -1359,17 +1198,6 @@ export default function PedidosCriadosGarcom({ garcomId }: PedidosCriadosGarcomP
         }}
         onGerarPDF={(pedido) => void handleGerarPDF(pedido.id)}
       />
-
-      <ModalNotificacao
-        aberto={modalNotificacao.aberto}
-        tipo={modalNotificacao.tipo}
-        titulo={modalNotificacao.titulo}
-        mensagem={modalNotificacao.mensagem}
-        onFechar={() => setModalNotificacao((atual) => ({ ...atual, aberto: false }))}
-        onConfirmar={modalNotificacao.onConfirmar}
-        textoBotaoConfirmar="Excluir"
-        textoBotaoCancelar="Cancelar"
-      />
-    </div>
+    </Pagina>
   )
 }

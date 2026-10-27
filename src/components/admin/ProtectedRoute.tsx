@@ -4,8 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminAuth } from '@/contexts/AdminAuthContext'
 import { tokenAdminEhValido } from '@/lib/token-admin'
-import { Loader2 } from 'lucide-react'
-
+import { CircleNotch as Loader2 } from '@phosphor-icons/react'
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAdminAuth()
   const router = useRouter()

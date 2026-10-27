@@ -1,43 +1,37 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { LucideIcon } from 'lucide-react'
+import { type Icon } from '@phosphor-icons/react'
+import { cn } from '@/lib/utils'
 
 type CartaoEstatisticaProps = {
   titulo: string
   valor: string | number
   subtitulo?: string
-  icone: LucideIcon
-  corGradiente: string
+  icone: Icon
+  /** Mantido por compatibilidade; o visual agora usa só tokens. */
+  corGradiente?: string
   delay?: number
+  className?: string
 }
 
+/** Célula de número (KPI). Use dentro de uma grade com divisórias. */
 export default function CartaoEstatistica({
   titulo,
   valor,
   subtitulo,
   icone: Icone,
-  corGradiente,
-  delay = 0
+  className,
 }: CartaoEstatisticaProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className={`bg-gradient-to-br ${corGradiente} rounded-xl p-6 text-white`}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <Icone className="w-8 h-8" />
-        <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
-          2025
-        </span>
-      </div>
-      <h3 className="text-3xl font-bold mb-1">{valor}</h3>
-      <p className="text-white/80 text-sm">{titulo}</p>
-      {subtitulo && (
-        <p className="text-white/60 text-xs mt-1">{subtitulo}</p>
-      )}
-    </motion.div>
+    <div className={cn('min-w-0 px-4 py-3.5 md:px-5 md:py-4', className)}>
+      <p className="flex items-center gap-1.5 truncate text-[13px] text-muted-foreground">
+        <Icone className="size-4 shrink-0" aria-hidden />
+        {titulo}
+      </p>
+      <p className="mt-1 truncate text-lg font-semibold tabular-nums tracking-tight text-foreground md:text-xl">
+        {valor}
+      </p>
+      {subtitulo && <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{subtitulo}</p>}
+    </div>
   )
 }

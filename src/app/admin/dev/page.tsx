@@ -1,28 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import {
-  Database,
-  HardDrive,
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle,
-  Server,
-  Image as ImageIcon,
-  FileText,
-  Users,
-  ShoppingBag,
-  Coffee,
-  Plus,
-  Trash2,
-  Lock,
-  Eye,
-  EyeOff,
-} from 'lucide-react'
+import { ArrowsClockwise as RefreshCw, Eye, EyeSlash as EyeOff, Lock } from '@phosphor-icons/react'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { supabase } from '@/lib/supabase'
+import { Botao, CabecalhoPagina, Campo, Cartao, Entrada, Esqueleto, Lista, Pagina, Secao } from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 
 // Credenciais de acesso do desenvolvedor
 const DEV_USER = 'dzn'
@@ -160,345 +144,211 @@ export default function DevPage() {
   }
 
   const getCorPorcentagem = (porcentagem: number): string => {
-    if (porcentagem < 50) return 'bg-green-500'
-    if (porcentagem < 75) return 'bg-yellow-500'
-    if (porcentagem < 90) return 'bg-orange-500'
-    return 'bg-red-500'
+    if (porcentagem < 75) return 'bg-primary'
+    if (porcentagem < 90) return 'bg-amber-500'
+    return 'bg-destructive'
   }
 
   if (!autenticado) {
     return (
       <ProtectedRoute>
         <AdminLayout>
-          <div className="min-h-screen flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 max-w-md w-full"
-            >
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Lock className="w-8 h-8 text-red-600" />
+          <div className="flex min-h-[60dvh] items-center justify-center">
+            <Cartao className="w-full max-w-sm p-6">
+              <form
+                className="space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  verificarCredenciais()
+                }}
+              >
+                <div className="space-y-1">
+                  <span className="flex size-10 items-center justify-center rounded-lg bg-muted text-foreground">
+                    <Lock className="size-5" />
+                  </span>
+                  <h1 className="pt-2 text-lg font-semibold text-foreground">Área do desenvolvedor</h1>
+                  <p className="text-sm text-muted-foreground">Só para quem mantém o sistema.</p>
                 </div>
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                  Área Restrita
-                </h1>
-                <p className="text-zinc-600 dark:text-zinc-400 mt-2">
-                  Acesso exclusivo para desenvolvedores
-                </p>
-              </div>
 
-              <div className="space-y-4">
-                {/* Usuário */}
-                <input
-                  type="text"
-                  value={usuario}
-                  onChange={(e) => {
-                    setUsuario(e.target.value)
-                    setErroLogin(false)
-                  }}
-                  placeholder="Usuário"
-                  className={`w-full px-4 py-3 rounded-lg border ${
-                    erroLogin 
-                      ? 'border-red-500 bg-red-50 dark:bg-red-900/20' 
-                      : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
-                  } text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500`}
-                />
-
-                {/* Senha */}
-                <div className="relative">
-                  <input
-                    type={mostrarSenha ? 'text' : 'password'}
-                    value={senha}
+                <Campo rotulo="Usuário" htmlFor="dev-usuario">
+                  <Entrada
+                    id="dev-usuario"
+                    value={usuario}
+                    autoComplete="off"
+                    aria-invalid={erroLogin || undefined}
                     onChange={(e) => {
-                      setSenha(e.target.value)
+                      setUsuario(e.target.value)
                       setErroLogin(false)
                     }}
-                    onKeyDown={(e) => e.key === 'Enter' && verificarCredenciais()}
-                    placeholder="Senha"
-                    className={`w-full px-4 py-3 pr-12 rounded-lg border ${
-                      erroLogin 
-                        ? 'border-red-500 bg-red-50 dark:bg-red-900/20' 
-                        : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
-                    } text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500`}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setMostrarSenha(!mostrarSenha)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"
-                  >
-                    {mostrarSenha ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
+                </Campo>
 
-                {erroLogin && (
-                  <p className="text-red-500 text-sm flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4" />
-                    Credenciais incorretas
-                  </p>
-                )}
+                <Campo rotulo="Senha" htmlFor="dev-senha" erro={erroLogin ? 'Usuário ou senha incorretos.' : null}>
+                  <div className="relative">
+                    <Entrada
+                      id="dev-senha"
+                      type={mostrarSenha ? 'text' : 'password'}
+                      value={senha}
+                      aria-invalid={erroLogin || undefined}
+                      onChange={(e) => {
+                        setSenha(e.target.value)
+                        setErroLogin(false)
+                      }}
+                      className="pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMostrarSenha(!mostrarSenha)}
+                      aria-label={mostrarSenha ? 'Esconder senha' : 'Mostrar senha'}
+                      className="absolute right-0 top-0 flex size-11 items-center justify-center text-muted-foreground hover:text-foreground md:size-10"
+                    >
+                      {mostrarSenha ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                    </button>
+                  </div>
+                </Campo>
 
-                <button
-                  onClick={verificarCredenciais}
-                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors"
-                >
-                  Acessar
-                </button>
-              </div>
-            </motion.div>
+                <Botao type="submit" tamanho="lg" className="w-full md:h-10 md:text-sm">
+                  Entrar
+                </Botao>
+              </form>
+            </Cartao>
           </div>
         </AdminLayout>
       </ProtectedRoute>
     )
   }
 
+  const BarraUso = ({ usado, limite, rotulo }: { usado: number; limite: number; rotulo: string }) => {
+    const porcentagem = calcularPorcentagem(usado, limite)
+    return (
+      <div>
+        <div className="mb-2 flex justify-between gap-3 text-sm">
+          <span className="text-muted-foreground">{rotulo}</span>
+          <span className="font-medium tabular-nums text-foreground">
+            {formatarBytes(usado)} de {formatarBytes(limite)}
+          </span>
+        </div>
+        <div
+          className="h-2 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuenow={Math.round(porcentagem)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={rotulo}
+        >
+          <div className={cn('h-full transition-all', getCorPorcentagem(porcentagem))} style={{ width: `${porcentagem}%` }} />
+        </div>
+        <p className="mt-1 text-[13px] tabular-nums text-muted-foreground">{porcentagem.toFixed(2)}% usado</p>
+      </div>
+    )
+  }
+
+  const Numero = ({ rotulo, valor }: { rotulo: string; valor: number }) => (
+    <div className="rounded-lg bg-muted/50 p-3">
+      <p className="text-sm text-muted-foreground">{rotulo}</p>
+      <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{valor}</p>
+    </div>
+  )
+
+  const Carregando = () => (
+    <div className="space-y-3">
+      <Esqueleto className="h-4 w-1/2" />
+      <Esqueleto className="h-2 w-full" />
+      <Esqueleto className="h-20 w-full" />
+    </div>
+  )
+
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="p-4 md:p-6 lg:p-8">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
-                <Server className="w-8 h-8 text-red-600" />
-                Painel do Desenvolvedor
-              </h1>
-              <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-                Monitoramento de recursos do Supabase (Plano Free)
-              </p>
+        <Pagina>
+          <CabecalhoPagina
+            titulo="Desenvolvedor"
+            descricao="Uso do Supabase no plano gratuito."
+            acoes={
+              <Botao variante="contorno" onClick={() => void carregarEstatisticas()} disabled={carregando}>
+                <RefreshCw className={cn(carregando && 'animate-spin')} />
+                Atualizar
+              </Botao>
+            }
+          />
+
+          <Secao titulo="Limites do plano gratuito">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              {[
+                ['Banco', '500 MB'],
+                ['Arquivos', '1 GB'],
+                ['Tráfego', '2 GB/mês'],
+                ['Upload', '50 MB por arquivo'],
+              ].map(([rotulo, valor]) => (
+                <Cartao key={rotulo} className="p-3">
+                  <p className="text-sm text-muted-foreground">{rotulo}</p>
+                  <p className="mt-0.5 font-medium text-foreground">{valor}</p>
+                </Cartao>
+              ))}
             </div>
-            <button
-              onClick={carregarEstatisticas}
-              disabled={carregando}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''}`} />
-              Atualizar
-            </button>
-          </div>
+          </Secao>
 
-          {/* Limites do Plano Free */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-6 mb-8 border border-amber-200 dark:border-amber-800">
-            <h2 className="text-lg font-bold text-amber-800 dark:text-amber-200 mb-4 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
-              Limites do Plano Free do Supabase
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="bg-white dark:bg-zinc-800 rounded-lg p-3">
-                <p className="text-zinc-600 dark:text-zinc-400">Database</p>
-                <p className="font-bold text-zinc-900 dark:text-white">500 MB</p>
-              </div>
-              <div className="bg-white dark:bg-zinc-800 rounded-lg p-3">
-                <p className="text-zinc-600 dark:text-zinc-400">Storage</p>
-                <p className="font-bold text-zinc-900 dark:text-white">1 GB</p>
-              </div>
-              <div className="bg-white dark:bg-zinc-800 rounded-lg p-3">
-                <p className="text-zinc-600 dark:text-zinc-400">Bandwidth</p>
-                <p className="font-bold text-zinc-900 dark:text-white">2 GB/mês</p>
-              </div>
-              <div className="bg-white dark:bg-zinc-800 rounded-lg p-3">
-                <p className="text-zinc-600 dark:text-zinc-400">Upload Máx</p>
-                <p className="font-bold text-zinc-900 dark:text-white">50 MB/arquivo</p>
-              </div>
-            </div>
-          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Secao titulo="Banco de dados">
+              <Cartao className="space-y-4 p-4">
+                {estatisticasDB ? (
+                  <>
+                    <BarraUso usado={estatisticasDB.tamanhoTotal} limite={LIMITES_FREE.database} rotulo="Uso estimado" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Numero rotulo="Produtos" valor={estatisticasDB.produtos} />
+                      <Numero rotulo="Adicionais" valor={estatisticasDB.adicionais} />
+                      <Numero rotulo="Bebidas" valor={estatisticasDB.bebidas} />
+                      <Numero rotulo="Pedidos" valor={estatisticasDB.pedidos} />
+                    </div>
+                  </>
+                ) : (
+                  <Carregando />
+                )}
+              </Cartao>
+            </Secao>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Database Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-            >
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-6 flex items-center gap-2">
-                <Database className="w-6 h-6 text-blue-600" />
-                Banco de Dados
-              </h2>
-
-              {estatisticasDB ? (
-                <div className="space-y-6">
-                  {/* Uso estimado */}
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-zinc-600 dark:text-zinc-400">Uso estimado</span>
-                      <span className="font-medium text-zinc-900 dark:text-white">
-                        {formatarBytes(estatisticasDB.tamanhoTotal)} / 500 MB
-                      </span>
-                    </div>
-                    <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${getCorPorcentagem(calcularPorcentagem(estatisticasDB.tamanhoTotal, LIMITES_FREE.database))} transition-all duration-500`}
-                        style={{ width: `${calcularPorcentagem(estatisticasDB.tamanhoTotal, LIMITES_FREE.database)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-1">
-                      {calcularPorcentagem(estatisticasDB.tamanhoTotal, LIMITES_FREE.database).toFixed(2)}% utilizado
-                    </p>
-                  </div>
-
-                  {/* Contagem de registros */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-4">
-                      <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 mb-1">
-                        <ShoppingBag className="w-4 h-4" />
-                        <span className="text-sm">Produtos</span>
-                      </div>
-                      <p className="text-2xl font-bold text-zinc-900 dark:text-white">
-                        {estatisticasDB.produtos}
-                      </p>
-                    </div>
-                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-4">
-                      <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 mb-1">
-                        <Plus className="w-4 h-4" />
-                        <span className="text-sm">Adicionais</span>
-                      </div>
-                      <p className="text-2xl font-bold text-zinc-900 dark:text-white">
-                        {estatisticasDB.adicionais}
-                      </p>
-                    </div>
-                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-4">
-                      <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 mb-1">
-                        <Coffee className="w-4 h-4" />
-                        <span className="text-sm">Bebidas</span>
-                      </div>
-                      <p className="text-2xl font-bold text-zinc-900 dark:text-white">
-                        {estatisticasDB.bebidas}
-                      </p>
-                    </div>
-                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-4">
-                      <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 mb-1">
-                        <FileText className="w-4 h-4" />
-                        <span className="text-sm">Pedidos</span>
-                      </div>
-                      <p className="text-2xl font-bold text-zinc-900 dark:text-white">
-                        {estatisticasDB.pedidos}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-12">
-                  <RefreshCw className="w-8 h-8 text-zinc-400 animate-spin" />
-                </div>
-              )}
-            </motion.div>
-
-            {/* Storage Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-            >
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-6 flex items-center gap-2">
-                <HardDrive className="w-6 h-6 text-purple-600" />
-                Storage
-              </h2>
-
-              {estatisticasStorage ? (
-                <div className="space-y-6">
-                  {/* Uso total */}
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-zinc-600 dark:text-zinc-400">Uso total</span>
-                      <span className="font-medium text-zinc-900 dark:text-white">
-                        {formatarBytes(estatisticasStorage.tamanhoTotal)} / 1 GB
-                      </span>
-                    </div>
-                    <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${getCorPorcentagem(calcularPorcentagem(estatisticasStorage.tamanhoTotal, LIMITES_FREE.storage))} transition-all duration-500`}
-                        style={{ width: `${calcularPorcentagem(estatisticasStorage.tamanhoTotal, LIMITES_FREE.storage)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-1">
-                      {calcularPorcentagem(estatisticasStorage.tamanhoTotal, LIMITES_FREE.storage).toFixed(2)}% utilizado
-                    </p>
-                  </div>
-
-                  {/* Total de arquivos */}
-                  <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 mb-1">
-                      <ImageIcon className="w-4 h-4" />
-                      <span className="text-sm">Total de Arquivos</span>
-                    </div>
-                    <p className="text-2xl font-bold text-zinc-900 dark:text-white">
-                      {estatisticasStorage.totalArquivos}
-                    </p>
-                  </div>
-
-                  {/* Por bucket */}
-                  {estatisticasStorage.porBucket.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-3">
-                        Por Bucket
-                      </h3>
-                      <div className="space-y-2">
-                        {estatisticasStorage.porBucket.map((bucket) => (
-                          <div
-                            key={bucket.bucket}
-                            className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3"
-                          >
-                            <span className="font-medium text-zinc-900 dark:text-white">
-                              {bucket.bucket}
-                            </span>
-                            <div className="text-right">
-                              <p className="text-sm text-zinc-900 dark:text-white">
-                                {formatarBytes(bucket.tamanho)}
-                              </p>
-                              <p className="text-xs text-zinc-500">
-                                {bucket.arquivos} arquivos
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+            <Secao titulo="Arquivos (Storage)">
+              <div className="space-y-3">
+                <Cartao className="space-y-4 p-4">
+                  {estatisticasStorage ? (
+                    <>
+                      <BarraUso usado={estatisticasStorage.tamanhoTotal} limite={LIMITES_FREE.storage} rotulo="Uso total" />
+                      <Numero rotulo="Total de arquivos" valor={estatisticasStorage.totalArquivos} />
+                    </>
+                  ) : (
+                    <Carregando />
                   )}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-12">
-                  <RefreshCw className="w-8 h-8 text-zinc-400 animate-spin" />
-                </div>
-              )}
-            </motion.div>
+                </Cartao>
+                {estatisticasStorage && estatisticasStorage.porBucket.length > 0 && (
+                  <Lista>
+                    {estatisticasStorage.porBucket.map((bucket) => (
+                      <li key={bucket.bucket} className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+                        <span className="min-w-0 truncate font-medium text-foreground">{bucket.bucket}</span>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm tabular-nums text-foreground">{formatarBytes(bucket.tamanho)}</p>
+                          <p className="text-[13px] text-muted-foreground">{bucket.arquivos} arquivos</p>
+                        </div>
+                      </li>
+                    ))}
+                  </Lista>
+                )}
+              </div>
+            </Secao>
           </div>
 
-          {/* Recomendações */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mt-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-          >
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-              Boas Práticas para Economizar Recursos
-            </h2>
-            <ul className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
-              <li className="flex items-start gap-2">
-                <span className="text-green-500 mt-0.5">✓</span>
-                <span>Imagens são comprimidas automaticamente para no máximo 1MB antes do upload</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-500 mt-0.5">✓</span>
-                <span>Formato JPEG com qualidade otimizada (80-90%) para melhor compressão</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-500 mt-0.5">✓</span>
-                <span>Dimensão máxima de 1200px para evitar arquivos grandes desnecessários</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-500 mt-0.5">✓</span>
-                <span>Imagens do Hero são servidas localmente (sem usar Storage)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-500 mt-0.5">✓</span>
-                <span>Pedidos antigos podem ser arquivados periodicamente para liberar espaço</span>
-              </li>
-            </ul>
-          </motion.div>
-        </div>
+          <Secao titulo="O que já economiza espaço">
+            <Cartao className="p-4">
+              <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+                <li>Imagens são comprimidas para no máximo 1 MB antes do upload.</li>
+                <li>JPEG com qualidade entre 80% e 90%.</li>
+                <li>Imagens com no máximo 1200 px.</li>
+                <li>As imagens do topo do site ficam no próprio site, fora do Storage.</li>
+                <li>Pedidos antigos podem ser arquivados de tempos em tempos.</li>
+              </ul>
+            </Cartao>
+          </Secao>
+        </Pagina>
       </AdminLayout>
     </ProtectedRoute>
   )

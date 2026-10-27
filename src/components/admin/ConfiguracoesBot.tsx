@@ -1,15 +1,20 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, AlertCircle, Bot, BrainCircuit, CheckCircle2, ChevronDown, Clock, Coins, CreditCard, Globe, Loader2, Power, PowerOff, Save, Timer } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
-import { cn } from '@/lib/utils'
+import { WarningCircle as AlertCircle, CaretDown as ChevronDown, Coins, FloppyDisk as Save } from '@phosphor-icons/react'
+import { toast } from 'sonner'
+import {
+  Botao,
+  Campo,
+  Cartao,
+  Entrada,
+  LinhaInterruptor,
+  ListaCarregando,
+  Secao,
+  Segmentos,
+  Selecao,
+  Selo,
+} from '@/components/admin/ui'
 import { calcularCustoEstimadoIa } from '@/lib/ai-usage.mjs'
 import { supabase } from '@/lib/supabase'
 
@@ -142,7 +147,6 @@ export default function ConfiguracoesBot({ automacao, operacao, onAtualizarStatu
   const [alternandoBot, setAlternandoBot] = useState(false)
   const [alternandoIa, setAlternandoIa] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [sucesso, setSucesso] = useState<string | null>(null)
 
   const botAtivo = config.bot_ativo === 'true'
   const iaAtiva = config.ia_conversa_ativa === 'true'
@@ -163,10 +167,7 @@ export default function ConfiguracoesBot({ automacao, operacao, onAtualizarStatu
   )
 
   const exibirSucesso = (mensagem: string) => {
-    setSucesso(mensagem)
-    window.setTimeout(() => {
-      setSucesso((atual) => atual === mensagem ? null : atual)
-    }, 3000)
+    toast.success(mensagem)
   }
 
   const carregarConfiguracoes = useCallback(async () => {
@@ -320,204 +321,162 @@ export default function ConfiguracoesBot({ automacao, operacao, onAtualizarStatu
   }
 
   if (carregando) {
-    return (
-      <Card className="border-border/70 shadow-none">
-        <CardContent className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Carregando configurações
-        </CardContent>
-      </Card>
-    )
+    return <ListaCarregando linhas={3} />
   }
 
+  const statusIa = !iaAtiva ? 'IA pausada' : automacao?.iaDisponivel ? 'IA disponível' : 'Sem provedor disponível'
+
   return (
-    <div className="space-y-4">
-      {(erro || sucesso) && (
-        <div className={cn(
-          'flex items-center gap-2 rounded-xl border p-3 text-sm',
-          erro
-            ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300'
-            : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300'
-        )}>
-          {erro ? <AlertCircle className="size-4" /> : <CheckCircle2 className="size-4" />}
-          {erro || sucesso}
+    <div className="space-y-6 pb-20">
+      {erro && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0 break-words">{erro}</span>
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(320px,0.75fr)_minmax(0,1.25fr)]">
-        <Card className="border-border/70 shadow-none">
-          <CardHeader className="p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Bot className="size-4" />
-                  Automação
-                </CardTitle>
-                <CardDescription>Pause o atendimento inteiro ou somente o apoio dos modelos.</CardDescription>
-              </div>
-              <Badge variant={botAtivo ? 'success' : 'destructive'} className="rounded-lg">
-                {botAtivo ? 'ativa' : 'pausada'}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 p-5 pt-0">
-            <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
-              <p className="text-sm font-medium">{botAtivo ? 'Respondendo clientes' : 'Respostas pausadas'}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {botAtivo
-                  ? 'Use pausa em manutenção, instabilidade ou troca de sessão.'
-                  : 'As conversas ficam registradas, mas a Carol não responde.'}
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant={botAtivo ? 'outline' : 'default'}
-              className="w-full"
-              onClick={() => alternarAutomacao('bot_ativo')}
-              disabled={alternandoBot}
-            >
-              {alternandoBot ? <Loader2 className="mr-2 size-4 animate-spin" /> : botAtivo ? <PowerOff className="mr-2 size-4" /> : <Power className="mr-2 size-4" />}
-              {botAtivo ? 'Pausar Carol' : 'Ativar Carol'}
-            </Button>
+      <Secao titulo="Atendimento automático" descricao="Pause tudo ou só a IA. As conversas continuam registradas.">
+        <div className="space-y-2">
+          <LinhaInterruptor
+            titulo="Carol responde clientes"
+            descricao={
+              botAtivo
+                ? 'Pause em manutenção, instabilidade ou troca de sessão.'
+                : 'Pausada: as conversas ficam salvas, mas a Carol não responde.'
+            }
+            marcado={botAtivo}
+            desabilitado={alternandoBot}
+            aoMudar={() => void alternarAutomacao('bot_ativo')}
+            rotuloAcessivel="Carol responde clientes"
+          />
+          <LinhaInterruptor
+            titulo="IA conversacional"
+            descricao="Se pausar, pedidos, preços e regras fixas continuam funcionando."
+            marcado={iaAtiva}
+            desabilitado={alternandoIa}
+            aoMudar={() => void alternarAutomacao('ia_conversa_ativa')}
+            rotuloAcessivel="IA conversacional"
+          />
+        </div>
+      </Secao>
 
-            <Separator />
-
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="flex items-center gap-2 text-sm font-medium">
-                  <BrainCircuit className="size-4" />
-                  IA conversacional
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Ao pausar, pedidos, preços e regras determinísticas continuam funcionando.
-                </p>
-              </div>
-              <Badge variant={iaAtiva ? 'success' : 'outline'} className="shrink-0 rounded-lg">
-                {iaAtiva ? 'ativa' : 'pausada'}
-              </Badge>
-            </div>
-            <Button
-              type="button"
-              variant={iaAtiva ? 'outline' : 'default'}
-              className="w-full"
-              onClick={() => alternarAutomacao('ia_conversa_ativa')}
-              disabled={alternandoIa}
-            >
-              {alternandoIa
-                ? <Loader2 className="mr-2 size-4 animate-spin" />
-                : iaAtiva ? <PowerOff className="mr-2 size-4" /> : <Power className="mr-2 size-4" />}
-              {iaAtiva ? 'Pausar somente IA' : 'Ativar IA'}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/70 shadow-none">
-          <CardHeader className="p-5">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Clock className="size-4" />
-              Atendimento e entrega
-            </CardTitle>
-            <CardDescription>Horários e prazo usados nas respostas automáticas.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5 p-5 pt-0">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="horario-abertura">Abertura</Label>
-                <Input
-                  id="horario-abertura"
-                  type="time"
-                  value={config.horario_abertura}
-                  onChange={(event) => atualizarCampo('horario_abertura', event.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="horario-fechamento">Fechamento</Label>
-                <Input
-                  id="horario-fechamento"
-                  type="time"
-                  value={config.horario_fechamento}
-                  onChange={(event) => atualizarCampo('horario_fechamento', event.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Globe className="size-4" />
-                  Fuso horário
-                </Label>
-                <Select value={config.bot_timezone} onValueChange={(valor) => atualizarCampo('bot_timezone', valor)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o fuso" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMEZONES_BR.map((timezone) => (
-                      <SelectItem key={timezone.value} value={timezone.value}>
-                        {timezone.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tempo-entrega" className="flex items-center gap-2">
-                  <Timer className="size-4" />
-                  Entrega
-                </Label>
-                <Input
-                  id="tempo-entrega"
-                  value={config.tempo_entrega_estimado}
-                  onChange={(event) => atualizarCampo('tempo_entrega_estimado', event.target.value)}
-                  placeholder="20-30"
-                />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
-              Prévia: tempo estimado de entrega em {config.tempo_entrega_estimado || '20-30'} minutos.
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="border-border/70 shadow-none">
-        <CardHeader className="p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Activity className="size-4" />
-                IA e operação
-              </CardTitle>
-              <CardDescription>Saúde dos provedores e uso desde o último reinício do bot.</CardDescription>
-            </div>
-            <Badge variant={automacao?.iaDisponivel ? 'success' : iaAtiva ? 'destructive' : 'outline'} className="rounded-lg">
-              {!iaAtiva ? 'IA pausada' : automacao?.iaDisponivel ? 'IA disponível' : 'sem provedor disponível'}
-            </Badge>
+      <Secao titulo="Horário e entrega" descricao="Usados nas respostas automáticas.">
+        <Cartao className="space-y-4 p-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Campo rotulo="Abre às" htmlFor="horario-abertura">
+              <Entrada
+                id="horario-abertura"
+                type="time"
+                value={config.horario_abertura}
+                onChange={(event) => atualizarCampo('horario_abertura', event.target.value)}
+              />
+            </Campo>
+            <Campo rotulo="Fecha às" htmlFor="horario-fechamento">
+              <Entrada
+                id="horario-fechamento"
+                type="time"
+                value={config.horario_fechamento}
+                onChange={(event) => atualizarCampo('horario_fechamento', event.target.value)}
+              />
+            </Campo>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4 p-5 pt-0">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-border/70 bg-muted/20 p-4 sm:grid-cols-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Chamadas</p>
-              <p className="font-mono text-lg font-semibold tabular-nums">{totalChamadasIa}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Tokens</p>
-              <p className="font-mono text-lg font-semibold tabular-nums">{totalTokensIa}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Falhas</p>
-              <p className="font-mono text-lg font-semibold tabular-nums">{totalFalhasIa}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Conversas em 24h</p>
-              <p className="font-mono text-lg font-semibold tabular-nums">{operacao?.conversas24h || 0}</p>
-            </div>
-          </div>
+          <Campo rotulo="Fuso horário" htmlFor="bot-timezone">
+            <Selecao
+              id="bot-timezone"
+              value={config.bot_timezone}
+              onChange={(event) => atualizarCampo('bot_timezone', event.target.value)}
+            >
+              {TIMEZONES_BR.map((timezone) => (
+                <option key={timezone.value} value={timezone.value}>
+                  {timezone.label}
+                </option>
+              ))}
+            </Selecao>
+          </Campo>
+          <Campo
+            rotulo="Tempo de entrega (minutos)"
+            htmlFor="tempo-entrega"
+            ajuda={`O cliente lê: "tempo estimado de entrega em ${config.tempo_entrega_estimado || '20-30'} minutos".`}
+          >
+            <Entrada
+              id="tempo-entrega"
+              value={config.tempo_entrega_estimado}
+              onChange={(event) => atualizarCampo('tempo_entrega_estimado', event.target.value)}
+              placeholder="20-30"
+            />
+          </Campo>
+        </Cartao>
+      </Secao>
 
-          <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70">
+      <Secao titulo="PIX" descricao="O que a Carol envia quando o cliente pede a chave.">
+        <Cartao className="space-y-4 p-4">
+          <Campo rotulo="Tipo da chave">
+            <Segmentos
+              opcoes={TIPOS_CHAVE_PIX.map((tipo) => ({ valor: tipo, rotulo: tipo }))}
+              valor={config.pix_tipo_chave}
+              aoMudar={(valor) => atualizarCampo('pix_tipo_chave', valor)}
+              rotuloAcessivel="Tipo da chave PIX"
+            />
+          </Campo>
+          <Campo rotulo="Chave PIX" htmlFor="pix-chave">
+            <Entrada
+              id="pix-chave"
+              value={config.pix_chave}
+              onChange={(event) => atualizarCampo('pix_chave', event.target.value)}
+              placeholder="Chave PIX"
+              autoComplete="off"
+            />
+          </Campo>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Campo rotulo="Titular" htmlFor="pix-nome">
+              <Entrada
+                id="pix-nome"
+                value={config.pix_nome}
+                onChange={(event) => atualizarCampo('pix_nome', event.target.value)}
+                placeholder="Nome ou razão social"
+              />
+            </Campo>
+            <Campo rotulo="Banco" htmlFor="pix-banco">
+              <Entrada
+                id="pix-banco"
+                value={config.pix_banco}
+                onChange={(event) => atualizarCampo('pix_banco', event.target.value)}
+                placeholder="Banco"
+              />
+            </Campo>
+          </div>
+          <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+            <p>Chave {config.pix_tipo_chave}: {config.pix_chave || '-'}</p>
+            <p>Titular: {config.pix_nome || '-'}</p>
+            <p>Banco: {config.pix_banco || '-'}</p>
+          </div>
+        </Cartao>
+      </Secao>
+
+      <Secao
+        titulo="IA e operação"
+        descricao="Uso desde o último reinício do bot."
+        acao={<Selo tom={automacao?.iaDisponivel ? 'sucesso' : iaAtiva ? 'perigo' : 'neutro'}>{statusIa}</Selo>}
+      >
+        <div className="space-y-3">
+          <Cartao className="grid grid-cols-2 gap-x-4 gap-y-3 p-4 sm:grid-cols-4">
+            {[
+              { rotulo: 'Chamadas', valor: totalChamadasIa },
+              { rotulo: 'Tokens', valor: totalTokensIa },
+              { rotulo: 'Falhas', valor: totalFalhasIa },
+              { rotulo: 'Conversas em 24h', valor: operacao?.conversas24h || 0 },
+            ].map((item) => (
+              <div key={item.rotulo}>
+                <p className="text-[13px] text-muted-foreground">{item.rotulo}</p>
+                <p className="text-lg font-semibold tabular-nums text-foreground">{formatadorNumero.format(item.valor)}</p>
+              </div>
+            ))}
+          </Cartao>
+
+          <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70 bg-card">
             {provedoresLista.map((provedor) => {
               const dados = provedor.dados
               const runtime = dados?.runtime
@@ -529,162 +488,97 @@ export default function ConfiguracoesBot({ automacao, operacao, onAtualizarStatu
                 modelo: dados?.model,
                 runtime,
               })
+              const detalhes = [
+                {
+                  rotulo: 'Chamadas',
+                  valor: formatadorNumero.format(runtime?.requests || 0),
+                  extra: `${runtime?.successes || 0} sucessos · ${runtime?.failures || 0} falhas`,
+                },
+                {
+                  rotulo: 'Tempo médio de resposta',
+                  valor: `${formatadorNumero.format(mediaMs)} ms`,
+                  extra: `total ${formatadorNumero.format(runtime?.total_latency_ms || 0)} ms`,
+                },
+                {
+                  rotulo: 'Tokens de entrada',
+                  valor: formatadorNumero.format(runtime?.prompt_tokens || 0),
+                  extra: `sem cache: ${formatadorNumero.format(custo.tokensEntradaSemCache)}`,
+                },
+                {
+                  rotulo: 'Tokens em cache',
+                  valor: formatadorNumero.format(runtime?.cache_hit_tokens || 0),
+                  extra: 'cobrados com tarifa reduzida',
+                },
+                {
+                  rotulo: 'Tokens de saída',
+                  valor: formatadorNumero.format(runtime?.completion_tokens || 0),
+                  extra: `total: ${formatadorNumero.format((runtime?.prompt_tokens || 0) + (runtime?.completion_tokens || 0))}`,
+                },
+                {
+                  rotulo: 'Última atividade',
+                  valor: formatarInstanteIa(runtime?.last_request_at),
+                  extra: `último sucesso: ${formatarInstanteIa(runtime?.last_success_at)}`,
+                },
+              ]
               return (
-                <details key={provedor.id} className="group bg-card open:bg-muted/10">
-                  <summary className="flex cursor-pointer list-none flex-col gap-3 p-4 transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:flex-row sm:items-center sm:justify-between [&::-webkit-details-marker]:hidden">
-                    <div className="min-w-0">
+                <details key={provedor.id} className="group">
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">{provedor.nome}</p>
-                        <Badge variant={dados?.available ? 'success' : 'outline'} className="rounded-lg">
-                          {!dados?.configured ? 'não configurado' : dados.available ? 'disponível' : 'indisponível'}
-                        </Badge>
+                        <p className="font-medium text-foreground">{provedor.nome}</p>
+                        <Selo tom={dados?.available ? 'sucesso' : 'neutro'}>
+                          {!dados?.configured ? 'Não configurado' : dados.available ? 'Disponível' : 'Indisponível'}
+                        </Selo>
                       </div>
-                      <p className="mt-1 truncate text-sm text-muted-foreground">{dados?.model || 'Modelo não informado'}</p>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 sm:justify-end">
-                      <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                        {runtime?.successes || 0} sucessos · {runtime?.failures || 0} falhas · média {mediaMs}ms
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {dados?.model || 'Modelo não informado'} · média {mediaMs}ms
                       </p>
-                      <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                     </div>
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                   </summary>
-
-                  <div className="border-t border-border/70 p-4">
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <div className="rounded-lg border border-border/60 bg-background p-3 sm:col-span-2">
-                        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Coins className="size-3.5" /> Gasto estimado desde o reinício
-                        </p>
-                        <p className="mt-1 font-mono text-xl font-semibold tabular-nums">
-                          {custo.disponivel && custo.totalUsd !== null
-                            ? formatarCustoUsd(custo.totalUsd)
-                            : 'Indisponível'}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {custo.disponivel && custo.preco
-                            ? `Tarifa por 1M: entrada US$ ${custo.preco.entrada} · cache US$ ${custo.preco.cache} · saída US$ ${custo.preco.saida}`
-                            : 'O modelo atual não possui tarifa cadastrada para estimativa.'}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
-                        <p className="text-xs text-muted-foreground">Chamadas</p>
-                        <p className="mt-1 font-mono text-lg font-semibold tabular-nums">{formatadorNumero.format(runtime?.requests || 0)}</p>
-                        <p className="text-xs text-muted-foreground">{runtime?.successes || 0} sucessos · {runtime?.failures || 0} falhas</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
-                        <p className="text-xs text-muted-foreground">Latência média</p>
-                        <p className="mt-1 font-mono text-lg font-semibold tabular-nums">{formatadorNumero.format(mediaMs)} ms</p>
-                        <p className="text-xs text-muted-foreground">total {formatadorNumero.format(runtime?.total_latency_ms || 0)} ms</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
-                        <p className="text-xs text-muted-foreground">Tokens de entrada</p>
-                        <p className="mt-1 font-mono text-lg font-semibold tabular-nums">{formatadorNumero.format(runtime?.prompt_tokens || 0)}</p>
-                        <p className="text-xs text-muted-foreground">sem cache: {formatadorNumero.format(custo.tokensEntradaSemCache)}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
-                        <p className="text-xs text-muted-foreground">Tokens em cache</p>
-                        <p className="mt-1 font-mono text-lg font-semibold tabular-nums">{formatadorNumero.format(runtime?.cache_hit_tokens || 0)}</p>
-                        <p className="text-xs text-muted-foreground">cobrados com tarifa reduzida</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
-                        <p className="text-xs text-muted-foreground">Tokens de saída</p>
-                        <p className="mt-1 font-mono text-lg font-semibold tabular-nums">{formatadorNumero.format(runtime?.completion_tokens || 0)}</p>
-                        <p className="text-xs text-muted-foreground">total: {formatadorNumero.format((runtime?.prompt_tokens || 0) + (runtime?.completion_tokens || 0))}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
-                        <p className="text-xs text-muted-foreground">Última atividade</p>
-                        <p className="mt-1 text-sm font-medium">{formatarInstanteIa(runtime?.last_request_at)}</p>
-                        <p className="text-xs text-muted-foreground">último sucesso: {formatarInstanteIa(runtime?.last_success_at)}</p>
-                      </div>
+                  <div className="space-y-3 border-t border-border/70 px-4 py-4">
+                    <div>
+                      <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                        <Coins className="size-3.5" /> Gasto estimado desde o reinício
+                      </p>
+                      <p className="mt-0.5 font-mono text-xl font-semibold tabular-nums text-foreground">
+                        {custo.disponivel && custo.totalUsd !== null ? formatarCustoUsd(custo.totalUsd) : 'Indisponível'}
+                      </p>
+                      <p className="text-[13px] text-muted-foreground">
+                        {custo.disponivel && custo.preco
+                          ? `Tarifa por 1M: entrada US$ ${custo.preco.entrada} · cache US$ ${custo.preco.cache} · saída US$ ${custo.preco.saida}`
+                          : 'O modelo atual não tem tarifa cadastrada para estimativa.'}
+                      </p>
                     </div>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-3">
+                      {detalhes.map((item) => (
+                        <div key={item.rotulo} className="min-w-0">
+                          <dt className="text-[13px] text-muted-foreground">{item.rotulo}</dt>
+                          <dd className="text-sm font-medium tabular-nums text-foreground">{item.valor}</dd>
+                          <dd className="truncate text-xs text-muted-foreground">{item.extra}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   </div>
                 </details>
               )
             })}
           </div>
 
-          <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
+          <div className="space-y-1 px-1 text-[13px] text-muted-foreground">
             <p>Fila: {operacao?.filas.pending || 0} pendentes</p>
-            <p>Outbox: {operacao?.outboxPendentes || 0} pendentes · {operacao?.outboxFalhas || 0} falhas</p>
+            <p>Saída de mensagens: {operacao?.outboxPendentes || 0} pendentes · {operacao?.outboxFalhas || 0} falhas</p>
             <p>Atendimento humano: {operacao?.humanTakeoverAtivo || 0} ativo</p>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/70 shadow-none">
-        <CardHeader className="p-5">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CreditCard className="size-4" />
-            Dados de PIX
-          </CardTitle>
-          <CardDescription>Informações usadas quando o cliente pede a chave de pagamento.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5 p-5 pt-0">
-          <div className="grid gap-4 md:grid-cols-[220px_1fr]">
-            <div className="space-y-2">
-              <Label>Tipo da chave</Label>
-              <Select value={config.pix_tipo_chave} onValueChange={(valor) => atualizarCampo('pix_tipo_chave', valor)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPOS_CHAVE_PIX.map((tipo) => (
-                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pix-chave">Chave PIX</Label>
-              <Input
-                id="pix-chave"
-                value={config.pix_chave}
-                onChange={(event) => atualizarCampo('pix_chave', event.target.value)}
-                placeholder="Chave PIX"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="pix-nome">Titular</Label>
-              <Input
-                id="pix-nome"
-                value={config.pix_nome}
-                onChange={(event) => atualizarCampo('pix_nome', event.target.value)}
-                placeholder="Nome ou razão social"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pix-banco">Banco</Label>
-              <Input
-                id="pix-banco"
-                value={config.pix_banco}
-                onChange={(event) => atualizarCampo('pix_banco', event.target.value)}
-                placeholder="Banco"
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm">
-            <p className="font-medium">Prévia</p>
-            <div className="mt-2 space-y-1 text-muted-foreground">
-              <p>Chave {config.pix_tipo_chave}: {config.pix_chave || '-'}</p>
-              <p>Titular: {config.pix_nome || '-'}</p>
-              <p>Banco: {config.pix_banco || '-'}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </Secao>
 
       {temAlteracoes && (
         <div className="sticky bottom-4 z-20 flex justify-end">
-          <Button type="button" onClick={salvarConfiguracoes} disabled={salvando}>
-            {salvando ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
-            Salvar configurações
-          </Button>
+          <Botao tamanho="lg" className="shadow-lg" onClick={salvarConfiguracoes} carregando={salvando}>
+            {!salvando && <Save className="size-4" />}
+            Salvar alterações
+          </Botao>
         </div>
       )}
     </div>

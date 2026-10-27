@@ -1,17 +1,7 @@
 'use client'
 
-import {
-  Pagination,
-  PaginationButton,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationFirst,
-  PaginationItem,
-  PaginationLast,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { Botao, Selecao } from '@/components/admin/ui'
 import { cn } from '@/lib/utils'
 
 type PaginacaoFinancasProps = {
@@ -55,93 +45,78 @@ export function PaginacaoFinancas({
 }: PaginacaoFinancasProps) {
   if (totalItens === 0) return null
 
-  const botoes = criarBotoes(paginaAtual, Math.max(totalPaginas, 1))
-  const btnClass =
-    'h-11 min-w-[44px] border-[#D9E3F0] px-3 text-sm font-semibold shadow-none disabled:opacity-40 dark:border-[#2A3441] dark:bg-transparent dark:hover:bg-[#252727]'
+  const total = Math.max(totalPaginas, 1)
+  const botoes = criarBotoes(paginaAtual, total)
 
   return (
-    <div className="mt-4 flex w-full flex-col gap-4 px-1 py-2 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex items-center">
-        <Select
+    <nav aria-label="Paginação" className="mt-4 flex w-full flex-wrap items-center justify-between gap-3 px-1 py-2">
+      <div className="w-[170px]">
+        <Selecao
+          aria-label="Itens por página"
           value={String(itensPorPagina)}
-          onValueChange={(v) => onItensPorPaginaChange(Number(v))}
+          onChange={(e) => onItensPorPaginaChange(Number(e.target.value))}
           disabled={carregando}
         >
-          <SelectTrigger className="h-11 w-[180px] border-[#D9E3F0] text-sm font-medium shadow-none dark:border-[#2A3441] dark:bg-[#1D1F1F]">
-            <SelectValue placeholder="Itens por página">
-              {itensPorPagina} itens por página
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {OPCOES.map((opcao) => (
-              <SelectItem key={opcao} value={String(opcao)}>
-                {opcao} itens por página
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {OPCOES.map((opcao) => (
+            <option key={opcao} value={opcao}>
+              {opcao} por página
+            </option>
+          ))}
+        </Selecao>
       </div>
 
       {totalPaginas > 1 ? (
-        <Pagination className="mx-0 w-auto justify-start lg:justify-end">
-          <PaginationContent className="flex-wrap gap-2">
-            <PaginationItem>
-              <PaginationFirst
-                className={btnClass}
-                disabled={carregando || paginaAtual === 1}
-                onClick={() => onPaginaChange(1)}
-              />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationPrevious
-                className={btnClass}
-                disabled={carregando || paginaAtual === 1}
-                onClick={() => onPaginaChange(paginaAtual - 1)}
-              />
-            </PaginationItem>
+        <div className="flex items-center gap-1">
+          <Botao
+            variante="fantasma"
+            tamanho="icone"
+            className="size-11 md:size-10"
+            aria-label="Página anterior"
+            disabled={carregando || paginaAtual === 1}
+            onClick={() => onPaginaChange(paginaAtual - 1)}
+          >
+            <CaretLeft />
+          </Botao>
 
+          <span className="px-2 text-sm tabular-nums text-muted-foreground md:hidden">
+            {paginaAtual} de {total}
+          </span>
+
+          <div className="hidden items-center gap-1 md:flex">
             {botoes.map((item) =>
               typeof item === 'number' ? (
-                <PaginationItem key={item}>
-                  <PaginationButton
-                    isActive={item === paginaAtual}
-                    disabled={carregando}
-                    onClick={() => onPaginaChange(item)}
-                    className={cn(
-                      btnClass,
-                      'px-4',
-                      item === paginaAtual &&
-                        'border-[#F4F6FA] bg-[#F4F6FA] text-[#1F2940] hover:bg-[#F4F6FA] dark:border-[#2A3441] dark:bg-[#252727] dark:text-white',
-                    )}
-                    aria-label={`Ir para a página ${item}`}
-                  >
-                    {item}
-                  </PaginationButton>
-                </PaginationItem>
+                <Botao
+                  key={item}
+                  variante={item === paginaAtual ? 'contorno' : 'fantasma'}
+                  tamanho="icone"
+                  disabled={carregando}
+                  onClick={() => onPaginaChange(item)}
+                  aria-label={`Ir para a página ${item}`}
+                  aria-current={item === paginaAtual ? 'page' : undefined}
+                  className={cn('tabular-nums', item !== paginaAtual && 'text-muted-foreground')}
+                >
+                  {item}
+                </Botao>
               ) : (
-                <PaginationItem key={item}>
-                  <PaginationEllipsis className="text-[#63738D] dark:text-[#A6B4C7]" />
-                </PaginationItem>
+                <span key={item} className="px-1 text-muted-foreground" aria-hidden>
+                  …
+                </span>
               ),
             )}
+          </div>
 
-            <PaginationItem>
-              <PaginationNext
-                className={btnClass}
-                disabled={carregando || paginaAtual === totalPaginas}
-                onClick={() => onPaginaChange(paginaAtual + 1)}
-              />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLast
-                className={btnClass}
-                disabled={carregando || paginaAtual === totalPaginas}
-                onClick={() => onPaginaChange(totalPaginas)}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+          <Botao
+            variante="fantasma"
+            tamanho="icone"
+            className="size-11 md:size-10"
+            aria-label="Próxima página"
+            disabled={carregando || paginaAtual === total}
+            onClick={() => onPaginaChange(paginaAtual + 1)}
+          >
+            <CaretRight />
+          </Botao>
+        </div>
       ) : null}
-    </div>
+    </nav>
   )
 }

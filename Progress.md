@@ -1,5 +1,16 @@
 # Progress
 
+## [2026-10-27] Reforma de UX do admin inteiro (kit gaveta + Phosphor)
+
+**Agente/Modelo:** Claude Opus 5.5 (orquestrador + 7 subagentes por grupo disjunto)
+**Objetivo:** todas as telas e modais do admin no padrão mobile-first com gaveta, confirmações e avisos padronizados e ícones Phosphor.
+**Arquivos alterados:** `package.json`/`package-lock.json` (`@phosphor-icons/react`), `next.config.js` (`optimizePackageImports`), `src/components/admin/ui/*` (kit novo), `src/app/admin/layout.tsx` (`ProvedorConfirmacao`), `src/lib/admin-sidebar-routes.ts`, `src/components/admin/AdminLayout.tsx`, `SidebarPersonalizarModal.tsx`, e ~140 arquivos em `src/app/admin/**`, `src/components/admin/**`, `src/features/**` (grupos: caixa/finanças, pedidos/painel, novo pedido/PDV, catálogo, salão/mesas/entregas, pessoas/config, dashboard/relatórios/notificações), `UI.md`, `PRD.md`, `Progress.md`.
+**O que foi feito:** kit da skill `admin-ux-gaveta` copiado (hook mobile reaproveita `useIsMobile`; tokens/fonte já existiam e não foram duplicados); lucide → Phosphor em todo o admin por script; criar/editar/detalhe viraram `Gaveta`; confirmações viraram `useConfirmar`; `ModalNotificacao` e overlays `fixed inset-0` viraram toast/Gaveta; tabelas largas viraram `Lista` no mobile; caixa alta removida. Tela-modelo: `/admin/bairros`.
+**Decisões tomadas:** queries, RPCs, regras e contratos intocados; ids e `data-onboarding*` preservados. Componentes usados fora do `/admin` (`ModalDetalhesPedido`, `PainelSalaoAtual`, `GerenciadorPermissoesEquipe`) usam `Gaveta` local, sem `useConfirmar`. `GerenciadorImpressao.tsx`/`filaImpressao.ts` (trabalho não commitado do usuário) não foram tocados e ainda usam lucide. Nada apagado (AGENTS §3.7).
+**Verificação:** `npx tsc --noEmit` ✓ 0 erros · testes 67/67 ✓ · `next build` ✓ (env do Supabase no processo) · ESLint mínimo (react-hooks) 0 erros, 37 avisos `exhaustive-deps` · sem teste em navegador (AGENTS §3.4).
+**Pendências / próximos passos:** validar no aparelho: tutorial do crediário com a gaveta travada, Kanban (arrasto), app do garçom com `PainelSalaoAtual` novo. Componentes sem importador (candidatos a remoção, não apagados): `components/admin/BotaoImprimirPedido.tsx`, `components/admin/UploadImagem.tsx`, `components/admin/PainelAnotacoes.tsx`, `components/admin/pedidos/novo/GradeProdutosCategoria.tsx`, `components/admin/funcionarios/FiltroFuncionariosAdmin.tsx`, `features/entregas/components/FiltroPeriodoEntregas.tsx`, `features/financas/components/{StatCardsFinanceiros,ModalPagamentoSalario,ModalNovaMovimentacao,FiltroPeriodo}.tsx`. "Marcar todas entregues" dispara um toast por entrega (vem de `useEntregas`). Produto ainda sem guarda `idCriado` contra duplicata após falha de upload. Credencial fixa em `src/app/admin/dev/page.tsx` (`DEV_USER`/`DEV_PASSWORD`).
+**Armadilhas descobertas:** o script `lucide-para-phosphor.py` cola a linha seguinte quando o arquivo importa `type LucideIcon` (falta `\n`) e usa `dist/ssr` em arquivos sem `'use client'` — `Icon` (tipo) não existe em `dist/ssr`. `Segmentos`/`Chip` do kit vinham com `capitalize` (removido).
+
 ## [2026-10-27] Histórico de estoque completo, saldo negativo e nova tela de Estoque
 
 **Agente/Modelo:** Claude Opus 5.5

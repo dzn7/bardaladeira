@@ -1,22 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { motion, Reorder } from 'framer-motion'
-import {
-  RefreshCw,
-  Pencil,
-  Trash2,
-  ImageIcon,
-  Plus,
-  Save,
-  X,
-  ChevronDown,
-  ChevronUp,
-  Tag,
-  GripVertical,
-  Search,
-  History,
-} from 'lucide-react'
+import { Reorder, useDragControls, type DragControls } from 'framer-motion'
+import { ArrowsClockwise as RefreshCw, ArrowsDownUp, PencilSimple as Pencil, Image as ImageIcon, Plus, CaretDown as ChevronDown, CaretUp as ChevronUp, DotsSixVertical as GripVertical, MagnifyingGlass as Search, ClockCounterClockwise as History, ForkKnife } from '@phosphor-icons/react'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { FiltrosAtivosChips, type ChipFiltroAtivo } from '@/components/admin/filtros/FiltrosAtivosChips'
@@ -38,36 +24,23 @@ import Image from 'next/image'
 import ModalRecorteImagem from '@/components/admin/ModalRecorteImagem'
 import { toast } from 'sonner'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Botao,
+  CabecalhoPagina,
+  Campo,
+  Cartao,
+  Entrada,
+  Gaveta,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Secao,
+  Segmentos,
+  Selo,
+  formatarPreco,
+  useConfirmar,
+} from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 import { validarArquivoImagem, arquivoParaUrl } from '@/lib/recorteImagem'
 import { enviarImagemParaR2 } from '@/lib/servicoUploadImagem'
 import {
@@ -127,6 +100,7 @@ export default function ProdutosPage() {
     tipo: 'sucesso' | 'erro' | 'aviso' | 'info' | 'confirmacao'
     titulo: string
     mensagem: string
+    rotuloConfirmar?: string
     onConfirmar?: () => void
   }>({
     aberto: false,
@@ -135,8 +109,19 @@ export default function ProdutosPage() {
     mensagem: ''
   })
 
+  const confirmar = useConfirmar()
+
   useEffect(() => {
-    if (!modalNotificacao.aberto || modalNotificacao.tipo === 'confirmacao') return
+    if (!modalNotificacao.aberto) return
+
+    if (modalNotificacao.tipo === 'confirmacao') {
+      const { titulo, mensagem, rotuloConfirmar, onConfirmar } = modalNotificacao
+      setModalNotificacao((estadoAtual) => ({ ...estadoAtual, aberto: false }))
+      void confirmar({ titulo, descricao: mensagem, confirmar: rotuloConfirmar, perigo: true }).then((ok) => {
+        if (ok) onConfirmar?.()
+      })
+      return
+    }
 
     const opcoesToast = { description: modalNotificacao.mensagem }
     if (modalNotificacao.tipo === 'erro') {
@@ -150,7 +135,7 @@ export default function ProdutosPage() {
     }
 
     setModalNotificacao((estadoAtual) => ({ ...estadoAtual, aberto: false }))
-  }, [modalNotificacao.aberto, modalNotificacao.mensagem, modalNotificacao.tipo, modalNotificacao.titulo])
+  }, [confirmar, modalNotificacao])
 
   // Estados para o recorte de imagem
   const [estadoRecorte, setEstadoRecorte] = useState<EstadoRecorte>({
@@ -616,8 +601,9 @@ export default function ProdutosPage() {
     setModalNotificacao({
       aberto: true,
       tipo: 'confirmacao',
-      titulo: 'Excluir Categoria',
-      mensagem: `Excluir "${categoria}"? Os produtos serão movidos para "${categoriaDestino}" (nenhum produto será apagado).`,
+      titulo: `Excluir a categoria "${categoria}"?`,
+      mensagem: `Os produtos vão para "${categoriaDestino}". Nenhum produto é apagado.`,
+      rotuloConfirmar: 'Excluir categoria',
       onConfirmar: async () => {
         setSalvandoCategoria(true)
         setCategoriaEmProcesso(categoria)
@@ -837,8 +823,9 @@ export default function ProdutosPage() {
     setModalNotificacao({
       aberto: true,
       tipo: 'confirmacao',
-      titulo: 'Confirmar Exclusão',
-      mensagem: `Tem certeza que deseja excluir "${nome}"? Esta ação não pode ser desfeita.`,
+      titulo: `Excluir "${nome}"?`,
+      mensagem: 'O item some do cardápio. Não dá para desfazer.',
+      rotuloConfirmar: 'Excluir',
       onConfirmar: async () => {
         setSalvando(produtoId)
         try {
@@ -1445,15 +1432,8 @@ export default function ProdutosPage() {
     () => (produtoHistoricoId ? produtos.find((item) => item.id === produtoHistoricoId) ?? null : null),
     [produtoHistoricoId, produtos],
   )
-  const descricaoTipoOrdenacao =
-    tipoOrdenacaoSite === 'manual'
-      ? 'Manual'
-      : tipoOrdenacaoSite === 'preco_crescente'
-        ? 'Preço crescente'
-        : 'Preço decrescente'
   const totalDisponiveis = produtos.filter((produtoAtual) => produtoAtual.disponivel).length
   const totalIndisponiveis = produtos.length - totalDisponiveis
-  const totalProdutosFiltrados = produtos.filter(produtoPassaNosFiltros).length
   const totalSemFoto = produtos.filter((produtoAtual) => !produtoAtual.imagem_url).length
   const filtrosAtivosProdutos =
     termoBuscaProdutos ||
@@ -1526,413 +1506,225 @@ export default function ProdutosPage() {
     filtroFotoProdutos !== 'todos' ||
     categoriaFiltroProdutos !== 'todas'
 
+  const fecharGavetaOrganizar = () => {
+    if (possuiMudancasNaOrdenacaoManual) {
+      void confirmar({
+        titulo: 'Sair sem salvar a ordem?',
+        descricao: 'A nova ordem ainda não foi salva no cardápio.',
+        confirmar: 'Sair sem salvar',
+        cancelar: 'Continuar organizando',
+      }).then((ok) => {
+        if (!ok) return
+        setSecaoOrdenacaoAberta(false)
+        void carregarProdutos(false)
+      })
+      return
+    }
+    setSecaoOrdenacaoAberta(false)
+  }
+
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="max-w-full space-y-5 overflow-x-hidden">
-          <div className="flex w-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border/70 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
-            <div className="min-w-0">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground">Produtos</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Catálogo do cardápio · {totalProdutosFiltrados} visíveis nesta lista
-              </p>
-            </div>
-            <div className="flex flex-wrap items-end gap-4 md:gap-6">
-              <div className="min-w-[70px]">
-                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Total</p>
-                <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{produtos.length}</p>
-              </div>
-              <div className="min-w-[70px]">
-                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Ativos</p>
-                <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{totalDisponiveis}</p>
-              </div>
-              <div className="min-w-[70px]">
-                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Sem foto</p>
-                <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{totalSemFoto}</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 shadow-none"
-                onClick={() => carregarProdutos(true)}
-                disabled={loading}
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </Button>
-              <Button type="button" size="sm" className="h-9 shadow-none" onClick={abrirModalNovoProduto}>
-                <Plus className="mr-2 h-4 w-4" />
-                Novo
-              </Button>
-            </div>
-          </div>
+        <Pagina>
+          <CabecalhoPagina
+            titulo="Produtos"
+            descricao={`${produtos.length} itens · ${totalDisponiveis} no cardápio${totalSemFoto > 0 ? ` · ${totalSemFoto} sem foto` : ''}`}
+            acoes={
+              <>
+                <Botao variante="contorno" onClick={() => setSecaoOrdenacaoAberta(true)} disabled={produtos.length === 0}>
+                  <ArrowsDownUp className="size-4" />
+                  Organizar
+                </Botao>
+                <Botao onClick={abrirModalNovoProduto}>
+                  <Plus className="size-4" />
+                  Novo produto
+                </Botao>
+              </>
+            }
+          />
 
-          <div className="overflow-hidden rounded-xl border border-border/70 bg-card p-3.5 shadow-sm md:p-5">
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="relative min-w-0 flex-1 sm:max-w-[280px]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={buscaProdutos}
-                  onChange={(evento) => setBuscaProdutos(evento.target.value)}
-                  placeholder="Pesquisar produtos..."
-                  className="h-9 border-border/70 bg-background pl-9 pr-9 shadow-none"
-                  aria-label="Buscar produtos"
-                />
-                {buscaProdutos ? (
-                  <button
-                    type="button"
-                    onClick={() => setBuscaProdutos('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label="Limpar busca"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : null}
-              </div>
-              <FiltroProdutosAdmin
-                hasFilter={hasFiltroAvancadoProdutos}
-                categorias={categorias}
-                totais={{
-                  disponiveis: totalDisponiveis,
-                  ocultos: totalIndisponiveis,
-                  semFoto: totalSemFoto,
-                }}
-                valor={{
-                  status: filtroStatusProdutos,
-                  tipo: filtroTipoProdutos,
-                  foto: filtroFotoProdutos,
-                  categoria: categoriaFiltroProdutos,
-                }}
-                onLimpar={limparFiltrosProdutos}
-                onChange={(proximo) => {
-                  if (proximo.status !== undefined) setFiltroStatusProdutos(proximo.status)
-                  if (proximo.tipo !== undefined) setFiltroTipoProdutos(proximo.tipo)
-                  if (proximo.foto !== undefined) setFiltroFotoProdutos(proximo.foto)
-                  if (proximo.categoria !== undefined) setCategoriaFiltroProdutos(proximo.categoria)
-                }}
-              />
-            </div>
-            <FiltrosAtivosChips
-              chips={chipsFiltroProdutos}
-              onLimpar={limparFiltrosProdutos}
-              className="mb-1"
-            />
-          </div>
-
-          <div className="overflow-hidden rounded-xl border border-border/70 bg-card p-3.5 shadow-sm md:p-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <p className="text-base font-medium text-foreground/90">Ordenação do cardápio</p>
-                <p className="text-sm text-muted-foreground">Modo atual: {descricaoTipoOrdenacao}</p>
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                <Select
-                  value={tipoOrdenacaoSite}
-                  onValueChange={(valor) => alterarModoOrdenacaoSite(valor as TipoOrdenacaoProdutosSite)}
-                  disabled={salvandoConfiguracaoOrdenacao}
-                >
-                  <SelectTrigger className="h-9 w-full border-border/70 shadow-none sm:w-[190px]">
-                    <SelectValue placeholder="Modo de ordenação" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="manual">Manual</SelectItem>
-                    <SelectItem value="preco_crescente">Preço crescente</SelectItem>
-                    <SelectItem value="preco_decrescente">Preço decrescente</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSecaoOrdenacaoAberta((estadoAtual) => !estadoAtual)}
-                  className="h-9 gap-2 shadow-none"
-                >
-                  {secaoOrdenacaoAberta ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  {secaoOrdenacaoAberta ? 'Ocultar' : 'Detalhar'}
-                </Button>
-                {salvandoConfiguracaoOrdenacao ? (
-                  <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
-                ) : null}
-              </div>
-            </div>
-
-            {secaoOrdenacaoAberta && tipoOrdenacaoSite === 'manual' ? (
-              <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
-                <div className="sticky top-0 z-10 -mx-1 flex flex-col gap-2 bg-card/95 px-1 py-2 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Arraste categorias e produtos para ajustar a ordem exibida no cliente.
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={salvarOrdenacaoManual}
-                    disabled={!possuiMudancasNaOrdenacaoManual || salvandoOrdenacaoManual}
-                    className="h-10 w-full gap-2 shadow-none sm:h-9 sm:w-auto"
-                  >
-                    {salvandoOrdenacaoManual ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Salvar ordem
-                  </Button>
+          {produtos.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Entrada
+                    type="search"
+                    value={buscaProdutos}
+                    onChange={(evento) => setBuscaProdutos(evento.target.value)}
+                    placeholder="Buscar produto"
+                    className="pl-9"
+                    aria-label="Buscar produtos"
+                  />
                 </div>
-
-                <Reorder.Group
-                  axis="y"
-                  values={categorias}
-                  onReorder={aoReordenarCategorias}
-                  className="grid max-h-[min(60dvh,520px)] gap-2 overflow-y-auto overscroll-contain pr-0.5 lg:grid-cols-2 lg:max-h-none lg:overflow-visible"
-                >
-                  {categorias.map((categoria) => (
-                    <Reorder.Item
-                      key={categoria}
-                      value={categoria}
-                      as="div"
-                      className="touch-none rounded-xl border border-border/70 bg-muted/20 p-2.5"
-                    >
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{categoria}</span>
-                        <Badge variant="secondary" className="shrink-0">
-                          {obterProdutosDaCategoria(categoria).length}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(evento) => {
-                            evento.stopPropagation()
-                            abrirModalRenomearCategoria(categoria)
-                          }}
-                          onPointerDown={(evento) => evento.stopPropagation()}
-                          disabled={salvandoCategoria}
-                          className="size-8"
-                          title="Renomear categoria"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(evento) => {
-                            evento.stopPropagation()
-                            excluirCategoriaSemApagarProdutos(categoria)
-                          }}
-                          onPointerDown={(evento) => evento.stopPropagation()}
-                          disabled={salvandoCategoria}
-                          className="size-8 text-destructive hover:text-destructive"
-                          title="Excluir categoria"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <Reorder.Group
-                        axis="y"
-                        values={obterIdsOrdenadosDaCategoria(categoria)}
-                        onReorder={(novaOrdemIds) => aoReordenarProdutosDaCategoria(categoria, novaOrdemIds)}
-                        className="mt-2 max-h-44 space-y-1 overflow-y-auto overscroll-contain"
-                      >
-                        {obterIdsOrdenadosDaCategoria(categoria).map((idProduto) => {
-                          const produtoAtual = produtosPorId.get(idProduto)
-                          if (!produtoAtual || produtoAtual.categoria !== categoria) return null
-
-                          return (
-                            <Reorder.Item
-                              key={idProduto}
-                              value={idProduto}
-                              as="div"
-                              className="touch-none cursor-grab rounded-md bg-background/80 px-2.5 py-1.5 active:cursor-grabbing"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex min-w-0 items-center gap-2">
-                                  <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                  <span className="truncate text-xs font-medium">{produtoAtual.nome}</span>
-                                </div>
-                                <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums">
-                                  R$ {Number(produtoAtual.preco).toFixed(2)}
-                                </span>
-                              </div>
-                            </Reorder.Item>
-                          )
-                        })}
-                      </Reorder.Group>
-                    </Reorder.Item>
-                  ))}
-                </Reorder.Group>
+                <FiltroProdutosAdmin
+                  hasFilter={hasFiltroAvancadoProdutos}
+                  categorias={categorias}
+                  totais={{
+                    disponiveis: totalDisponiveis,
+                    ocultos: totalIndisponiveis,
+                    semFoto: totalSemFoto,
+                  }}
+                  valor={{
+                    status: filtroStatusProdutos,
+                    tipo: filtroTipoProdutos,
+                    foto: filtroFotoProdutos,
+                    categoria: categoriaFiltroProdutos,
+                  }}
+                  onLimpar={limparFiltrosProdutos}
+                  onChange={(proximo) => {
+                    if (proximo.status !== undefined) setFiltroStatusProdutos(proximo.status)
+                    if (proximo.tipo !== undefined) setFiltroTipoProdutos(proximo.tipo)
+                    if (proximo.foto !== undefined) setFiltroFotoProdutos(proximo.foto)
+                    if (proximo.categoria !== undefined) setCategoriaFiltroProdutos(proximo.categoria)
+                  }}
+                />
               </div>
-            ) : null}
-          </div>
+              <FiltrosAtivosChips chips={chipsFiltroProdutos} onLimpar={limparFiltrosProdutos} />
+            </div>
+          ) : null}
 
           {loading && produtos.length === 0 ? (
-            <div className="flex h-56 items-center justify-center rounded-xl border border-border/70 bg-card">
-              <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+            <ListaCarregando linhas={6} />
+          ) : produtos.length === 0 ? (
+            <ListaVazia
+              icone={<ForkKnife />}
+              titulo="Nenhum produto cadastrado"
+              descricao="Cadastre o primeiro produto ou bebida do cardápio."
+              acao={
+                <Botao onClick={abrirModalNovoProduto}>
+                  <Plus className="size-4" />
+                  Novo produto
+                </Botao>
+              }
+            />
+          ) : categoriasVisiveis.length === 0 ? (
+            <ListaVazia
+              icone={<Search />}
+              titulo="Nenhum produto encontrado"
+              descricao="Tente buscar por outro nome, categoria ou situação."
+              acao={
+                filtrosAtivosProdutos ? (
+                  <Botao variante="contorno" onClick={limparFiltrosProdutos}>
+                    Limpar filtros
+                  </Botao>
+                ) : undefined
+              }
+            />
           ) : (
-            <div className="space-y-4">
-              {categoriasVisiveis.length === 0 ? (
-                <div className="flex min-h-44 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 bg-card p-6 text-center">
-                  <Search className="h-8 w-8 text-muted-foreground/60" />
-                  <p className="text-sm font-medium text-foreground">Nenhum produto encontrado</p>
-                  <p className="max-w-sm text-sm text-muted-foreground">
-                    Tente buscar por outro nome, categoria ou status.
-                  </p>
-                  {filtrosAtivosProdutos ? (
-                    <Button type="button" variant="outline" size="sm" className="shadow-none" onClick={limparFiltrosProdutos}>
-                      Limpar filtros
-                    </Button>
-                  ) : null}
-                </div>
-              ) : categoriasVisiveis.map((categoria) => {
+            <div className="space-y-6">
+              {categoriasVisiveis.map((categoria) => {
                 const produtosCategoria = obterProdutosDaCategoria(categoria).filter(produtoPassaNosFiltros)
                 const categoriaExpandida = categoriasExpandidasProdutos.includes(categoria)
                 const produtosCategoriaExibidos = categoriaExpandida
                   ? produtosCategoria
                   : produtosCategoria.slice(0, LIMITE_INICIAL_PRODUTOS_CATEGORIA)
                 const totalOcultosNaCategoria = produtosCategoria.filter((produtoAtual) => !produtoAtual.disponivel).length
-                const totalSemFotoNaCategoria = produtosCategoria.filter((produtoAtual) => !produtoAtual.imagem_url).length
 
                 return (
-                  <Card key={categoria} className="min-w-0 overflow-hidden border-border/70 shadow-none">
-                    <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/50 p-3.5 sm:p-4">
-                      <div className="min-w-0">
-                        <CardTitle className="truncate text-base font-medium">{categoria}</CardTitle>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {produtosCategoria.length} itens
-                          {totalOcultosNaCategoria > 0 ? ` · ${totalOcultosNaCategoria} ocultos` : ''}
-                          {totalSemFotoNaCategoria > 0 ? ` · ${totalSemFotoNaCategoria} sem foto` : ''}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => abrirModalRenomearCategoria(categoria)}
-                          disabled={salvandoCategoria}
-                          className="size-9 shadow-none"
-                          title="Renomear categoria"
-                        >
-                          {salvandoCategoria && categoriaEmProcesso === categoria ? (
-                            <RefreshCw className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Pencil className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => excluirCategoriaSemApagarProdutos(categoria)}
-                          disabled={salvandoCategoria}
-                          className="size-9 text-destructive hover:text-destructive"
-                          title="Excluir categoria"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="grid min-w-0 gap-2 p-3 pt-0 sm:gap-3 sm:p-4 sm:pt-0 md:grid-cols-2 xl:grid-cols-3">
+                  <Secao
+                    key={categoria}
+                    titulo={categoria}
+                    descricao={`${produtosCategoria.length} ${produtosCategoria.length === 1 ? 'item' : 'itens'}${totalOcultosNaCategoria > 0 ? ` · ${totalOcultosNaCategoria} fora do cardápio` : ''}`}
+                    acao={
+                      <Botao
+                        variante="fantasma"
+                        tamanho="xs"
+                        className="h-11 md:h-8"
+                        onClick={() => abrirModalRenomearCategoria(categoria)}
+                        disabled={salvandoCategoria}
+                        carregando={salvandoCategoria && categoriaEmProcesso === categoria}
+                        aria-label={`Editar categoria ${categoria}`}
+                      >
+                        <Pencil />
+                        Categoria
+                      </Botao>
+                    }
+                  >
+                    <Lista>
                       {produtosCategoriaExibidos.map((produto) => (
-                          <motion.div
-                            key={produto.id}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="flex min-w-0 items-center gap-3 rounded-xl border border-border/70 bg-card p-2.5 sm:p-3"
+                        <li key={produto.id}>
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setProdutoEmEdicaoId(produto.id)}
+                            onKeyDown={(evento) => {
+                              if (evento.key === 'Enter') setProdutoEmEdicaoId(produto.id)
+                            }}
+                            aria-label={`Editar ${produto.nome}`}
+                            className={cn(
+                              'flex min-h-16 cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:px-4',
+                              !produto.disponivel && 'opacity-60',
+                            )}
                           >
-                            <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted sm:size-16">
+                            <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
                               {produto.imagem_url ? (
-                                <Image src={produto.imagem_url} alt={produto.nome} fill className="object-cover" />
+                                <Image src={produto.imagem_url} alt="" fill sizes="48px" className="object-cover" />
                               ) : (
-                                <div className="flex h-full w-full items-center justify-center">
-                                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                                <div className="flex size-full items-center justify-center">
+                                  <ImageIcon className="size-5 text-muted-foreground" />
                                 </div>
                               )}
                               {enviandoImagem === produto.id ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                  <RefreshCw className="size-4 animate-spin" />
                                 </div>
                               ) : null}
                             </div>
 
                             <div className="min-w-0 flex-1">
-                              <h3 className="truncate text-sm font-semibold leading-snug">{produto.nome}</h3>
-                              <p className="font-mono text-base font-semibold tabular-nums">
-                                R$ {produto.preco.toFixed(2)}
-                              </p>
-                              <div className="mt-1 flex flex-wrap items-center gap-1">
-                                <Badge
-                                  variant={produto.disponivel ? 'success' : 'secondary'}
-                                  className={produto.disponivel ? 'shrink-0' : 'shrink-0 text-muted-foreground'}
-                                >
-                                  {produto.disponivel ? 'Ativo' : 'Oculto'}
-                                </Badge>
+                              <p className="truncate font-medium text-foreground">{produto.nome}</p>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                <span className="text-sm font-medium tabular-nums text-primary">{formatarPreco(produto.preco)}</span>
                                 {produto.desconto && produto.desconto > 0 ? (
-                                  <Badge variant="warning" className="shrink-0">-{produto.desconto}%</Badge>
+                                  <Selo tom="alerta">-{produto.desconto}%</Selo>
                                 ) : null}
-                                {!produto.imagem_url ? (
-                                  <Badge variant="outline" className="shrink-0 text-muted-foreground">
-                                    sem foto
-                                  </Badge>
-                                ) : null}
-                                <Badge variant="outline" className="gap-1">
-                                  <Tag className="h-3 w-3" />
-                                  <span className="max-w-[7rem] truncate">
-                                    {produto.tabela === 'bebidas' ? 'Bebida' : produto.categoria}
-                                  </span>
-                                </Badge>
+                                {!produto.disponivel ? <Selo>Fora do cardápio</Selo> : null}
+                                {!produto.imagem_url ? <Selo>Sem foto</Selo> : null}
+                                {produto.tabela === 'bebidas' ? <Selo>Bebida</Selo> : null}
                               </div>
                             </div>
 
-                            <div className="flex shrink-0 items-center gap-1.5">
-                              {produto.tabela !== 'bebidas' ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => setProdutoHistoricoId(produto.id)}
-                                      className="size-9 shadow-none"
-                                      aria-label={`Histórico de ${produto.nome}`}
-                                    >
-                                      <History className="size-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Histórico do produto</TooltipContent>
-                                </Tooltip>
-                              ) : null}
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setProdutoEmEdicaoId(produto.id)}
-                                className="h-9 gap-1.5 shadow-none"
-                                aria-label={`Editar ${produto.nome}`}
+                            {produto.tabela !== 'bebidas' ? (
+                              <Botao
+                                variante="fantasma"
+                                tamanho="icone"
+                                className="size-11 shrink-0 text-muted-foreground"
+                                onClick={(evento) => {
+                                  evento.stopPropagation()
+                                  setProdutoHistoricoId(produto.id)
+                                }}
+                                onKeyDown={(evento) => evento.stopPropagation()}
+                                aria-label={`Histórico de ${produto.nome}`}
+                                title="Histórico do produto"
                               >
-                                <Pencil className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">Editar</span>
-                              </Button>
-                            </div>
-                          </motion.div>
-                        ))}
+                                <History />
+                              </Botao>
+                            ) : null}
+                          </div>
+                        </li>
+                      ))}
+                    </Lista>
 
-                      {produtosCategoria.length > LIMITE_INICIAL_PRODUTOS_CATEGORIA && (
-                        <div className="md:col-span-2 xl:col-span-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => alternarCategoriaExpandida(categoria)}
-                            className="w-full gap-2"
-                          >
-                            {categoriaExpandida ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                            {categoriaExpandida
-                              ? 'Mostrar menos'
-                              : `Mostrar mais ${produtosCategoria.length - LIMITE_INICIAL_PRODUTOS_CATEGORIA}`}
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                    {produtosCategoria.length > LIMITE_INICIAL_PRODUTOS_CATEGORIA && (
+                      <Botao
+                        variante="fantasma"
+                        className="h-11 w-full text-muted-foreground"
+                        onClick={() => alternarCategoriaExpandida(categoria)}
+                      >
+                        {categoriaExpandida ? <ChevronUp /> : <ChevronDown />}
+                        {categoriaExpandida
+                          ? 'Mostrar menos'
+                          : `Mostrar mais ${produtosCategoria.length - LIMITE_INICIAL_PRODUTOS_CATEGORIA}`}
+                      </Botao>
+                    )}
+                  </Secao>
                 )
               })}
             </div>
           )}
-        </div>
+        </Pagina>
 
         {/* Input oculto para seleção de arquivo */}
         <input
@@ -1944,24 +1736,22 @@ export default function ProdutosPage() {
           aria-hidden="true"
         />
 
-        {/* Modal de recorte de imagem */}
         <ModalRecorteImagem
           aberto={estadoRecorte.aberto}
           imagemUrl={estadoRecorte.imagemUrl}
           onFechar={() => setEstadoRecorte(prev => ({ ...prev, aberto: false }))}
           onConfirmar={enviarImagemRecortada}
           proporcaoInicial={1}
-          titulo="Ajustar Imagem do Produto"
+          titulo="Ajustar foto do produto"
         />
 
-        {/* Modal de recorte para novo produto */}
         <ModalRecorteImagem
           aberto={recorteNovoProduto}
           imagemUrl={imagemParaRecorte}
           onFechar={() => setRecorteNovoProduto(false)}
           onConfirmar={confirmarRecorteNovoProduto}
           proporcaoInicial={1}
-          titulo="Ajustar Imagem do Novo Produto"
+          titulo="Ajustar foto do produto"
         />
 
         <input
@@ -2033,91 +1823,193 @@ export default function ProdutosPage() {
           }}
         />
 
-        <Dialog open={modalRenomearCategoria.aberto} onOpenChange={(aberto) => {
-          if (!aberto) fecharModalRenomearCategoria()
-        }}>
-          <DialogContent className="flex max-h-[92dvh] max-w-md flex-col gap-0 overflow-hidden p-0">
-            <DialogHeader className="shrink-0 space-y-1 border-b border-border/60 px-5 pb-4 pt-5 pr-12 text-left">
-              <DialogTitle className="text-[15px] font-semibold tracking-tight">Renomear categoria</DialogTitle>
-              <DialogDescription className="text-[13px] text-muted-foreground">
-                Atualize o nome da categoria sem apagar os produtos vinculados.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-              <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm">
-                Atual: <span className="font-semibold">{modalRenomearCategoria.categoriaAtual}</span>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="renomear-categoria">Novo nome</Label>
-                <Input
-                  id="renomear-categoria"
-                  value={modalRenomearCategoria.novoNome}
-                  onChange={(evento) =>
-                    setModalRenomearCategoria((estadoAtual) => ({ ...estadoAtual, novoNome: evento.target.value }))
-                  }
-                  onKeyDown={(evento) => {
-                    if (evento.key === 'Enter') {
-                      evento.preventDefault()
-                      salvarRenomeacaoCategoria()
-                    }
-                  }}
-                  placeholder="Novo nome da categoria"
-                  className="h-11 border-border/70 shadow-none"
-                  autoFocus
-                />
-              </div>
+        <Gaveta
+          aberto={secaoOrdenacaoAberta}
+          aoFechar={fecharGavetaOrganizar}
+          largura="lg"
+          bloqueada={salvandoOrdenacaoManual}
+          titulo="Organizar cardápio"
+          descricao="Escolha a ordem em que o cliente vê categorias e produtos."
+          cabecalho={
+            <div className="flex items-center gap-3">
+              <Segmentos<TipoOrdenacaoProdutosSite>
+                rotuloAcessivel="Ordem do cardápio"
+                valor={tipoOrdenacaoSite}
+                aoMudar={(valor) => void alterarModoOrdenacaoSite(valor)}
+                opcoes={[
+                  { valor: 'manual', rotulo: 'Do meu jeito' },
+                  { valor: 'preco_crescente', rotulo: 'Mais barato primeiro' },
+                  { valor: 'preco_decrescente', rotulo: 'Mais caro primeiro' },
+                ]}
+              />
+              {salvandoConfiguracaoOrdenacao ? (
+                <RefreshCw className="size-4 shrink-0 animate-spin text-muted-foreground" aria-label="Salvando" />
+              ) : null}
             </div>
-
-            <DialogFooter className="gap-2 border-t border-border/60 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-4">
-              <Button
-                variant="outline"
-                className="h-11 w-full shadow-none sm:w-auto"
-                onClick={fecharModalRenomearCategoria}
-                disabled={salvandoCategoria}
-              >
-                Cancelar
-              </Button>
-              <Button
-                className="h-11 w-full gap-2 shadow-none sm:w-auto"
-                onClick={salvarRenomeacaoCategoria}
-                disabled={salvandoCategoria}
-              >
-                {salvandoCategoria ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Salvar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <AlertDialog
-          open={modalNotificacao.aberto && modalNotificacao.tipo === 'confirmacao'}
-          onOpenChange={(aberto) => {
-            if (!aberto) {
-              setModalNotificacao((estadoAtual) => ({ ...estadoAtual, aberto: false }))
-            }
-          }}
+          }
+          rodape={
+            tipoOrdenacaoSite === 'manual' ? (
+              <>
+                <Botao variante="contorno" onClick={fecharGavetaOrganizar} disabled={salvandoOrdenacaoManual}>
+                  Fechar
+                </Botao>
+                <Botao
+                  onClick={() => void salvarOrdenacaoManual()}
+                  disabled={!possuiMudancasNaOrdenacaoManual}
+                  carregando={salvandoOrdenacaoManual}
+                >
+                  Salvar ordem
+                </Botao>
+              </>
+            ) : (
+              <Botao variante="contorno" onClick={fecharGavetaOrganizar}>
+                Fechar
+              </Botao>
+            )
+          }
         >
-          <AlertDialogContent className="rounded-xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle>{modalNotificacao.titulo}</AlertDialogTitle>
-              <AlertDialogDescription>{modalNotificacao.mensagem}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
+          {tipoOrdenacaoSite === 'manual' ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Segure a alça <GripVertical className="inline size-4 align-text-bottom" /> e arraste. Nada muda no site até você tocar em Salvar ordem.
+              </p>
+              <Reorder.Group axis="y" values={categorias} onReorder={aoReordenarCategorias} className="space-y-3">
+                {categorias.map((categoria) => (
+                  <CategoriaOrdenavel
+                    key={categoria}
+                    categoria={categoria}
+                    idsProdutos={obterIdsOrdenadosDaCategoria(categoria)}
+                    produtosPorId={produtosPorId}
+                    aoReordenarProdutos={(novaOrdemIds) => aoReordenarProdutosDaCategoria(categoria, novaOrdemIds)}
+                  />
+                ))}
+              </Reorder.Group>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {tipoOrdenacaoSite === 'preco_crescente'
+                ? 'O cardápio mostra os produtos do mais barato para o mais caro em cada categoria.'
+                : 'O cardápio mostra os produtos do mais caro para o mais barato em cada categoria.'}{' '}
+              Para arrastar na ordem que quiser, escolha &quot;Do meu jeito&quot;.
+            </p>
+          )}
+        </Gaveta>
+
+        <Gaveta
+          aberto={modalRenomearCategoria.aberto}
+          aoFechar={fecharModalRenomearCategoria}
+          bloqueada={salvandoCategoria}
+          titulo="Editar categoria"
+          descricao="Os produtos continuam nela com o novo nome."
+          rodape={
+            <>
+              <Botao
+                variante="perigoSuave"
+                className="md:mr-auto"
+                disabled={salvandoCategoria}
                 onClick={() => {
-                  const confirmar = modalNotificacao.onConfirmar
-                  setModalNotificacao((estadoAtual) => ({ ...estadoAtual, aberto: false }))
-                  confirmar?.()
+                  const categoria = modalRenomearCategoria.categoriaAtual
+                  fecharModalRenomearCategoria()
+                  excluirCategoriaSemApagarProdutos(categoria)
                 }}
               >
-                Confirmar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                Excluir
+              </Botao>
+              <Botao carregando={salvandoCategoria} onClick={() => void salvarRenomeacaoCategoria()}>
+                Salvar
+              </Botao>
+            </>
+          }
+        >
+          <form
+            onSubmit={(evento) => {
+              evento.preventDefault()
+              void salvarRenomeacaoCategoria()
+            }}
+          >
+            <Campo rotulo="Nome da categoria" htmlFor="renomear-categoria" ajuda={`Nome atual: ${modalRenomearCategoria.categoriaAtual}`}>
+              <Entrada
+                id="renomear-categoria"
+                value={modalRenomearCategoria.novoNome}
+                onChange={(evento) =>
+                  setModalRenomearCategoria((estadoAtual) => ({ ...estadoAtual, novoNome: evento.target.value }))
+                }
+                placeholder="Ex.: Lanches"
+                autoComplete="off"
+              />
+            </Campo>
+            <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+          </form>
+        </Gaveta>
       </AdminLayout>
     </ProtectedRoute>
+  )
+}
+
+function AlcaArrasto({ controles, rotulo }: { controles: DragControls; rotulo: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={rotulo}
+      onPointerDown={(evento) => controles.start(evento)}
+      className="flex size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground hover:bg-accent active:cursor-grabbing"
+    >
+      <GripVertical className="size-5" />
+    </button>
+  )
+}
+
+function ProdutoOrdenavel({ produto }: { produto: Produto }) {
+  const controles = useDragControls()
+  return (
+    <Reorder.Item
+      value={produto.id}
+      as="li"
+      dragListener={false}
+      dragControls={controles}
+      className="flex items-center gap-1 bg-card pr-3"
+    >
+      <AlcaArrasto controles={controles} rotulo={`Arrastar ${produto.nome}`} />
+      <span className="min-w-0 flex-1 truncate text-sm text-foreground">{produto.nome}</span>
+      <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{formatarPreco(produto.preco)}</span>
+    </Reorder.Item>
+  )
+}
+
+function CategoriaOrdenavel({
+  categoria,
+  idsProdutos,
+  produtosPorId,
+  aoReordenarProdutos,
+}: {
+  categoria: string
+  idsProdutos: string[]
+  produtosPorId: Map<string, Produto>
+  aoReordenarProdutos: (ids: string[]) => void
+}) {
+  const controles = useDragControls()
+  return (
+    <Reorder.Item value={categoria} as="div" dragListener={false} dragControls={controles}>
+      <Cartao className="overflow-hidden">
+        <div className="flex items-center gap-1 border-b border-border/70 pr-3">
+          <AlcaArrasto controles={controles} rotulo={`Arrastar categoria ${categoria}`} />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{categoria}</span>
+          <Selo>{idsProdutos.length}</Selo>
+        </div>
+        <Reorder.Group
+          axis="y"
+          as="ul"
+          values={idsProdutos}
+          onReorder={aoReordenarProdutos}
+          className="divide-y divide-border/70"
+        >
+          {idsProdutos.map((idProduto) => {
+            const produtoAtual = produtosPorId.get(idProduto)
+            if (!produtoAtual || produtoAtual.categoria !== categoria) return null
+            return <ProdutoOrdenavel key={idProduto} produto={produtoAtual} />
+          })}
+        </Reorder.Group>
+      </Cartao>
+    </Reorder.Item>
   )
 }

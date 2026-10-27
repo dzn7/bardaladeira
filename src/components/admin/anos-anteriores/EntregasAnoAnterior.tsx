@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
-import { Search, Truck, MapPin, Clock, CheckCircle, Filter, ChevronDown, ChevronUp } from 'lucide-react'
+import { MagnifyingGlass as Search, Truck, Funnel as Filter } from '@phosphor-icons/react'
+import { Botao, Campo, Cartao, Entrada, Gaveta, Lista, ListaVazia, Segmentos, Selecao, Selo } from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 import type { EntregaHistorico } from '@/lib/tipos-anos-anteriores'
 
 type EntregasAnoAnteriorProps = {
@@ -29,20 +30,20 @@ const formatarDataHora = (data: string | undefined): string => {
   })
 }
 
-const getCorStatus = (status: string) => {
+const tomStatus = (status: string): 'neutro' | 'primario' | 'sucesso' | 'alerta' | 'perigo' => {
   switch (status?.toLowerCase()) {
     case 'pendente':
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+      return 'alerta'
     case 'em_transito':
     case 'em transito':
     case 'em trânsito':
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+      return 'primario'
     case 'entregue':
-      return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+      return 'sucesso'
     case 'cancelada':
-      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+      return 'perigo'
     default:
-      return 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800/20 dark:text-zinc-400'
+      return 'neutro'
   }
 }
 
@@ -51,7 +52,7 @@ const formatarStatus = (status: string): string => {
     case 'pendente': return 'Pendente'
     case 'em_transito':
     case 'em transito':
-    case 'em trânsito': return 'Em Trânsito'
+    case 'em trânsito': return 'Em trânsito'
     case 'entregue': return 'Entregue'
     case 'cancelada': return 'Cancelada'
     default: return status || 'Desconhecido'
@@ -109,256 +110,194 @@ export default function EntregasAnoAnterior({ entregas, ano }: EntregasAnoAnteri
     return { total, entregues, totalTaxas, tempoMedio }
   }, [entregas])
 
+  const filtrosAtivos = (filtroStatus !== 'todos' ? 1 : 0) + (filtroBairro !== 'todos' ? 1 : 0)
+  const kpis = [
+    { rotulo: 'Entregas', valor: String(estatisticas.total) },
+    { rotulo: 'Concluídas', valor: String(estatisticas.entregues) },
+    { rotulo: 'Total em taxas', valor: `R$ ${formatarMoeda(estatisticas.totalTaxas)}` },
+    { rotulo: 'Tempo médio', valor: estatisticas.tempoMedio > 0 ? `${Math.round(estatisticas.tempoMedio)} min` : '–' },
+  ]
+
   return (
-    <div className="space-y-6">
-      {/* Cards de estatísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <Truck className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-white">{estatisticas.total}</p>
-              <p className="text-xs text-zinc-500">Total de Entregas</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-white">{estatisticas.entregues}</p>
-              <p className="text-xs text-zinc-500">Concluídas</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-              <MapPin className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-amber-600">R$ {formatarMoeda(estatisticas.totalTaxas)}</p>
-              <p className="text-xs text-zinc-500">Total em Taxas</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-              <Clock className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-white">
-                {estatisticas.tempoMedio > 0 ? `${Math.round(estatisticas.tempoMedio)} min` : '-'}
-              </p>
-              <p className="text-xs text-zinc-500">Tempo Médio</p>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Barra de busca e filtros */}
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Buscar por endereço, bairro, entregador..."
-              value={busca}
-              onChange={(e) => {
-                setBusca(e.target.value)
-                setPaginaAtual(1)
-              }}
-              className="w-full pl-10 pr-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 
-                       dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white"
-            />
-          </div>
-          <button
-            onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 
-                     text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700"
+    <div className="space-y-4">
+      <Cartao className="grid grid-cols-2 md:grid-cols-4">
+        {kpis.map((kpi, indice) => (
+          <div
+            key={kpi.rotulo}
+            className={cn(
+              'min-w-0 px-4 py-3.5 md:px-5 md:py-4',
+              indice % 2 === 1 && 'border-l border-border/70',
+              indice >= 2 && 'border-t border-border/70 md:border-t-0',
+              indice === 2 && 'md:border-l',
+            )}
           >
-            <Filter className="w-4 h-4" />
-            Filtros
-            {mostrarFiltros ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-        </div>
-
-        {mostrarFiltros && (
-          <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Status
-              </label>
-              <select
-                value={filtroStatus}
-                onChange={(e) => {
-                  setFiltroStatus(e.target.value)
-                  setPaginaAtual(1)
-                }}
-                className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 
-                         dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white"
-              >
-                <option value="todos">Todos</option>
-                <option value="pendente">Pendente</option>
-                <option value="em_transito">Em Trânsito</option>
-                <option value="entregue">Entregue</option>
-                <option value="cancelada">Cancelada</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Bairro
-              </label>
-              <select
-                value={filtroBairro}
-                onChange={(e) => {
-                  setFiltroBairro(e.target.value)
-                  setPaginaAtual(1)
-                }}
-                className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 
-                         dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white"
-              >
-                <option value="todos">Todos os bairros</option>
-                {bairrosUnicos.map(bairro => (
-                  <option key={bairro} value={bairro}>{bairro}</option>
-                ))}
-              </select>
-            </div>
+            <p className="truncate text-[13px] text-muted-foreground">{kpi.rotulo}</p>
+            <p className="mt-1 truncate text-lg font-semibold tabular-nums tracking-tight text-foreground md:text-xl">
+              {kpi.valor}
+            </p>
           </div>
-        )}
+        ))}
+      </Cartao>
 
-        <div className="mt-4 flex items-center justify-between text-sm text-zinc-500">
-          <span>{entregasFiltradas.length} entregas encontradas</span>
-          <span>Ano: {ano}</span>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Entrada
+            type="search"
+            placeholder="Buscar por endereço, bairro ou entregador"
+            aria-label="Buscar entrega"
+            value={busca}
+            onChange={(e) => {
+              setBusca(e.target.value)
+              setPaginaAtual(1)
+            }}
+            className="pl-9"
+          />
         </div>
+        <Botao
+          variante="contorno"
+          className="h-11 md:h-10"
+          onClick={() => setMostrarFiltros(true)}
+          aria-label={filtrosAtivos ? `Filtros (${filtrosAtivos} ativos)` : 'Filtros'}
+        >
+          <Filter />
+          <span className="hidden sm:inline">Filtros</span>
+          {filtrosAtivos > 0 && <Selo tom="primario">{filtrosAtivos}</Selo>}
+        </Botao>
       </div>
 
-      {/* Lista de entregas */}
+      <p className="px-1 text-sm text-muted-foreground">
+        {entregasFiltradas.length} {entregasFiltradas.length === 1 ? 'entrega' : 'entregas'} em {ano}
+      </p>
+
       {entregasFiltradas.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-12 text-center">
-          <Truck className="w-16 h-16 mx-auto text-zinc-300 dark:text-zinc-700 mb-4" />
-          <p className="text-zinc-500 dark:text-zinc-400">Nenhuma entrega encontrada</p>
-        </div>
+        <ListaVazia
+          icone={<Truck />}
+          titulo="Nenhuma entrega encontrada"
+          descricao={busca || filtrosAtivos ? 'Tente outra busca ou limpe os filtros.' : undefined}
+          acao={
+            busca || filtrosAtivos ? (
+              <Botao
+                variante="contorno"
+                onClick={() => {
+                  setBusca('')
+                  setFiltroStatus('todos')
+                  setFiltroBairro('todos')
+                  setPaginaAtual(1)
+                }}
+              >
+                Limpar busca e filtros
+              </Botao>
+            ) : undefined
+          }
+        />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {entregasPaginadas.map((entrega, index) => (
-            <motion.div
-              key={entrega.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03 }}
-              className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                    <Truck className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      #{entrega.pedido_id?.slice(0, 8).toUpperCase()}
-                    </p>
-                    {entrega.entregador_nome && (
-                      <p className="text-sm font-medium text-zinc-900 dark:text-white">
-                        {entrega.entregador_nome}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCorStatus(entrega.status)}`}>
-                  {formatarStatus(entrega.status)}
-                </span>
-              </div>
-
-              {entrega.endereco_entrega && (
-                <div className="mb-3">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Endereço:</p>
-                  <p className="text-sm text-zinc-700 dark:text-zinc-300 line-clamp-2">
-                    {entrega.endereco_entrega}
+        <Lista>
+          {entregasPaginadas.map((entrega) => (
+            <li key={entrega.id} className="flex items-start gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="truncate font-medium text-foreground">
+                    {entrega.bairro || entrega.endereco_entrega || `Pedido #${entrega.pedido_id?.slice(0, 8).toUpperCase()}`}
                   </p>
+                  <Selo tom={tomStatus(entrega.status)}>{formatarStatus(entrega.status)}</Selo>
                 </div>
-              )}
-
-              <div className="flex flex-wrap gap-2 mb-3">
-                {entrega.bairro && (
-                  <span className="px-2 py-1 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {entrega.bairro}
-                  </span>
+                {entrega.endereco_entrega && entrega.bairro && (
+                  <p className="mt-0.5 line-clamp-2 text-[13px] text-muted-foreground">{entrega.endereco_entrega}</p>
                 )}
-                {entrega.tempo_real && (
-                  <span className="px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {entrega.tempo_real} min
-                  </span>
-                )}
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
+                  <span className="tabular-nums">{formatarDataHora(entrega.created_at)}</span>
+                  {entrega.entregador_nome && (<><span aria-hidden>·</span><span>{entrega.entregador_nome}</span></>)}
+                  {entrega.tempo_real && (<><span aria-hidden>·</span><span className="tabular-nums">{entrega.tempo_real} min</span></>)}
+                </p>
               </div>
-
-              <div className="pt-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                <span className="text-xs text-zinc-500">{formatarDataHora(entrega.created_at)}</span>
-                <span className="text-sm font-bold text-amber-600">
-                  R$ {formatarMoeda(entrega.taxa_entrega)}
-                </span>
-              </div>
-            </motion.div>
+              <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                R$ {formatarMoeda(entrega.taxa_entrega)}
+              </span>
+            </li>
           ))}
-        </div>
+        </Lista>
       )}
 
-      {/* Paginação */}
       {totalPaginas > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          <button
+        <div className="flex items-center justify-between gap-2 pt-2">
+          <Botao
+            variante="contorno"
+            className="h-11 md:h-10"
             onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
             disabled={paginaAtual === 1}
-            className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 
-                     rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 
-                     disabled:cursor-not-allowed transition-colors"
           >
             Anterior
-          </button>
-          <span className="px-4 py-2 text-zinc-600 dark:text-zinc-400">
+          </Botao>
+          <span className="text-sm tabular-nums text-muted-foreground">
             Página {paginaAtual} de {totalPaginas}
           </span>
-          <button
+          <Botao
+            variante="contorno"
+            className="h-11 md:h-10"
             onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
             disabled={paginaAtual === totalPaginas}
-            className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 
-                     rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 
-                     disabled:cursor-not-allowed transition-colors"
           >
             Próxima
-          </button>
+          </Botao>
         </div>
       )}
+
+      <Gaveta
+        aberto={mostrarFiltros}
+        aoFechar={() => setMostrarFiltros(false)}
+        titulo="Filtrar entregas"
+        rodape={
+          <>
+            <Botao
+              variante="contorno"
+              onClick={() => {
+                setFiltroStatus('todos')
+                setFiltroBairro('todos')
+                setPaginaAtual(1)
+              }}
+            >
+              Limpar
+            </Botao>
+            <Botao onClick={() => setMostrarFiltros(false)}>Ver {entregasFiltradas.length} entregas</Botao>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Campo rotulo="Situação">
+            <Segmentos
+              opcoes={[
+                { valor: 'todos', rotulo: 'Todas' },
+                { valor: 'pendente', rotulo: 'Pendente' },
+                { valor: 'em_transito', rotulo: 'Em trânsito' },
+                { valor: 'entregue', rotulo: 'Entregue' },
+                { valor: 'cancelada', rotulo: 'Cancelada' },
+              ]}
+              valor={filtroStatus}
+              aoMudar={(valor) => {
+                setFiltroStatus(valor)
+                setPaginaAtual(1)
+              }}
+              rotuloAcessivel="Situação da entrega"
+            />
+          </Campo>
+          <Campo rotulo="Bairro" htmlFor="entregas-ano-bairro">
+            <Selecao
+              id="entregas-ano-bairro"
+              value={filtroBairro}
+              onChange={(e) => {
+                setFiltroBairro(e.target.value)
+                setPaginaAtual(1)
+              }}
+            >
+              <option value="todos">Todos os bairros</option>
+              {bairrosUnicos.map(bairro => (
+                <option key={bairro} value={bairro}>{bairro}</option>
+              ))}
+            </Selecao>
+          </Campo>
+        </div>
+      </Gaveta>
     </div>
   )
 }

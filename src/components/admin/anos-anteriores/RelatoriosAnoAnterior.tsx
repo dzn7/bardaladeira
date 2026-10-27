@@ -1,15 +1,7 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import {
-  BarChart3,
-  TrendingUp,
-  Clock,
-  Banknote,
-  CreditCard,
-  Smartphone,
-  Wallet
-} from 'lucide-react'
+import { Money as Banknote, CreditCard, DeviceMobile as Smartphone, Wallet } from '@phosphor-icons/react'
+import { Cartao, ListaVazia, Secao } from '@/components/admin/ui'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -89,18 +81,14 @@ export default function RelatoriosAnoAnterior({
   // Limitar vendas por dia aos últimos 30 registros para não sobrecarregar o gráfico
   const vendasLimitadas = vendasPorDia.slice(-30)
 
+  if (!vendasPorDia.length && !produtosMaisVendidos.length && !faturamentoPorPagamento.length) {
+    return <ListaVazia icone={<Wallet />} titulo={`Nenhuma venda registrada em ${ano}`} />
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Gráfico de Vendas por Dia */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-      >
-        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-amber-600" />
-          Vendas por Dia - {ano}
-        </h3>
+    <div className="space-y-5">
+      <Secao titulo="Vendas por dia">
+        <Cartao className="p-4 md:p-5">
         <div className="h-72">
           <Line
             data={{
@@ -136,20 +124,12 @@ export default function RelatoriosAnoAnterior({
             }}
           />
         </div>
-      </motion.div>
+        </Cartao>
+        </Secao>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Produtos mais vendidos */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-        >
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-600" />
-            Produtos Mais Vendidos - {ano}
-          </h3>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Secao titulo="Produtos mais vendidos">
+          <Cartao className="p-4 md:p-5">
           <div className="h-64">
             <Bar
               data={{
@@ -171,19 +151,12 @@ export default function RelatoriosAnoAnterior({
               }}
             />
           </div>
-        </motion.div>
+          </Cartao>
+        </Secao>
 
-        {/* Vendas por Categoria */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-        >
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-amber-600" />
-            Vendas por Categoria - {ano}
-          </h3>
+        <Secao titulo="Vendas por categoria">
+
+          <Cartao className="p-4 md:p-5">
           <div className="h-64">
             <Doughnut
               data={{
@@ -198,7 +171,7 @@ export default function RelatoriosAnoAnterior({
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                  legend: { position: 'right' },
+                  legend: { position: 'bottom' },
                   tooltip: {
                     callbacks: {
                       label: (ctx) => `R$ ${formatarMoeda(ctx.raw as number)}`
@@ -208,21 +181,13 @@ export default function RelatoriosAnoAnterior({
               }}
             />
           </div>
-        </motion.div>
+          </Cartao>
+        </Secao>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Horários de Pico */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-        >
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-purple-600" />
-            Horários de Pico - {ano}
-          </h3>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Secao titulo="Horários de mais movimento">
+          <Cartao className="p-4 md:p-5">
           <div className="h-64">
             <Bar
               data={{
@@ -243,19 +208,12 @@ export default function RelatoriosAnoAnterior({
               }}
             />
           </div>
-        </motion.div>
+          </Cartao>
+        </Secao>
 
-        {/* Faturamento por Forma de Pagamento */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-        >
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-green-600" />
-            Faturamento por Pagamento - {ano}
-          </h3>
+        <Secao titulo="Vendas por forma de pagamento">
+
+          <Cartao className="p-4 md:p-5">
           <div className="space-y-3">
             {faturamentoPorPagamento.map((pagamento, index) => {
               const config = CORES_PAGAMENTO[pagamento.forma] || { cor: 'rgba(156, 163, 175, 0.8)', icone: Banknote }
@@ -264,18 +222,15 @@ export default function RelatoriosAnoAnterior({
               const percentual = totalGeral > 0 ? (pagamento.total / totalGeral) * 100 : 0
 
               return (
-                <div key={pagamento.forma} className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center"
-                       style={{ backgroundColor: config.cor.replace('0.8', '0.2') }}>
-                    <Icone className="w-5 h-5" style={{ color: config.cor.replace('0.8', '1') }} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-zinc-900 dark:text-white">{pagamento.forma}</span>
-                      <span className="text-sm text-zinc-500">{pagamento.quantidade} pedidos</span>
+                <div key={pagamento.forma} className="flex items-center gap-3">
+                  <Icone className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-foreground">{pagamento.forma}</span>
+                      <span className="shrink-0 text-[13px] text-muted-foreground">{pagamento.quantidade} {pagamento.quantidade === 1 ? 'pedido' : 'pedidos'}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full rounded-full"
                           style={{
@@ -284,7 +239,7 @@ export default function RelatoriosAnoAnterior({
                           }}
                         />
                       </div>
-                      <span className="text-sm font-medium text-amber-600 dark:text-amber-400 w-24 text-right">
+                      <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
                         R$ {formatarMoeda(pagamento.total)}
                       </span>
                     </div>
@@ -293,7 +248,8 @@ export default function RelatoriosAnoAnterior({
               )
             })}
           </div>
-        </motion.div>
+          </Cartao>
+        </Secao>
       </div>
     </div>
   )

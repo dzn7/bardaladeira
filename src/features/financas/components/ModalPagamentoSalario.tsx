@@ -1,7 +1,7 @@
 'use client'
 
 import { useId, useMemo, useState, type ReactNode } from 'react'
-import { Users } from 'lucide-react'
+import { Users } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

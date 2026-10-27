@@ -1,8 +1,7 @@
 'use client'
 
-import { CalendarDays, CreditCard, ListFilter } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { CalendarDots as CalendarDays, CreditCard, FunnelSimple as ListFilter } from '@phosphor-icons/react'
+import { Campo, Entrada } from '@/components/admin/ui'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
 import { FiltroAvancado } from '@/components/admin/filtros/FiltroAvancado'
@@ -203,7 +202,7 @@ export const FiltroPedidosAdmin = ({
           conteudo: (
             <div className="space-y-4 pr-1">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground">Atalhos</Label>
+                <p className="text-sm font-medium text-foreground">Atalhos</p>
                 <ToggleGroup
                   type="single"
                   value={valorTogglePeriodo}
@@ -218,42 +217,32 @@ export const FiltroPedidosAdmin = ({
                     <ToggleGroupItem
                       key={atalho.valor}
                       value={atalho.valor}
-                      className={cn(CHIP_FILTRO_DEFAULT, 'h-8')}
+                      className={cn(CHIP_FILTRO_DEFAULT, 'h-10')}
                     >
                       {atalho.label}
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="pedidos-data-inicio" className="text-sm font-medium">
-                  Data inicial
-                </Label>
-                <Input
-                  id="pedidos-data-inicio"
-                  type="date"
-                  value={valor.dataInicio}
-                  max={valor.dataFim}
-                  onChange={(e) =>
-                    onChange({ periodo: 'personalizado', dataInicio: e.target.value })
-                  }
-                  className="h-10 border-border/70 shadow-none"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pedidos-data-fim" className="text-sm font-medium">
-                  Data final
-                </Label>
-                <Input
-                  id="pedidos-data-fim"
-                  type="date"
-                  value={valor.dataFim}
-                  min={valor.dataInicio}
-                  onChange={(e) =>
-                    onChange({ periodo: 'personalizado', dataFim: e.target.value })
-                  }
-                  className="h-10 border-border/70 shadow-none"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <Campo rotulo="De" htmlFor="pedidos-data-inicio">
+                  <Entrada
+                    id="pedidos-data-inicio"
+                    type="date"
+                    value={valor.dataInicio}
+                    max={valor.dataFim}
+                    onChange={(e) => onChange({ periodo: 'personalizado', dataInicio: e.target.value })}
+                  />
+                </Campo>
+                <Campo rotulo="Até" htmlFor="pedidos-data-fim">
+                  <Entrada
+                    id="pedidos-data-fim"
+                    type="date"
+                    value={valor.dataFim}
+                    min={valor.dataInicio}
+                    onChange={(e) => onChange({ periodo: 'personalizado', dataFim: e.target.value })}
+                  />
+                </Campo>
               </div>
             </div>
           ),

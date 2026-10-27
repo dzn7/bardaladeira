@@ -1,6 +1,5 @@
-import type { LucideIcon } from 'lucide-react'
-import { Banknote, CreditCard, Smartphone, Wallet } from 'lucide-react'
-
+import { type Icon } from '@phosphor-icons/react'
+import { Money as Banknote, CreditCard, DeviceMobile as Smartphone, Wallet } from '@phosphor-icons/react/dist/ssr'
 export type CanalResumo = { total: number; quantidade: number }
 
 export type PagamentoResumo = { forma: string; total: number; quantidade: number }
@@ -76,7 +75,7 @@ export type DadosDiarios = {
 
 export type FormaPagamentoConfig = {
   nome: string
-  icone: LucideIcon
+  icone: Icon
   chartCor: string
 }
 

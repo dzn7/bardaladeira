@@ -1,18 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Edit, Eye, Trash2, Wallet, XCircle } from 'lucide-react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
+import { ArrowDownLeft, ArrowUpRight, PencilSimple as Edit, Eye, Trash as Trash2, Wallet } from '@phosphor-icons/react'
+import { Selo, useConfirmar } from '@/components/admin/ui'
 import { MenuAcoes } from '@/components/ui/menu-acoes'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
@@ -41,8 +31,7 @@ export function ListaMovimentacoes({
   onVisualizar,
   embutido = false,
 }: ListaMovimentacoesProps) {
-  const [confirmacao, setConfirmacao] = useState<MovimentacaoCaixa | null>(null)
-  const [removendo, setRemovendo] = useState(false)
+  const confirmar = useConfirmar()
   const [pagina, setPagina] = useState(1)
   const [limite, setLimite] = useState(LIMITE_PADRAO)
 
@@ -61,15 +50,23 @@ export function ListaMovimentacoes({
     return movimentacoes.slice(inicio, inicio + limite)
   }, [movimentacoes, pagina, limite])
 
-  const handleConfirmarRemocao = async () => {
-    if (!confirmacao) return
-    setRemovendo(true)
-    try {
-      await onRemover(confirmacao.id)
-      setConfirmacao(null)
-    } finally {
-      setRemovendo(false)
-    }
+  const pedirRemocao = async (m: MovimentacaoCaixa) => {
+    const ok = await confirmar({
+      titulo: 'Excluir lançamento?',
+      descricao: (
+        <>
+          <span className="block font-medium text-foreground">
+            {m.descricao || (m.tipo === 'entrada' ? 'Receita' : 'Despesa')} · {formatarMoeda(m.valor)}
+          </span>
+          {m.pedido_id
+            ? 'Sai só o registro do caixa. O pedido continua.'
+            : 'O registro sai do caixa. Não dá para desfazer.'}
+        </>
+      ),
+      confirmar: 'Excluir',
+      perigo: true,
+    })
+    if (ok) await onRemover(m.id)
   }
 
   const handleLimiteChange = (qtd: number) => {
@@ -84,23 +81,23 @@ export function ListaMovimentacoes({
       ) : movimentacoes.length === 0 ? (
         <ListaVazia
           className="border-0 bg-transparent py-10"
-          icone={<Wallet className="h-6 w-6" strokeWidth={1.6} />}
+          icone={<Wallet className="h-6 w-6" />}
           titulo="Nenhum lançamento neste período"
-          descricao="Use Receitas ou Despesas acima para registrar movimentos manuais do caixa."
+          descricao="Use Receitas ou Despesas, no topo, para lançar entradas e saídas."
         />
       ) : (
         <>
-          <div className="flex flex-col gap-3 px-3 md:hidden">
+          <ul className="divide-y divide-border/70 md:hidden">
             {paginaItens.map((m) => (
               <CardMovimentacaoFinancas
                 key={m.id}
                 movimentacao={m}
                 onVisualizar={onVisualizar}
                 onEditar={onEditar}
-                onRemover={setConfirmacao}
+                onRemover={(m) => void pedirRemocao(m)}
               />
             ))}
-          </div>
+          </ul>
 
           <div className="hidden overflow-x-auto md:block">
             <Table>
@@ -129,20 +126,11 @@ export function ListaMovimentacoes({
                       onClick={() => onVisualizar?.(m)}
                     >
                       <TableCell className="relative py-3 pl-3">
-                        <div
-                          className={cn(
-                            'flex h-12 items-center border-l-4',
-                            entrada ? 'border-emerald-500' : 'border-rose-500',
-                          )}
-                        >
-                          <span className="pl-3">
-                            {entrada ? (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-label="Receita" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-rose-500" aria-label="Despesa" />
-                            )}
-                          </span>
-                        </div>
+                        {entrada ? (
+                          <ArrowDownLeft className="size-4 text-emerald-600 dark:text-emerald-400" aria-label="Receita" />
+                        ) : (
+                          <ArrowUpRight className="size-4 text-rose-600 dark:text-rose-400" aria-label="Despesa" />
+                        )}
                       </TableCell>
                       <TableCell className="max-w-[280px] py-3">
                         <span className="block truncate text-sm text-foreground">
@@ -154,21 +142,7 @@ export function ListaMovimentacoes({
                       </TableCell>
                       <TableCell className="py-3">
                         <div className="flex w-full justify-center">
-                          {syncPedido ? (
-                            <Badge
-                              variant="secondary"
-                              className="rounded-full border border-emerald-200 bg-emerald-50 font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                            >
-                              Pedido
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="rounded-full border-border/70 bg-background/50 font-medium text-foreground"
-                            >
-                              Manual
-                            </Badge>
-                          )}
+                          <Selo tom={syncPedido ? 'primario' : 'neutro'}>{syncPedido ? 'Pedido' : 'Manual'}</Selo>
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap py-3 text-xs tabular-nums text-muted-foreground">
@@ -218,7 +192,7 @@ export function ListaMovimentacoes({
                               key: 'excluir',
                               label: 'Excluir',
                               icon: <Trash2 className="h-3.5 w-3.5" />,
-                              onSelect: () => setConfirmacao(m),
+                              onSelect: () => void pedirRemocao(m),
                               variant: 'destructive' as const,
                               separatorBefore: true,
                             },
@@ -254,7 +228,7 @@ export function ListaMovimentacoes({
         <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
           <div className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-3.5">
             <div>
-              <h3 className="text-base font-semibold tracking-tight text-foreground">Movimentações do período</h3>
+              <h3 className="text-base font-semibold text-foreground">Lançamentos do período</h3>
               <p className="text-xs text-muted-foreground">{movimentacoes.length} lançamentos.</p>
             </div>
           </div>
@@ -262,39 +236,6 @@ export function ListaMovimentacoes({
         </div>
       )}
 
-      <AlertDialog open={!!confirmacao} onOpenChange={(o) => !o && setConfirmacao(null)}>
-        <AlertDialogContent className="rounded-xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-base font-semibold tracking-tight">Excluir lançamento?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-muted-foreground">
-              {confirmacao?.pedido_id
-                ? 'Isso remove só o registro sincronizado do caixa. O pedido original permanece.'
-                : 'Essa ação remove permanentemente o registro do caixa.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="rounded-lg border border-border/70 bg-muted/30 p-3 text-sm">
-            <p className="font-medium text-foreground">
-              {confirmacao?.descricao || (confirmacao?.tipo === 'entrada' ? 'Receita' : 'Despesa')}
-            </p>
-            <p className="tabular-nums text-muted-foreground">
-              {formatarMoeda(confirmacao?.valor ?? 0)} · {formatarData(confirmacao?.created_at)}
-            </p>
-          </div>
-          <AlertDialogFooter className="gap-2 sm:justify-between">
-            <AlertDialogCancel disabled={removendo}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault()
-                handleConfirmarRemocao()
-              }}
-              disabled={removendo}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {removendo ? 'Excluindo…' : 'Excluir'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }

@@ -1,16 +1,9 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import {
-  DollarSign,
-  ShoppingCart,
-  TrendingUp,
-  Truck,
-  Store,
-  Package,
-  MapPin
-} from 'lucide-react'
+import { CurrencyDollar as DollarSign, ShoppingCart, TrendUp as TrendingUp, Truck, Storefront as Store, Package } from '@phosphor-icons/react'
 import CartaoEstatistica from './CartaoEstatistica'
+import { Cartao, Lista, Secao } from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 import type { EstatisticasAnuais, RelatorioEntregasPorBairro } from '@/lib/tipos-anos-anteriores'
 
 type DashboardAnoAnteriorProps = {
@@ -31,123 +24,80 @@ export default function DashboardAnoAnterior({
   entregasPorBairro,
   ano
 }: DashboardAnoAnteriorProps) {
+  const kpis = [
+    { titulo: 'Vendas', valor: `R$ ${formatarMoeda(estatisticas.receitaTotal)}`, icone: DollarSign },
+    { titulo: 'Pedidos', valor: estatisticas.totalPedidos, icone: ShoppingCart },
+    { titulo: 'Ticket médio', valor: `R$ ${formatarMoeda(estatisticas.ticketMedio)}`, icone: TrendingUp },
+    {
+      titulo: 'Entregas feitas',
+      valor: estatisticas.totalEntregas,
+      subtitulo: `R$ ${formatarMoeda(estatisticas.totalTaxasEntrega)} em taxas`,
+      icone: Truck,
+    },
+  ]
+
+  const tipos = [
+    { rotulo: 'Entregas', icone: Truck, quantidade: estatisticas.pedidosEntrega, total: estatisticas.receitaEntrega },
+    { rotulo: 'Retiradas', icone: Package, quantidade: estatisticas.pedidosRetirada, total: estatisticas.receitaRetirada },
+    { rotulo: 'No local', icone: Store, quantidade: estatisticas.pedidosLocal, total: estatisticas.receitaLocal },
+  ]
+
   return (
-    <div className="space-y-6">
-      {/* Cards principais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <CartaoEstatistica
-          titulo="Receita Total"
-          valor={`R$ ${formatarMoeda(estatisticas.receitaTotal)}`}
-          icone={DollarSign}
-          corGradiente="from-green-500 to-green-600"
-          delay={0}
-        />
-        <CartaoEstatistica
-          titulo="Total de Pedidos"
-          valor={estatisticas.totalPedidos}
-          icone={ShoppingCart}
-          corGradiente="from-blue-500 to-blue-600"
-          delay={0.1}
-        />
-        <CartaoEstatistica
-          titulo="Ticket Médio"
-          valor={`R$ ${formatarMoeda(estatisticas.ticketMedio)}`}
-          icone={TrendingUp}
-          corGradiente="from-amber-500 to-amber-600"
-          delay={0.2}
-        />
-        <CartaoEstatistica
-          titulo="Entregas Realizadas"
-          valor={estatisticas.totalEntregas}
-          subtitulo={`R$ ${formatarMoeda(estatisticas.totalTaxasEntrega)} em taxas`}
-          icone={Truck}
-          corGradiente="from-purple-500 to-purple-600"
-          delay={0.3}
-        />
-      </div>
+    <div className="space-y-5">
+      <Cartao className="grid grid-cols-2 md:grid-cols-4">
+        {kpis.map((kpi, indice) => (
+          <CartaoEstatistica
+            key={kpi.titulo}
+            titulo={kpi.titulo}
+            valor={kpi.valor}
+            subtitulo={kpi.subtitulo}
+            icone={kpi.icone}
+            className={cn(
+              indice % 2 === 1 && 'border-l border-border/70',
+              indice >= 2 && 'border-t border-border/70 md:border-t-0',
+              indice === 2 && 'md:border-l',
+            )}
+          />
+        ))}
+      </Cartao>
 
-      {/* Pedidos por tipo */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-      >
-        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-          <Package className="w-5 h-5 text-amber-600" />
-          Pedidos por Tipo - {ano}
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Entregas */}
-          <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4 text-center">
-            <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-green-500/20 flex items-center justify-center">
-              <Truck className="w-6 h-6 text-green-600" />
-            </div>
-            <p className="text-2xl font-bold text-green-600">{estatisticas.pedidosEntrega}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Entregas</p>
-            <p className="text-sm font-medium text-green-600 mt-1">
-              R$ {formatarMoeda(estatisticas.receitaEntrega)}
-            </p>
-          </div>
+      <Secao titulo={`Pedidos por tipo em ${ano}`}>
+        <Lista>
+          {tipos.map((tipo) => {
+            const Icone = tipo.icone
+            return (
+              <li key={tipo.rotulo} className="flex min-h-12 items-center gap-3 px-4 py-2.5">
+                <Icone className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{tipo.rotulo}</span>
+                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{tipo.quantidade}</span>
+                <span className="w-28 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
+                  R$ {formatarMoeda(tipo.total)}
+                </span>
+              </li>
+            )
+          })}
+        </Lista>
+      </Secao>
 
-          {/* Retiradas */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4 text-center">
-            <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <Package className="w-6 h-6 text-blue-600" />
-            </div>
-            <p className="text-2xl font-bold text-blue-600">{estatisticas.pedidosRetirada}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Retiradas</p>
-            <p className="text-sm font-medium text-blue-600 mt-1">
-              R$ {formatarMoeda(estatisticas.receitaRetirada)}
-            </p>
-          </div>
-
-          {/* No Local */}
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 text-center">
-            <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-purple-500/20 flex items-center justify-center">
-              <Store className="w-6 h-6 text-purple-600" />
-            </div>
-            <p className="text-2xl font-bold text-purple-600">{estatisticas.pedidosLocal}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">No Local</p>
-            <p className="text-sm font-medium text-purple-600 mt-1">
-              R$ {formatarMoeda(estatisticas.receitaLocal)}
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Entregas por bairro */}
       {entregasPorBairro.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6"
-        >
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-green-600" />
-            Entregas por Bairro - {ano}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Secao titulo={`Bairros com mais entregas em ${ano}`}>
+          <Lista>
             {entregasPorBairro.slice(0, 6).map((bairro, index) => (
-              <div
-                key={bairro.bairro}
-                className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-sm font-bold text-green-600">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <p className="font-medium text-zinc-900 dark:text-white">{bairro.bairro}</p>
-                    <p className="text-xs text-zinc-500">R$ {formatarMoeda(bairro.taxaTotal)} em taxas</p>
-                  </div>
+              <li key={bairro.bairro} className="flex min-h-12 items-center gap-3 px-4 py-2.5">
+                <span className="w-5 shrink-0 text-right text-sm tabular-nums text-muted-foreground">{index + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{bairro.bairro}</p>
+                  <p className="text-[13px] tabular-nums text-muted-foreground">
+                    R$ {formatarMoeda(bairro.taxaTotal)} em taxas
+                  </p>
                 </div>
-                <p className="text-xl font-bold text-green-600">{bairro.quantidade}</p>
-              </div>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                  {bairro.quantidade} {bairro.quantidade === 1 ? 'entrega' : 'entregas'}
+                </span>
+              </li>
             ))}
-          </div>
-        </motion.div>
+          </Lista>
+        </Secao>
       )}
     </div>
   )

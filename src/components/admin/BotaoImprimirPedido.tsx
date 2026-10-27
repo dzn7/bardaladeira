@@ -6,11 +6,14 @@
  */
 
 import { useState } from 'react'
-import { Printer, Loader2, Check, X, ChefHat, FileText } from 'lucide-react'
+import { Printer, CircleNotch as Loader2, Check, X, ChefHat, FileText } from '@phosphor-icons/react'
 import { useImpressoraOpcional } from '@/contexts/ImpressoraContext'
 import { DadosPedidoImpressao, TipoTicket } from '@/lib/impressora/types'
 import { obterNumeroPedidoExibicao } from '@/lib/pedidos/numero-diario'
 import { supabase } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
+import { Botao } from '@/components/admin/ui'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface ItemPedido {
   id: string
@@ -178,106 +181,76 @@ export default function BotaoImprimirPedido({
   // Renderização do ícone de status
   const renderIcone = () => {
     if (imprimindo) {
-      return <Loader2 className="w-4 h-4 animate-spin" />
+      return <Loader2 className="size-4 animate-spin" />
     }
     if (resultado === 'sucesso') {
-      return <Check className="w-4 h-4 text-green-500" />
+      return <Check className="size-4 text-emerald-600 dark:text-emerald-400" />
     }
     if (resultado === 'erro') {
-      return <X className="w-4 h-4 text-red-500" />
+      return <X className="size-4 text-destructive" />
     }
-    return <Printer className="w-4 h-4" />
+    return <Printer className="size-4" />
   }
 
   // Variante: apenas ícone
   if (variante === 'icone') {
     return (
-      <button
+      <Botao
+        variante="fantasma"
+        tamanho="icone"
         onClick={handleImprimirPadrao}
         disabled={!conectado || imprimindo}
         title={conectado ? 'Imprimir pedido' : 'Impressora não conectada'}
-        className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-          ${conectado 
-            ? 'hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400' 
-            : 'text-zinc-300 dark:text-zinc-600'
-          } ${className}`}
+        aria-label={conectado ? 'Imprimir pedido' : 'Impressora não conectada'}
+        className={cn('size-11 text-muted-foreground', className)}
       >
         {renderIcone()}
-      </button>
+      </Botao>
     )
   }
 
   // Variante: menu com opções
   if (variante === 'menu' || mostrarOpcoes) {
+    const opcoes: { tipo: TipoTicket; rotulo: string; Icone: typeof Printer }[] = [
+      { tipo: 'cliente', rotulo: 'Ticket do cliente', Icone: FileText },
+      { tipo: 'cozinha', rotulo: 'Ticket da cozinha', Icone: ChefHat },
+      { tipo: 'completo', rotulo: 'Os dois', Icone: Printer },
+    ]
     return (
-      <div className="relative">
-        <button
-          onClick={() => setMenuAberto(!menuAberto)}
-          disabled={!conectado || imprimindo}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-            ${conectado 
-              ? 'bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300' 
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
-            } ${className}`}
-        >
-          {renderIcone()}
-          <span className="text-sm">Imprimir</span>
-        </button>
-
-        {menuAberto && (
-          <>
-            <div 
-              className="fixed inset-0 z-40" 
-              onClick={() => setMenuAberto(false)} 
-            />
-            <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 z-50 overflow-hidden">
-              <button
-                onClick={() => handleImprimir('cliente')}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-              >
-                <FileText className="w-4 h-4 text-blue-500" />
-                <span>Ticket Cliente</span>
-              </button>
-              <button
-                onClick={() => handleImprimir('cozinha')}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-              >
-                <ChefHat className="w-4 h-4 text-amber-500" />
-                <span>Ticket Cozinha</span>
-              </button>
-              <div className="border-t border-zinc-100 dark:border-zinc-700" />
-              <button
-                onClick={() => handleImprimir('completo')}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-              >
-                <Printer className="w-4 h-4 text-zinc-500" />
-                <span>Ambos</span>
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      <Popover open={menuAberto} onOpenChange={setMenuAberto}>
+        <PopoverTrigger asChild>
+          <Botao variante="contorno" disabled={!conectado || imprimindo} className={cn('h-11 md:h-10', className)}>
+            {renderIcone()}
+            Imprimir
+          </Botao>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-52 p-1">
+          {opcoes.map(({ tipo, rotulo, Icone }) => (
+            <button
+              key={tipo}
+              type="button"
+              onClick={() => void handleImprimir(tipo)}
+              className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-sm text-foreground transition-colors hover:bg-accent"
+            >
+              <Icone className="size-4 text-muted-foreground" />
+              {rotulo}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
     )
   }
 
   // Variante: botão padrão
   return (
-    <button
+    <Botao
+      variante="contorno"
       onClick={handleImprimirPadrao}
       disabled={!conectado || imprimindo}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-        ${conectado 
-          ? 'bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300' 
-          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
-        } ${className}`}
+      className={cn('h-11 md:h-10', className)}
     >
       {renderIcone()}
-      <span className="text-sm">
-        {imprimindo ? 'Imprimindo...' : 
-         resultado === 'sucesso' ? 'Impresso!' :
-         resultado === 'erro' ? 'Erro' :
-         'Imprimir'}
-      </span>
-    </button>
+      {imprimindo ? 'Imprimindo...' : resultado === 'sucesso' ? 'Impresso' : resultado === 'erro' ? 'Erro ao imprimir' : 'Imprimir'}
+    </Botao>
   )
 }

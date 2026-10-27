@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { BookOpen, ChevronDown, Compass, PlayCircle } from 'lucide-react'
+import { BookOpen, CaretDown as ChevronDown, Compass, PlayCircle } from '@phosphor-icons/react'
 import { ITENS_MENU_ADMIN, isRotaAtivaSidebar } from '@/lib/admin-sidebar-routes'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'

@@ -1,6 +1,6 @@
 'use client'
 
-import { Info, X } from 'lucide-react'
+import { Info, X } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
 export type ChipFiltroAtivo = {

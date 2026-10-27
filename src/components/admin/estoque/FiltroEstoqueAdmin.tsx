@@ -1,6 +1,6 @@
 'use client'
 
-import { Tag } from 'lucide-react'
+import { Tag } from '@phosphor-icons/react'
 import { FiltroAvancado } from '@/components/admin/filtros/FiltroAvancado'
 import { CampoSelectFiltro } from '@/components/admin/filtros/CampoSelectFiltro'
 

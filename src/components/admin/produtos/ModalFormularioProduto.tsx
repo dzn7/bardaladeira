@@ -1,44 +1,24 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
+import { Camera, CaretDown, Crop, CircleNotch as Loader2, Plus, Trash as Trash2, X } from '@phosphor-icons/react'
 import {
-  Camera,
-  Crop,
-  ImageIcon,
-  Loader2,
-  Plus,
-  Save,
-  Trash2,
-  X,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
+  AreaTexto,
+  Botao,
+  Campo,
+  Entrada,
+  EntradaPreco,
+  Gaveta,
+  LinhaInterruptor,
+  Selecao,
+} from '@/components/admin/ui'
 import {
   ESTOQUE_MINIMO_PADRAO,
   ESTOQUE_QUANTIDADE_PADRAO,
   normalizarConfiguracaoEstoque,
   normalizarDinheiro,
 } from '@/lib/estoque-produto.mjs'
-import { cn } from '@/lib/utils'
 
 export type ProdutoFormulario = {
   id: string
@@ -123,10 +103,7 @@ export const ModalFormularioProduto = ({
   const [estoqueMinimo, setEstoqueMinimo] = useState(String(ESTOQUE_MINIMO_PADRAO))
   const [bloquearVendaSemEstoque, setBloquearVendaSemEstoque] = useState(false)
   const [erros, setErros] = useState<Record<string, string>>({})
-  const campoPrecoRef = useRef<HTMLInputElement>(null)
-  const campoCustoRef = useRef<HTMLInputElement>(null)
-  const campoQuantidadeRef = useRef<HTMLInputElement>(null)
-  const campoMinimoRef = useRef<HTMLInputElement>(null)
+  const [maisOpcoes, setMaisOpcoes] = useState(false)
 
   useEffect(() => {
     if (!aberto) return
@@ -158,6 +135,7 @@ export const ModalFormularioProduto = ({
       setBloquearVendaSemEstoque(false)
     }
     setErros({})
+    setMaisOpcoes(false)
     setCriandoCategoria(false)
     setNovaCategoria('')
   }, [aberto, modo, produto, categorias, categoriasBebidas, categoriaBebidasFallback])
@@ -227,11 +205,14 @@ export const ModalFormularioProduto = ({
     }
 
     setErros(proximosErros)
+    if (proximosErros.custo || proximosErros.quantidade || proximosErros.minimo) setMaisOpcoes(true)
     if (Object.keys(proximosErros).length > 0) {
-      if (proximosErros.preco) campoPrecoRef.current?.focus()
-      else if (proximosErros.custo) campoCustoRef.current?.focus()
-      else if (proximosErros.quantidade) campoQuantidadeRef.current?.focus()
-      else if (proximosErros.minimo) campoMinimoRef.current?.focus()
+      // Espera o "Estoque e custo" abrir antes de focar.
+      const focar = (id: string) => requestAnimationFrame(() => document.getElementById(id)?.focus())
+      if (proximosErros.preco) focar('modal-produto-preco')
+      else if (proximosErros.custo) focar('modal-produto-custo')
+      else if (proximosErros.quantidade) focar('modal-produto-quantidade')
+      else if (proximosErros.minimo) focar('modal-produto-minimo')
       return
     }
 
@@ -264,336 +245,271 @@ export const ModalFormularioProduto = ({
     }
   }
 
+  const abrirSeletorFoto = modo === 'criar' ? onSelecionarFotoCriacao : onSelecionarFoto
+
   return (
-    <Dialog open={aberto} onOpenChange={(proximo) => !proximo && onFechar()}>
-      <DialogContent
-        className={cn(
-          'flex max-h-[92dvh] w-full max-w-lg flex-col gap-0 overflow-hidden p-0',
-          'sm:max-h-[90dvh]',
-        )}
+    <Gaveta
+      aberto={aberto}
+      aoFechar={onFechar}
+      largura="lg"
+      bloqueada={salvando}
+      titulo={modo === 'criar' ? (ehBebida ? 'Nova bebida' : 'Novo produto') : ehBebida ? 'Editar bebida' : 'Editar produto'}
+      descricao={modo === 'criar' ? 'Preencha o básico. O resto já vem pronto.' : 'Altere o que precisar e toque em Salvar.'}
+      rodape={
+        <>
+          {modo === 'editar' && onExcluir ? (
+            <Botao variante="perigoSuave" className="md:mr-auto" onClick={onExcluir} disabled={salvando}>
+              Excluir
+            </Botao>
+          ) : (
+            <Botao variante="contorno" onClick={onFechar} disabled={salvando}>
+              Cancelar
+            </Botao>
+          )}
+          <Botao onClick={handleSalvar} carregando={salvando} disabled={!nome.trim() || !preco}>
+            {modo === 'criar' ? (ehBebida ? 'Criar bebida' : 'Criar produto') : 'Salvar'}
+          </Botao>
+        </>
+      }
+    >
+      <form
+        className="space-y-5"
+        onSubmit={(evento) => {
+          evento.preventDefault()
+          handleSalvar()
+        }}
       >
-        <DialogHeader className="shrink-0 space-y-1 border-b border-border/60 px-5 pb-4 pt-5 pr-12 text-left">
-          <DialogTitle className="text-[15px] font-semibold tracking-tight">
-            {modo === 'criar' ? 'Novo produto' : 'Editar produto'}
-          </DialogTitle>
-          <DialogDescription className="text-[13px] text-muted-foreground">
-            {modo === 'criar'
-              ? 'Cadastre produto ou bebida nas categorias do cardápio.'
-              : 'Altere dados, foto e disponibilidade do item.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
-          <div className="space-y-2">
-            <Label>Foto</Label>
-            <button
-              type="button"
-              onClick={modo === 'criar' ? onSelecionarFotoCriacao : onSelecionarFoto}
-              className="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-border/70 bg-muted/30 transition-colors hover:bg-muted/50"
-              aria-label={preview ? 'Trocar foto' : 'Adicionar foto'}
-            >
-              {preview ? (
-                <Image src={preview} alt="" fill className="object-cover" unoptimized />
-              ) : (
-                <span className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-                  <Camera className="h-6 w-6" />
-                  Adicionar foto
-                </span>
-              )}
-              {enviandoImagem ? (
-                <span className="absolute inset-0 flex items-center justify-center bg-background/70">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </span>
-              ) : null}
-            </button>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={abrirSeletorFoto}
+            className="relative flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-border/70 bg-muted/40 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-28"
+            aria-label={preview ? 'Trocar foto' : 'Adicionar foto'}
+          >
+            {preview ? (
+              <Image src={preview} alt="" fill className="object-cover" unoptimized />
+            ) : (
+              <Camera className="size-6 text-muted-foreground" />
+            )}
+            {enviandoImagem ? (
+              <span className="absolute inset-0 flex items-center justify-center bg-background/70">
+                <Loader2 className="size-6 animate-spin text-foreground" />
+              </span>
+            ) : null}
+          </button>
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+            <p className="text-sm font-medium text-foreground">Foto</p>
+            <p className="text-[13px] leading-5 text-muted-foreground">
+              {preview ? 'Toque na foto para trocar.' : 'Opcional. Produto com foto vende mais.'}
+            </p>
             {modo === 'editar' && preview ? (
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 shadow-none"
-                  onClick={onRecortarFoto}
-                >
-                  <Crop className="mr-2 h-4 w-4" />
+              <div className="-ml-2.5 flex flex-wrap gap-1">
+                <Botao variante="fantasma" tamanho="sm" className="h-11 md:h-9" onClick={onRecortarFoto}>
+                  <Crop />
                   Recortar
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 shadow-none text-destructive hover:text-destructive"
-                  onClick={onRemoverFoto}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Remover foto
-                </Button>
+                </Botao>
+                <Botao variante="perigoSuave" tamanho="sm" className="h-11 md:h-9" onClick={onRemoverFoto}>
+                  <Trash2 />
+                  Remover
+                </Botao>
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">Imagem comprimida antes do envio.</p>
-            )}
+            ) : null}
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <Label>Categoria *</Label>
-            {!criandoCategoria ? (
-              <Select
-                value={categoria}
-                onValueChange={(valor) => {
-                  if (valor === '__nova__') {
-                    setCriandoCategoria(true)
-                    setNovaCategoria('')
-                    return
-                  }
-                  setCategoria(valor)
-                }}
-              >
-                <SelectTrigger className="h-11 border-border/70 shadow-none">
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categoriasSelect.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                  {onCriarCategoria ? (
-                    <SelectItem value="__nova__">Criar nova categoria</SelectItem>
-                  ) : null}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  value={novaCategoria}
-                  onChange={(e) => setNovaCategoria(e.target.value)}
-                  placeholder="Nome da nova categoria"
-                  className="h-11 border-border/70 shadow-none"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      void handleCriarCategoria()
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  className="h-11 w-11 shrink-0 shadow-none"
-                  onClick={() => void handleCriarCategoria()}
-                  disabled={criandoCat}
-                >
-                  {criandoCat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-11 w-11 shrink-0 shadow-none"
-                  onClick={() => {
-                    setCriandoCategoria(false)
-                    setNovaCategoria('')
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
+        <Campo rotulo={ehBebida ? 'Nome da bebida' : 'Nome'} htmlFor="modal-produto-nome" erro={erros.nome}>
+          <Entrada
+            id="modal-produto-nome"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder={ehBebida ? 'Ex.: Coca-Cola' : 'Ex.: X-Burguer especial'}
+            aria-invalid={Boolean(erros.nome)}
+            autoComplete="off"
+          />
+        </Campo>
 
-          <div className="space-y-2">
-            <Label htmlFor="modal-produto-nome">
-              {ehBebida ? 'Nome da bebida' : 'Nome do produto'} *
-            </Label>
-            <Input
-              id="modal-produto-nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder={ehBebida ? 'Ex: Coca-Cola' : 'Ex: X-Burguer Especial'}
-              aria-invalid={Boolean(erros.nome)}
-              className={cn('h-11 border-border/70 shadow-none', erros.nome && 'border-destructive')}
+        <div className={modo === 'editar' ? 'grid grid-cols-2 gap-3' : undefined}>
+          <Campo rotulo="Preço" htmlFor="modal-produto-preco" erro={erros.preco}>
+            <EntradaPreco
+              id="modal-produto-preco"
+              valor={preco}
+              aoMudar={setPreco}
+              aria-invalid={Boolean(erros.preco)}
             />
-            {erros.nome ? <p className="text-xs text-destructive">{erros.nome}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="modal-produto-descricao">{ehBebida ? 'Tamanho' : 'Descrição'}</Label>
-            {ehBebida ? (
-              <Input
-                id="modal-produto-descricao"
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                placeholder="Ex: 350ml, 600ml, 2L"
-                className="h-11 border-border/70 shadow-none"
-              />
-            ) : (
-              <Textarea
-                id="modal-produto-descricao"
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                placeholder="Descreva os ingredientes"
-                rows={3}
-                className="border-border/70 shadow-none"
-              />
-            )}
-          </div>
-
-          <div className={cn('grid gap-3', modo === 'editar' ? 'grid-cols-2' : 'grid-cols-1')}>
-            <div className="space-y-2">
-              <Label htmlFor="modal-produto-preco">Preço de venda (R$) *</Label>
-              <Input
-                ref={campoPrecoRef}
-                id="modal-produto-preco"
-                type={ehBebida ? 'number' : 'text'}
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                value={preco}
-                onChange={(e) => setPreco(e.target.value)}
-                placeholder="0,00"
-                aria-invalid={Boolean(erros.preco)}
-                className={cn('h-11 border-border/70 shadow-none', erros.preco && 'border-destructive')}
-              />
-              {erros.preco ? <p className="text-xs text-destructive">{erros.preco}</p> : null}
-            </div>
-            {modo === 'editar' ? (
-              <div className="space-y-2">
-                <Label htmlFor="modal-produto-desconto">Desconto (%)</Label>
-                <Input
+          </Campo>
+          {modo === 'editar' ? (
+            <Campo rotulo="Desconto" htmlFor="modal-produto-desconto" opcional>
+              <div className="relative">
+                <Entrada
                   id="modal-produto-desconto"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   max="100"
                   step="1"
                   value={desconto}
                   onChange={(e) => setDesconto(e.target.value)}
-                  className="h-11 border-border/70 shadow-none"
+                  className="pr-8 tabular-nums"
                 />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
               </div>
-            ) : null}
-          </div>
-
-          <div className="space-y-3 rounded-xl border border-border/60 p-3">
-              <div>
-                <p className="text-sm font-medium">Estoque</p>
-                <p className="text-xs text-muted-foreground">Produtos e bebidas. Controle operacional, não segurança.</p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="modal-produto-custo">Preço de custo (R$)</Label>
-                  <Input
-                    ref={campoCustoRef}
-                    id="modal-produto-custo"
-                    type="text"
-                    inputMode="decimal"
-                    value={custoUnitario}
-                    onChange={(e) => setCustoUnitario(e.target.value)}
-                    placeholder="Opcional"
-                    aria-invalid={Boolean(erros.custo)}
-                    className={cn('h-11 border-border/70 shadow-none', erros.custo && 'border-destructive')}
-                  />
-                  {erros.custo ? <p className="text-xs text-destructive">{erros.custo}</p> : null}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="modal-produto-quantidade">Quantidade atual</Label>
-                  <Input
-                    ref={campoQuantidadeRef}
-                    id="modal-produto-quantidade"
-                    type="text"
-                    inputMode="numeric"
-                    value={quantidadeEstoque}
-                    onChange={(e) => setQuantidadeEstoque(e.target.value)}
-                    aria-invalid={Boolean(erros.quantidade)}
-                    className={cn('h-11 border-border/70 shadow-none', erros.quantidade && 'border-destructive')}
-                  />
-                  {erros.quantidade ? <p className="text-xs text-destructive">{erros.quantidade}</p> : null}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="modal-produto-minimo">Alerta de estoque mínimo</Label>
-                  <Input
-                    ref={campoMinimoRef}
-                    id="modal-produto-minimo"
-                    type="text"
-                    inputMode="numeric"
-                    value={estoqueMinimo}
-                    onChange={(e) => setEstoqueMinimo(e.target.value)}
-                    aria-invalid={Boolean(erros.minimo)}
-                    className={cn('h-11 border-border/70 shadow-none', erros.minimo && 'border-destructive')}
-                  />
-                  {erros.minimo ? <p className="text-xs text-destructive">{erros.minimo}</p> : null}
-                </div>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Esgotado no site quando acabar</p>
-                  <p className="text-xs text-muted-foreground">O pedido físico continua permitido</p>
-                </div>
-                <Checkbox
-                  checked={bloquearVendaSemEstoque}
-                  onCheckedChange={(valor) => setBloquearVendaSemEstoque(valor === true)}
-                  aria-label="Mostrar como esgotado no site quando acabar"
-                />
-              </div>
-          </div>
-
-          {modo === 'editar' ? (
-            <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-3">
-              <div>
-                <p className="text-sm font-medium text-foreground">Disponível no cardápio</p>
-                <p className="text-xs text-muted-foreground">Itens ocultos não aparecem no site</p>
-              </div>
-              <Checkbox
-                checked={disponivel}
-                onCheckedChange={(valor) => setDisponivel(valor === true)}
-                aria-label="Disponível no cardápio"
-              />
-            </div>
-          ) : null}
-
-          {!preview && modo === 'editar' ? (
-            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-              <ImageIcon className="h-3.5 w-3.5" />
-              Este item está sem foto
-            </div>
+            </Campo>
           ) : null}
         </div>
 
-        <DialogFooter className="gap-2 border-t border-border/60 bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:gap-2 sm:px-5 sm:pb-4">
-          {modo === 'editar' && onExcluir ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full shadow-none text-destructive hover:text-destructive sm:mr-auto sm:w-auto"
-              onClick={onExcluir}
-              disabled={salvando}
+        <Campo rotulo="Categoria" htmlFor="modal-produto-categoria">
+          {!criandoCategoria ? (
+            <Selecao
+              id="modal-produto-categoria"
+              value={categoria}
+              onChange={(e) => {
+                const valor = e.target.value
+                if (valor === '__nova__') {
+                  setCriandoCategoria(true)
+                  setNovaCategoria('')
+                  return
+                }
+                setCategoria(valor)
+              }}
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Excluir
-            </Button>
-          ) : null}
-          <Button
+              {!categoria ? <option value="">Escolha a categoria</option> : null}
+              {categoriasSelect.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+              {onCriarCategoria ? <option value="__nova__">+ Criar nova categoria</option> : null}
+            </Selecao>
+          ) : (
+            <div className="flex gap-2">
+              <Entrada
+                id="modal-produto-categoria"
+                value={novaCategoria}
+                onChange={(e) => setNovaCategoria(e.target.value)}
+                placeholder="Nome da nova categoria"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void handleCriarCategoria()
+                  }
+                }}
+              />
+              <Botao
+                tamanho="icone"
+                className="size-11 shrink-0 md:size-10"
+                onClick={() => void handleCriarCategoria()}
+                carregando={criandoCat}
+                aria-label="Criar categoria"
+              >
+                {criandoCat ? null : <Plus />}
+              </Botao>
+              <Botao
+                variante="contorno"
+                tamanho="icone"
+                className="size-11 shrink-0 md:size-10"
+                onClick={() => {
+                  setCriandoCategoria(false)
+                  setNovaCategoria('')
+                }}
+                aria-label="Cancelar nova categoria"
+              >
+                <X />
+              </Botao>
+            </div>
+          )}
+        </Campo>
+
+        <Campo rotulo={ehBebida ? 'Tamanho' : 'Descrição'} htmlFor="modal-produto-descricao" opcional>
+          {ehBebida ? (
+            <Entrada
+              id="modal-produto-descricao"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Ex.: 350 ml, 600 ml, 2 L"
+            />
+          ) : (
+            <AreaTexto
+              id="modal-produto-descricao"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Ingredientes ou detalhes que o cliente vê no cardápio"
+              rows={3}
+            />
+          )}
+        </Campo>
+
+        {modo === 'editar' ? (
+          <LinhaInterruptor
+            titulo="Aparece no cardápio"
+            descricao="Desligue para esconder sem excluir."
+            marcado={disponivel}
+            aoMudar={setDisponivel}
+          />
+        ) : null}
+
+        <div className="space-y-4">
+          <button
             type="button"
-            variant="outline"
-            className="h-11 w-full shadow-none sm:w-auto"
-            onClick={onFechar}
-            disabled={salvando}
+            aria-expanded={maisOpcoes}
+            aria-controls="modal-produto-mais-opcoes"
+            onClick={() => setMaisOpcoes((atual) => !atual)}
+            className="-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center justify-between rounded-lg px-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            className="h-11 w-full shadow-none sm:min-w-[140px] sm:w-auto"
-            onClick={handleSalvar}
-            disabled={salvando || !nome.trim() || !preco}
-          >
-            {salvando ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            {modo === 'criar' ? 'Salvar' : 'Salvar alterações'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <span>
+              Estoque e custo
+              <span className="block text-[13px] font-normal text-muted-foreground">
+                Quantidade {quantidadeEstoque || '0'} · alerta em {estoqueMinimo || '0'}
+              </span>
+            </span>
+            <CaretDown className={maisOpcoes ? 'size-4 rotate-180 transition-transform' : 'size-4 transition-transform'} />
+          </button>
+
+          <div id="modal-produto-mais-opcoes" hidden={!maisOpcoes} className="space-y-4">
+            <Campo rotulo="Preço de custo" htmlFor="modal-produto-custo" erro={erros.custo} opcional ajuda="Usado para calcular o lucro.">
+              <EntradaPreco
+                id="modal-produto-custo"
+                valor={custoUnitario}
+                aoMudar={setCustoUnitario}
+                placeholder="0,00"
+                aria-invalid={Boolean(erros.custo)}
+              />
+            </Campo>
+            <div className="grid grid-cols-2 gap-3">
+              <Campo rotulo="Quantidade atual" htmlFor="modal-produto-quantidade" erro={erros.quantidade}>
+                <Entrada
+                  id="modal-produto-quantidade"
+                  type="text"
+                  inputMode="numeric"
+                  value={quantidadeEstoque}
+                  onChange={(e) => setQuantidadeEstoque(e.target.value)}
+                  aria-invalid={Boolean(erros.quantidade)}
+                  className="tabular-nums"
+                />
+              </Campo>
+              <Campo rotulo="Avisar quando chegar a" htmlFor="modal-produto-minimo" erro={erros.minimo}>
+                <Entrada
+                  id="modal-produto-minimo"
+                  type="text"
+                  inputMode="numeric"
+                  value={estoqueMinimo}
+                  onChange={(e) => setEstoqueMinimo(e.target.value)}
+                  aria-invalid={Boolean(erros.minimo)}
+                  className="tabular-nums"
+                />
+              </Campo>
+            </div>
+            <LinhaInterruptor
+              titulo="Esgotar no site quando acabar"
+              descricao="No balcão e no salão a venda continua liberada."
+              marcado={bloquearVendaSemEstoque}
+              aoMudar={setBloquearVendaSemEstoque}
+            />
+          </div>
+        </div>
+
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+      </form>
+    </Gaveta>
   )
 }

@@ -1,16 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CalendarDays, List, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { CalendarDots as CalendarDays, List, Plus } from '@phosphor-icons/react'
+import { Botao, Gaveta, useConfirmar } from '@/components/admin/ui'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import type { Funcionario } from '@/lib/tipos-caixa'
@@ -65,6 +57,7 @@ export function PainelDiarias({ funcionarios, onAlterou, embutido = false }: Pai
   const [dataModal, setDataModal] = useState(isoDoDia(agora))
   const [detalhe, setDetalhe] = useState<FinancasDiaria | null>(null)
   const [excluindo, setExcluindo] = useState(false)
+  const confirmar = useConfirmar()
 
   const { inicio, fim, mesReferencia } = useMemo(() => inicioFimDoMes(ano, mes), [ano, mes])
   const { diarias, carregando, erro, totalPeriodo, criarDiaria, removerDiaria } = useDiarias({
@@ -118,6 +111,13 @@ export function PainelDiarias({ funcionarios, onAlterou, embutido = false }: Pai
       setDetalhe(null)
       return
     }
+    const ok = await confirmar({
+      titulo: 'Excluir diária?',
+      descricao: `Sai a diária de ${detalhe.nome_pessoa} e a despesa dela no caixa.`,
+      confirmar: 'Excluir',
+      perigo: true,
+    })
+    if (!ok) return
     setExcluindo(true)
     try {
       await removerDiaria(detalhe)
@@ -132,7 +132,7 @@ export function PainelDiarias({ funcionarios, onAlterou, embutido = false }: Pai
     <div className={cn('flex w-full min-w-0 flex-col gap-3', !embutido && 'gap-4')}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-base font-semibold tracking-tight text-foreground">
+          <p className="text-base font-semibold text-foreground">
             {MESES[mes - 1]} {ano}
           </p>
           <p className="text-xs text-muted-foreground sm:text-sm">
@@ -170,22 +170,21 @@ export function PainelDiarias({ funcionarios, onAlterou, embutido = false }: Pai
             </ToggleGroupItem>
           </ToggleGroup>
 
-          <Button
-            type="button"
+          <Botao
             data-onboarding="financas-nova-diaria"
-            className="h-11 w-full gap-2 sm:h-10 sm:w-auto"
+            className="h-11 w-full sm:h-10 sm:w-auto"
             onClick={() => handleAbrirNova()}
           >
-            <Plus strokeWidth={1.6} className="h-4 w-4" />
+            <Plus className="size-4" />
             Nova diária
-          </Button>
+          </Botao>
         </div>
       </div>
 
       {erro ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {erro.includes('financas_diarias') || erro.includes('schema cache') || erro.includes('PGRST')
-            ? 'Tabela de diárias ainda não existe no banco. Aplique a migration scripts/migrations/20260720_financas_diarias.sql.'
+            ? 'As diárias ainda não estão ativadas no banco. Peça ao suporte para aplicar a migration 20260720_financas_diarias.sql.'
             : erro}
         </div>
       ) : null}
@@ -226,53 +225,42 @@ export function PainelDiarias({ funcionarios, onAlterou, embutido = false }: Pai
         }}
       />
 
-      <Dialog open={Boolean(detalhe)} onOpenChange={(aberto) => !aberto && setDetalhe(null)}>
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
-          <DialogHeader className="space-y-1 border-b border-border/70 px-5 pb-4 pt-5 text-left">
-            <DialogTitle className="text-base font-semibold tracking-tight">
-              {detalhe?.nome_pessoa}
-            </DialogTitle>
-            <DialogDescription className="capitalize text-muted-foreground">
-              {detalhe ? formatarDataLocal(detalhe.data_referencia) : ''}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 px-5 py-4">
-            <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5">
-              <span className="text-sm text-muted-foreground">Valor pago</span>
-              <span className="font-mono text-base font-semibold tabular-nums text-destructive">
-                − {formatarMoeda(detalhe?.valor ?? 0)}
-              </span>
-            </div>
-            {detalhe?.forma_pagamento ? (
-              <p className="text-sm text-muted-foreground">
-                Forma: <span className="text-foreground">{detalhe.forma_pagamento}</span>
-              </p>
-            ) : null}
-            {detalhe?.observacoes ? (
-              <p className="text-sm text-muted-foreground">{detalhe.observacoes}</p>
-            ) : null}
-          </div>
-          <DialogFooter className="flex-col gap-2 border-t border-border/70 bg-muted/20 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:flex-row sm:justify-between sm:px-5">
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 w-full sm:h-9 sm:w-auto"
-              onClick={() => setDetalhe(null)}
-            >
+      <Gaveta
+        aberto={Boolean(detalhe)}
+        aoFechar={() => setDetalhe(null)}
+        bloqueada={excluindo}
+        titulo={detalhe?.nome_pessoa ?? 'Diária'}
+        descricao={<span className="capitalize">{detalhe ? formatarDataLocal(detalhe.data_referencia) : ''}</span>}
+        rodape={
+          <>
+            <Botao variante="perigoSuave" className="md:mr-auto" carregando={excluindo} onClick={() => void handleExcluirDetalhe()}>
+              Excluir diária
+            </Botao>
+            <Botao variante="contorno" onClick={() => setDetalhe(null)} disabled={excluindo}>
               Fechar
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              className="h-11 w-full sm:h-9 sm:w-auto"
-              disabled={excluindo}
-              onClick={() => void handleExcluirDetalhe()}
-            >
-              {excluindo ? 'Excluindo…' : 'Excluir diária'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </Botao>
+          </>
+        }
+      >
+        <dl className="divide-y divide-border/70 text-sm">
+          <div className="flex items-center justify-between gap-3 py-3">
+            <dt className="text-muted-foreground">Valor pago</dt>
+            <dd className="text-base font-semibold tabular-nums text-destructive">− {formatarMoeda(detalhe?.valor ?? 0)}</dd>
+          </div>
+          {detalhe?.forma_pagamento ? (
+            <div className="flex items-center justify-between gap-3 py-3">
+              <dt className="text-muted-foreground">Forma</dt>
+              <dd className="capitalize text-foreground">{detalhe.forma_pagamento}</dd>
+            </div>
+          ) : null}
+          {detalhe?.observacoes ? (
+            <div className="space-y-1 py-3">
+              <dt className="text-muted-foreground">Observações</dt>
+              <dd className="text-foreground">{detalhe.observacoes}</dd>
+            </div>
+          ) : null}
+        </dl>
+      </Gaveta>
     </div>
   )
 }

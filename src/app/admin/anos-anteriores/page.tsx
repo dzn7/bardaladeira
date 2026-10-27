@@ -1,18 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { 
-  Archive, 
-  LayoutDashboard, 
-  ShoppingCart, 
-  BarChart3, 
-  Truck,
-  RefreshCw,
-  Calendar,
-  Wallet,
-  Users
-} from 'lucide-react'
+import { SquaresFour as LayoutDashboard, ShoppingCart, ChartBar as BarChart3, Truck, ArrowsClockwise as RefreshCw, Wallet, Users, Warning } from '@phosphor-icons/react'
+import { Botao, CabecalhoPagina, Chip, Esqueleto, ListaCarregando, ListaVazia, Pagina, Selecao } from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { useAnosAnteriores } from '@/lib/useAnosAnteriores'
@@ -29,7 +20,7 @@ import {
 import type { PedidoHistorico, AbaAnosAnteriores } from '@/lib/tipos-anos-anteriores'
 
 const abas: { id: AbaAnosAnteriores; label: string; icone: typeof LayoutDashboard }[] = [
-  { id: 'dashboard', label: 'Visão Geral', icone: LayoutDashboard },
+  { id: 'dashboard', label: 'Resumo', icone: LayoutDashboard },
   { id: 'pedidos', label: 'Pedidos', icone: ShoppingCart },
   { id: 'relatorios', label: 'Relatórios', icone: BarChart3 },
   { id: 'entregas', label: 'Entregas', icone: Truck },
@@ -54,93 +45,69 @@ export default function AnosAnterioresPage() {
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
-                <Archive className="w-8 h-8 text-amber-600" />
-                Anos Anteriores
-              </h1>
-              <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-                Histórico completo de pedidos, relatórios e entregas
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Seletor de ano */}
-              <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-2">
-                <Calendar className="w-5 h-5 text-amber-600" />
-                <select
-                  value={anoSelecionado}
-                  onChange={(e) => setAnoSelecionado(Number(e.target.value))}
-                  className="bg-transparent text-zinc-900 dark:text-white font-medium focus:outline-none"
-                >
-                  {anosDisponiveis.map(ano => (
-                    <option key={ano} value={ano}>{ano}</option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                onClick={recarregar}
-                disabled={carregando}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 
-                         text-white rounded-xl transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''}`} />
-                Atualizar
-              </button>
-            </div>
-          </div>
-
-          {/* Abas */}
-          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-1.5">
-            <div className="flex flex-wrap gap-1">
-              {abas.map((aba) => {
-                const Icone = aba.icone
-                const ativo = abaAtiva === aba.id
-                return (
-                  <button
-                    key={aba.id}
-                    onClick={() => setAbaAtiva(aba.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      ativo
-                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                        : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                    }`}
+        <Pagina>
+          <CabecalhoPagina
+            titulo="Anos anteriores"
+            descricao="Pedidos, relatórios e entregas de anos que já fecharam."
+            acoes={
+              <>
+                <div className="w-32">
+                  <Selecao
+                    value={anoSelecionado}
+                    onChange={(e) => setAnoSelecionado(Number(e.target.value))}
+                    aria-label="Ano"
                   >
-                    <Icone className="w-4 h-4" />
-                    {aba.label}
-                  </button>
-                )
-              })}
-            </div>
+                    {anosDisponiveis.map(ano => (
+                      <option key={ano} value={ano}>{ano}</option>
+                    ))}
+                  </Selecao>
+                </div>
+                <Botao variante="contorno" className="h-11 md:h-10" onClick={recarregar} disabled={carregando}>
+                  <RefreshCw className={cn(carregando && 'animate-spin')} />
+                  Atualizar
+                </Botao>
+              </>
+            }
+          />
+
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0" role="tablist" aria-label="Seções">
+            {abas.map((aba) => {
+              const Icone = aba.icone
+              const ativo = abaAtiva === aba.id
+              return (
+                <Chip
+                  key={aba.id}
+                  role="tab"
+                  aria-selected={ativo}
+                  ativo={ativo}
+                  onClick={() => setAbaAtiva(aba.id)}
+                  className="h-11 normal-case md:h-9"
+                >
+                  <Icone className="size-4" aria-hidden />
+                  {aba.label}
+                </Chip>
+              )
+            })}
           </div>
 
-          {/* Conteúdo */}
           {carregando ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <RefreshCw className="w-8 h-8 text-amber-600 animate-spin" />
-              <p className="text-zinc-600 dark:text-zinc-400">Carregando dados de {anoSelecionado}...</p>
+            <div className="space-y-3" aria-busy="true" aria-label={`Carregando ${anoSelecionado}`}>
+              <Esqueleto className="h-[76px] w-full rounded-xl" />
+              <ListaCarregando linhas={4} />
             </div>
           ) : erro ? (
-            <div className="bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 p-6 text-center">
-              <p className="text-red-600 dark:text-red-400 mb-4">{erro}</p>
-              <button
-                onClick={recarregar}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-              >
-                Tentar Novamente
-              </button>
-            </div>
+            <ListaVazia
+              icone={<Warning />}
+              titulo="Não deu para carregar este ano"
+              descricao={erro}
+              acao={
+                <Botao variante="contorno" onClick={recarregar}>
+                  Tentar de novo
+                </Botao>
+              }
+            />
           ) : (
-            <motion.div
-              key={abaAtiva}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-            >
+            <div key={abaAtiva}>
               {abaAtiva === 'dashboard' && (
                 <DashboardAnoAnterior
                   estatisticas={dados.estatisticas}
@@ -182,17 +149,13 @@ export default function AnosAnterioresPage() {
               {abaAtiva === 'salarios' && (
                 <SalariosAnoAnterior ano={anoSelecionado} />
               )}
-            </motion.div>
+            </div>
           )}
 
-          {/* Informação sobre dados históricos */}
-          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800 p-4">
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              <strong>Dados históricos:</strong> Esta página exibe apenas os registros do ano de {anoSelecionado}. 
-              Os dados do ano atual ({new Date().getFullYear()}) estão disponíveis nas páginas regulares do sistema.
-            </p>
-          </div>
-        </div>
+          <p className="px-1 text-sm text-muted-foreground">
+            Aqui aparecem só os registros de {anoSelecionado}. O ano atual ({new Date().getFullYear()}) fica nas telas normais do sistema.
+          </p>
+        </Pagina>
 
         {/* Modal de detalhes do pedido */}
         <ModalDetalhesPedidoHistorico

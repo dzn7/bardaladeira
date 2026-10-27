@@ -18,6 +18,9 @@ const nextConfig = {
     ],
   },
   allowedDevOrigins: ['192.168.18.248'],
+  experimental: {
+    optimizePackageImports: ['@phosphor-icons/react'],
+  },
 }
 
 module.exports = nextConfig

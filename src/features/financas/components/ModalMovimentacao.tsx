@@ -1,12 +1,8 @@
 'use client'
 
 import { type ReactNode, useEffect, useId, useMemo, useState } from 'react'
-import { Banknote, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Plus } from '@phosphor-icons/react'
+import { AreaTexto, Botao, Campo, Entrada, EntradaPreco, Segmentos, Selecao } from '@/components/admin/ui'
 import { ActionDialog } from './ActionDialog'
 import type { CategoriaCaixa, MovimentacaoCaixa } from '@/lib/tipos-caixa'
 import type { TipoMovimentacao } from '../types'
@@ -34,8 +30,8 @@ interface ModalMovimentacaoProps {
 const FORMAS_PAGAMENTO = [
   { valor: 'pix', rotulo: 'Pix' },
   { valor: 'dinheiro', rotulo: 'Dinheiro' },
-  { valor: 'cartao_credito', rotulo: 'Cartão de crédito' },
-  { valor: 'cartao_debito', rotulo: 'Cartão de débito' },
+  { valor: 'cartao_credito', rotulo: 'Crédito' },
+  { valor: 'cartao_debito', rotulo: 'Débito' },
   { valor: 'transferencia', rotulo: 'Transferência' },
   { valor: 'boleto', rotulo: 'Boleto' },
 ]
@@ -56,7 +52,6 @@ export function ModalMovimentacao({
   const idValor = useId()
   const idDescricao = useId()
   const idCategoria = useId()
-  const idForma = useId()
   const idData = useId()
 
   const [categoriaId, setCategoriaId] = useState('')
@@ -98,8 +93,8 @@ export function ModalMovimentacao({
   const descricaoModal = editando
     ? 'Atualize os dados do lançamento.'
     : tipoEfetivo === 'entrada'
-      ? 'Informe a descrição e o valor da receita.'
-      : 'Informe a descrição e o valor da despesa.'
+      ? 'Dinheiro que entrou no caixa.'
+      : 'Dinheiro que saiu do caixa.'
 
   useEffect(() => {
     if (!aberto) return
@@ -115,17 +110,10 @@ export function ModalMovimentacao({
   }, [movimentacao, aberto])
 
   const triggerPadrao = (
-    <Button
-      size="sm"
-      className={
-        tipoEfetivo === 'entrada'
-          ? 'h-9 gap-2 border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-400'
-          : 'h-9 gap-2 border border-rose-500/20 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20 dark:text-rose-400'
-      }
-    >
-      <Plus strokeWidth={1.6} className="h-4 w-4" />
+    <Botao variante="contorno" tamanho="sm">
+      <Plus className="size-4" />
       {tipoEfetivo === 'entrada' ? 'Receita' : 'Despesa'}
-    </Button>
+    </Botao>
   )
 
   const handleSubmit = async (formData: FormData) => {
@@ -161,90 +149,61 @@ export function ModalMovimentacao({
       onOpenChange={handleOpenChange}
       title={titulo}
       description={descricaoModal}
-      submitLabel={editando ? 'Atualizar' : 'Confirmar'}
+      submitLabel={editando ? 'Salvar' : tipoEfetivo === 'entrada' ? 'Lançar receita' : 'Lançar despesa'}
       action={handleSubmit}
     >
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={idDescricao}>Descrição</Label>
-        <Textarea
+      <div className="grid grid-cols-2 gap-3">
+        <Campo rotulo="Valor" htmlFor={idValor}>
+          <EntradaPreco
+            id={idValor}
+            name="valor"
+            valor={valorStr}
+            aoMudar={setValorStr}
+            required
+            autoFocus={!editando}
+          />
+        </Campo>
+        <Campo rotulo="Data" htmlFor={idData}>
+          <Entrada id={idData} name="data" type="date" value={dataStr} onChange={(e) => setDataStr(e.target.value)} />
+        </Campo>
+      </div>
+
+      <Campo rotulo="Descrição" htmlFor={idDescricao}>
+        <AreaTexto
           id={idDescricao}
           name="descricao"
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
-          placeholder={
-            tipoEfetivo === 'entrada'
-              ? 'Informe a descrição da receita'
-              : 'Informe a descrição da despesa'
-          }
+          placeholder={tipoEfetivo === 'entrada' ? 'Ex.: Venda no balcão' : 'Ex.: Compra de gelo'}
           rows={2}
           required
         />
-      </div>
+      </Campo>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={idValor}>Valor</Label>
-          <div className="relative">
-            <Banknote className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id={idValor}
-              name="valor"
-              type="text"
-              inputMode="decimal"
-              placeholder="00,00"
-              className="pl-9"
-              value={valorStr}
-              onChange={(e) => setValorStr(e.target.value)}
-              required
-              autoFocus={!editando}
-            />
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={idData}>Data</Label>
-          <Input
-            id={idData}
-            name="data"
-            type="date"
-            value={dataStr}
-            onChange={(e) => setDataStr(e.target.value)}
-          />
-        </div>
-      </div>
+      <Campo rotulo="Forma de pagamento">
+        <Segmentos
+          opcoes={FORMAS_PAGAMENTO}
+          valor={formaPagamento}
+          aoMudar={(valor) => setFormaPagamento((atual) => (atual === valor ? '' : valor))}
+          rotuloAcessivel="Forma de pagamento"
+        />
+      </Campo>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={idCategoria}>Categoria (opcional)</Label>
-          <Select value={categoriaId || undefined} onValueChange={setCategoriaId}>
-            <SelectTrigger id={idCategoria}>
-              <SelectValue placeholder={categoriasFiltradas.length ? 'Selecionar' : 'Sem categorias'} />
-            </SelectTrigger>
-            <SelectContent>
-              {categoriasFiltradas.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={idForma}>Forma de pagamento</Label>
-          <Select value={formaPagamento || undefined} onValueChange={setFormaPagamento}>
-            <SelectTrigger id={idForma}>
-              <SelectValue placeholder="Selecionar" />
-            </SelectTrigger>
-            <SelectContent>
-              {FORMAS_PAGAMENTO.map((f) => (
-                <SelectItem key={f.valor} value={f.valor}>
-                  {f.rotulo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <Campo rotulo="Categoria" htmlFor={idCategoria} opcional>
+        <Selecao
+          id={idCategoria}
+          value={categoriaId}
+          onChange={(e) => setCategoriaId(e.target.value)}
+          disabled={categoriasFiltradas.length === 0}
+        >
+          <option value="">{categoriasFiltradas.length ? 'Sem categoria' : 'Nenhuma categoria cadastrada'}</option>
+          {categoriasFiltradas.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome}
+            </option>
+          ))}
+        </Selecao>
+      </Campo>
     </ActionDialog>
   )
 }

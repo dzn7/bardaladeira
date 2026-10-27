@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { ArrowsClockwise as RefreshCw, ChartBar } from '@phosphor-icons/react'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -29,6 +29,8 @@ import { RelatorioProdutos } from '@/features/analise-diaria/components/relatori
 import { RelatorioTaxasEntrega } from '@/features/analise-diaria/components/relatorios/RelatorioTaxasEntrega'
 import { useAnaliseDiaria } from '@/features/analise-diaria/hooks/useAnaliseDiaria'
 import { formatarMoeda } from '@/features/analise-diaria/lib/formatadores'
+import { Botao, CabecalhoPagina, Esqueleto, ListaVazia, Pagina } from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend)
 
@@ -86,43 +88,38 @@ export default function AnaliseDiariaPage() {
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="space-y-5 pb-8">
-          <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm md:p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <h1 className="text-lg font-semibold tracking-tight text-foreground">Análise diária</h1>
-                <p className="mt-1 text-sm text-muted-foreground">Dia de trabalho · corte 10h</p>
-              </div>
-              <FaixaKpiAnalise
-                itens={kpis}
-                carregando={carregando && !dados}
-                acoes={
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SeletorDiaOperacional
-                      dataSelecionada={dataSelecionada}
-                      diaTrabalhoAtual={diaTrabalhoAtual}
-                      onSelecionar={selecionarData}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void recarregar()}
-                      disabled={carregando}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border/70 bg-background px-3 text-sm font-medium shadow-none transition-colors hover:bg-muted disabled:opacity-50"
-                      aria-label="Atualizar análise do dia"
-                    >
-                      <RefreshCw className={`h-3.5 w-3.5 ${carregando ? 'animate-spin' : ''}`} strokeWidth={1.6} />
-                      Atualizar
-                    </button>
-                  </div>
-                }
-              />
-            </div>
-          </div>
+        <Pagina>
+          <CabecalhoPagina
+            titulo="Análise diária"
+            descricao="Como foi um dia de trabalho (das 10h às 9h59 do dia seguinte)."
+            acoes={
+              <>
+                <SeletorDiaOperacional
+                  dataSelecionada={dataSelecionada}
+                  diaTrabalhoAtual={diaTrabalhoAtual}
+                  onSelecionar={selecionarData}
+                />
+                <Botao
+                  variante="contorno"
+                  className="h-11 md:h-10"
+                  onClick={() => void recarregar()}
+                  disabled={carregando}
+                  aria-label="Atualizar análise do dia"
+                >
+                  <RefreshCw className={cn(carregando && 'animate-spin')} />
+                  Atualizar
+                </Botao>
+              </>
+            }
+          />
+
+          <FaixaKpiAnalise itens={kpis} carregando={carregando && !dados} />
 
           {carregando && !dados ? (
-            <div className="space-y-3">
-              <div className="h-24 animate-pulse rounded-xl border border-border/70 bg-muted/40" />
-              <div className="h-48 animate-pulse rounded-xl border border-border/70 bg-muted/40" />
+            <div className="space-y-3" aria-busy="true" aria-label="Carregando">
+              <Esqueleto className="h-14 w-full rounded-xl" />
+              <Esqueleto className="h-48 w-full rounded-xl" />
+              <Esqueleto className="h-14 w-full rounded-xl" />
             </div>
           ) : dados ? (
             <div className="space-y-3">
@@ -189,7 +186,7 @@ export default function AnaliseDiariaPage() {
               <SecaoRelatorio
                 id="comparativo"
                 titulo="Comparativo"
-                descricao="Versus ontem e o mesmo weekday −7d."
+                descricao="Comparado a ontem e ao mesmo dia da semana passada."
                 aberto={abertas.has('comparativo')}
                 onToggle={handleToggleSecao}
               >
@@ -216,7 +213,7 @@ export default function AnaliseDiariaPage() {
               <SecaoRelatorio
                 id="equipe"
                 titulo="Equipe / PDV"
-                descricao="Quem criou pedidos (garçom_id)."
+                descricao="Quem lançou os pedidos do dia."
                 aberto={abertas.has('equipe')}
                 onToggle={handleToggleSecao}
               >
@@ -234,11 +231,18 @@ export default function AnaliseDiariaPage() {
               </SecaoRelatorio>
             </div>
           ) : (
-            <p className="rounded-xl border border-border/70 bg-card p-8 text-center text-sm text-muted-foreground shadow-sm">
-              Não foi possível carregar a análise deste dia.
-            </p>
+            <ListaVazia
+              icone={<ChartBar />}
+              titulo="Não deu para carregar este dia"
+              descricao="Confira a internet e tente de novo."
+              acao={
+                <Botao variante="contorno" onClick={() => void recarregar()}>
+                  Tentar de novo
+                </Botao>
+              }
+            />
           )}
-        </div>
+        </Pagina>
       </AdminLayout>
     </ProtectedRoute>
   )

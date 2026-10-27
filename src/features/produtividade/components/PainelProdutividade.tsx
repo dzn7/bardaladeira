@@ -1,12 +1,16 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, Trophy } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
+import { ArrowsClockwise as RefreshCw, Trophy } from '@phosphor-icons/react'
+import {
+  Botao,
+  CabecalhoPagina,
+  Cartao,
+  Chip,
+  Entrada,
+  Esqueleto,
+  Pagina,
+} from '@/components/admin/ui'
 import { cn } from '@/lib/utils'
 import { useOcorrencias, useProdutividade } from '../hooks/useProdutividade'
 import {
@@ -89,157 +93,132 @@ export default function PainelProdutividade() {
 
   const rotuloPeriodo = rotularIntervalo(intervalo)
 
+  const indicadores = [
+    { rotulo: 'Pontos', valor: formatarPontos(resumo.pontos) },
+    { rotulo: 'Pedidos', valor: String(resumo.criados) },
+    {
+      rotulo: 'Entregues',
+      valor: String(resumo.fechados),
+      extra: formatarPercentual(resumo.taxaFechamento),
+    },
+    { rotulo: 'Vendas', valor: formatarMoeda(resumo.vendas) },
+    {
+      rotulo: 'Perdidos',
+      valor: resumo.perdidos > 0 ? `−${formatarPontos(resumo.perdidos)}` : '0',
+      perigo: resumo.perdidos > 0,
+    },
+  ]
+
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5">
-      <header className="flex w-full min-w-0 flex-col gap-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm md:p-5">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">Produtividade</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Pontuação dos garçons por pedido criado, entregue e bem cadastrado · {rotuloPeriodo}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 shrink-0 shadow-none"
-            onClick={() => void recarregar()}
-            disabled={carregando}
-          >
-            <RefreshCw className={cn('mr-2 h-4 w-4', carregando && 'animate-spin')} />
+    <Pagina className="max-w-6xl">
+      <CabecalhoPagina
+        titulo="Produtividade"
+        descricao={`Pontos dos garçons por pedido criado, entregue e bem cadastrado · ${rotuloPeriodo}`}
+        acoes={
+          <Botao variante="contorno" onClick={() => void recarregar()} disabled={carregando}>
+            <RefreshCw className={cn(carregando && 'animate-spin')} />
             Atualizar
-          </Button>
+          </Botao>
+        }
+      />
+
+      <div className="space-y-3">
+        <div
+          role="group"
+          aria-label="Período analisado"
+          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+        >
+          {PERIODOS.map((item) => (
+            <Chip
+              key={item.valor}
+              ativo={periodo === item.valor}
+              onClick={() => setPeriodo(item.valor)}
+              className="h-10"
+            >
+              {item.rotulo}
+            </Chip>
+          ))}
         </div>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <ToggleGroup
-            type="single"
-            value={periodo}
-            onValueChange={(valor) => {
-              if (valor) setPeriodo(valor as PeriodoProdutividade)
-            }}
-            aria-label="Período analisado"
-            className="flex w-max flex-wrap items-center justify-start gap-2"
-          >
-            {PERIODOS.map((item) => (
-              <ToggleGroupItem
-                key={item.valor}
-                value={item.valor}
-                className={CHIP_FILTRO_DEFAULT}
-              >
-                {item.rotulo}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+        {periodo === 'personalizado' ? (
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:flex-wrap">
+            <Entrada
+              type="date"
+              value={personalizado.de}
+              max={personalizado.ate}
+              onChange={(evento) =>
+                setPersonalizado((anterior) => ({ ...anterior, de: evento.target.value }))
+              }
+              className="sm:w-[170px]"
+              aria-label="Data inicial"
+            />
+            <span className="text-sm text-muted-foreground">até</span>
+            <Entrada
+              type="date"
+              value={personalizado.ate}
+              min={personalizado.de}
+              max={diaBrasilia(new Date())}
+              onChange={(evento) =>
+                setPersonalizado((anterior) => ({ ...anterior, ate: evento.target.value }))
+              }
+              className="sm:w-[170px]"
+              aria-label="Data final"
+            />
+          </div>
+        ) : null}
+      </div>
 
-          {periodo === 'personalizado' ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                type="date"
-                value={personalizado.de}
-                max={personalizado.ate}
-                onChange={(evento) =>
-                  setPersonalizado((anterior) => ({ ...anterior, de: evento.target.value }))
-                }
-                className="h-9 w-[150px] shadow-none"
-                aria-label="Data inicial"
-              />
-              <span className="text-xs text-muted-foreground">até</span>
-              <Input
-                type="date"
-                value={personalizado.ate}
-                min={personalizado.de}
-                max={diaBrasilia(new Date())}
-                onChange={(evento) =>
-                  setPersonalizado((anterior) => ({ ...anterior, ate: evento.target.value }))
-                }
-                className="h-9 w-[150px] shadow-none"
-                aria-label="Data final"
-              />
-            </div>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-border/50 pt-4">
-          {carregando ? (
-            Array.from({ length: 5 }).map((_, indice) => (
-              <div key={indice} className="min-w-[86px] space-y-1.5">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-6 w-14" />
-              </div>
-            ))
-          ) : (
-            <>
-              <div className="min-w-[86px]">
-                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                  Pontos
-                </p>
-                <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                  {formatarPontos(resumo.pontos)}
-                </p>
-              </div>
-              <div className="min-w-[86px]">
-                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                  Pedidos
-                </p>
-                <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                  {resumo.criados}
-                </p>
-              </div>
-              <div className="min-w-[86px]">
-                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                  Entregues
-                </p>
-                <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                  {resumo.fechados}
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    {formatarPercentual(resumo.taxaFechamento)}
-                  </span>
-                </p>
-              </div>
-              <div className="min-w-[110px]">
-                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                  Vendas
-                </p>
-                <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                  {formatarMoeda(resumo.vendas)}
-                </p>
-              </div>
-              <div className="min-w-[86px]">
-                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                  Perdidos
-                </p>
-                <p
-                  className={cn(
-                    'mt-0.5 text-xl font-semibold tabular-nums',
-                    resumo.perdidos > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-foreground',
-                  )}
-                >
-                  {resumo.perdidos > 0 ? `−${formatarPontos(resumo.perdidos)}` : '0'}
-                </p>
-              </div>
-              {resumo.lider ? (
-                <div className="min-w-[120px]">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                    Líder
-                  </p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                    <Trophy className="h-4 w-4 shrink-0 text-amber-500" strokeWidth={1.8} />
-                    <span className="truncate">{resumo.lider.nome}</span>
-                  </p>
+      <Cartao className="p-4 md:p-5">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+          {carregando
+            ? Array.from({ length: 6 }).map((_, indice) => (
+                <div key={indice} className="space-y-1.5">
+                  <Esqueleto className="h-4 w-16" />
+                  <Esqueleto className="h-6 w-14" />
                 </div>
-              ) : null}
-            </>
-          )}
-        </div>
+              ))
+            : (
+                <>
+                  {indicadores.map((item) => (
+                    <div key={item.rotulo} className="min-w-0">
+                      <dt className="text-sm text-muted-foreground">{item.rotulo}</dt>
+                      <dd
+                        className={cn(
+                          'mt-0.5 truncate text-xl font-semibold tabular-nums',
+                          item.perigo ? 'text-destructive' : 'text-foreground',
+                        )}
+                      >
+                        {item.valor}
+                        {item.extra ? (
+                          <span className="ml-1 text-sm font-normal text-muted-foreground">
+                            {item.extra}
+                          </span>
+                        ) : null}
+                      </dd>
+                    </div>
+                  ))}
+                  {resumo.lider ? (
+                    <div className="min-w-0">
+                      <dt className="text-sm text-muted-foreground">Líder</dt>
+                      <dd className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                        <Trophy className="size-4 shrink-0 text-amber-500" weight="fill" />
+                        <span className="truncate">{resumo.lider.nome}</span>
+                      </dd>
+                    </div>
+                  ) : null}
+                </>
+              )}
+        </dl>
 
         {erro ? (
-          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <p
+            role="alert"
+            className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          >
             {erro}
           </p>
         ) : null}
-      </header>
+      </Cartao>
 
       <CardMetasProdutividade
         metas={metas}
@@ -293,6 +272,6 @@ export default function PainelProdutividade() {
           void recarregar({ silencioso: true })
         }}
       />
-    </div>
+    </Pagina>
   )
 }

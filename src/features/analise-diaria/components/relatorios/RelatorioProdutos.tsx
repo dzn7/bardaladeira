@@ -24,7 +24,7 @@ export const RelatorioProdutos = ({ produtos }: RelatorioProdutosProps) => {
             <th className="w-8 pb-2 font-medium">#</th>
             <th className="pb-2 font-medium">Produto</th>
             <th className="hidden pb-2 text-right font-medium sm:table-cell">Pedidos</th>
-            <th className="pb-2 text-right font-medium">Qtd</th>
+            <th className="pb-2 text-right font-medium">Qtd.</th>
             <th className="hidden min-w-[7rem] pb-2 font-medium md:table-cell">Participação</th>
             <th className="pb-2 text-right font-medium">Receita</th>
             <th className="hidden pb-2 text-right font-medium sm:table-cell">%</th>
@@ -39,8 +39,8 @@ export const RelatorioProdutos = ({ produtos }: RelatorioProdutosProps) => {
                 <td className="py-2.5 tabular-nums text-muted-foreground">{index + 1}</td>
                 <td className="max-w-[12rem] py-2.5 font-medium text-foreground sm:max-w-none">
                   <span className="line-clamp-2 sm:line-clamp-1">{produto.nome}</span>
-                  <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground sm:hidden">
-                    {produto.pedidos} ped. · {pctReceita.toFixed(0)}%
+                  <span className="mt-0.5 block text-[13px] font-normal text-muted-foreground sm:hidden">
+                    {produto.pedidos} {produto.pedidos === 1 ? "pedido" : "pedidos"} · {pctReceita.toFixed(0)}%
                   </span>
                 </td>
                 <td className="hidden py-2.5 text-right tabular-nums text-muted-foreground sm:table-cell">

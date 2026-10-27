@@ -1,28 +1,12 @@
 'use client'
 
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import {
-  AlertTriangle,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  EyeOff,
-  List,
-  MinusCircle,
-  PlusCircle,
-  RotateCcw,
-  Search,
-  TrendingDown,
-  TrendingUp,
-} from 'lucide-react'
+import { Warning as AlertTriangle, CalendarDots as CalendarDays, CaretLeft as ChevronLeft, CaretRight as ChevronRight, Eye, EyeSlash as EyeOff, List, MinusCircle, PlusCircle, ArrowCounterClockwise as RotateCcw, MagnifyingGlass as Search } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Botao, Cartao, Chip, Entrada, Secao } from '@/components/admin/ui'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
-import { CHIP_FILTRO_ALERTA, CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
 import { FiltrosAtivosChips, type ChipFiltroAtivo } from '@/components/admin/filtros/FiltrosAtivosChips'
 import type { MovimentacaoCaixa } from '@/lib/tipos-caixa'
 import { useFinancas } from '../hooks/useFinancas'
@@ -62,26 +46,24 @@ function extrairMesAno(filtro: FiltroFinancas): { ano: number; mes: number } {
   return { ano: d.getFullYear(), mes: d.getMonth() + 1 }
 }
 
-const CHIPS: { key: FiltroRapido; label: string; ariaLabel: string; icon: ReactNode; alert?: boolean }[] = [
-  { key: 'todos', label: 'Todos', ariaLabel: 'Mostrar todos os lançamentos', icon: <List className="h-3.5 w-3.5" /> },
+const CHIPS: { key: FiltroRapido; label: string; ariaLabel: string; icon?: ReactNode; alert?: boolean }[] = [
+  { key: 'todos', label: 'Todos', ariaLabel: 'Mostrar todos os lançamentos' },
   {
     key: 'a-receber',
     label: 'A receber',
     ariaLabel: 'Filtrar pedidos e crediário a receber',
-    icon: <AlertTriangle className="h-3.5 w-3.5" />,
+    icon: <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />,
     alert: true,
   },
   {
     key: 'receitas',
-    label: 'Somente Receitas',
+    label: 'Receitas',
     ariaLabel: 'Filtrar somente receitas',
-    icon: <TrendingUp className="h-3.5 w-3.5" />,
   },
   {
     key: 'despesas',
-    label: 'Somente Despesas',
+    label: 'Despesas',
     ariaLabel: 'Filtrar somente despesas',
-    icon: <TrendingDown className="h-3.5 w-3.5" />,
   },
 ]
 
@@ -222,48 +204,49 @@ export function PainelFinancas() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2" data-onboarding="financas-lucro">
-          <h1 className="fonte-titulo text-xl font-semibold tracking-tight text-foreground">Financeiro</h1>
-          <button
-            type="button"
-            onClick={handleAlternarOcultos}
-            aria-label={valoresOcultos ? 'Mostrar valores' : 'Ocultar valores'}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            {valoresOcultos ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-          {!valoresOcultos ? (
-            <span
-              className={cn(
-                'text-sm font-semibold tabular-nums',
-                resumo.resultadoCaixa >= 0
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-rose-600 dark:text-rose-400',
-              )}
+    <div className="mx-auto w-full max-w-6xl space-y-5 pb-10">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0" data-onboarding="financas-lucro">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">Financeiro</h1>
+          <div className="mt-1 flex items-center gap-1.5 text-sm">
+            <span className="text-muted-foreground">Resultado</span>
+            {!valoresOcultos ? (
+              <span
+                className={cn(
+                  'font-semibold tabular-nums',
+                  resumo.resultadoCaixa >= 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-rose-600 dark:text-rose-400',
+                )}
+              >
+                {formatarMoeda(resumo.resultadoCaixa)}
+              </span>
+            ) : (
+              <span className="font-semibold text-muted-foreground">••••••</span>
+            )}
+            <Botao
+              variante="fantasma"
+              tamanho="iconeSm"
+              onClick={handleAlternarOcultos}
+              aria-label={valoresOcultos ? 'Mostrar valores' : 'Ocultar valores'}
+              aria-pressed={valoresOcultos}
+              className="text-muted-foreground"
             >
-              Resultado {formatarMoeda(resumo.resultadoCaixa)}
-            </span>
-          ) : (
-            <span className="text-sm font-semibold text-muted-foreground">Resultado ••••••</span>
-          )}
+              {valoresOcultos ? <EyeOff /> : <Eye />}
+            </Botao>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <ModalMovimentacao
             tipo="entrada"
             categorias={categorias}
             onSubmit={adicionarMovimentacao}
             trigger={
-              <Button
-                variant="outline"
-                data-onboarding="financas-receita"
-                className="h-10 gap-2 rounded-xl border-border/70 px-4 text-sm font-medium shadow-none hover:border-emerald-500"
-              >
-                Receitas
-                <PlusCircle className="h-5 w-5 text-[#00C247]" strokeWidth={1.6} />
-              </Button>
+              <Botao variante="contorno" data-onboarding="financas-receita">
+                <PlusCircle className="text-emerald-600 dark:text-emerald-400" />
+                Receita
+              </Botao>
             }
           />
           <ModalMovimentacao
@@ -271,229 +254,198 @@ export function PainelFinancas() {
             categorias={categorias}
             onSubmit={adicionarMovimentacao}
             trigger={
-              <Button
-                variant="outline"
-                data-onboarding="financas-despesa"
-                className="h-10 gap-2 rounded-xl border-border/70 px-4 text-sm font-medium shadow-none hover:border-rose-500"
-              >
-                Despesas
-                <MinusCircle className="h-5 w-5 text-[#FF5151]" strokeWidth={1.6} />
-              </Button>
+              <Botao variante="contorno" data-onboarding="financas-despesa">
+                <MinusCircle className="text-rose-600 dark:text-rose-400" />
+                Despesa
+              </Botao>
             }
           />
-          <GestaoPagamentosFuncionarios
-            funcionarios={funcionarios}
-            categorias={categorias}
-            aoAtualizar={refetch}
-          />
+          <div className="col-span-2 sm:col-span-1 [&>button]:w-full sm:[&>button]:w-auto">
+            <GestaoPagamentosFuncionarios
+              funcionarios={funcionarios}
+              categorias={categorias}
+              aoAtualizar={refetch}
+            />
+          </div>
         </div>
       </div>
 
       {erro ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {erro}
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{erro}</span>
+          <Botao variante="contorno" tamanho="sm" onClick={refetch} disabled={carregando}>
+            Tentar de novo
+          </Botao>
         </div>
       ) : null}
 
-      <div
-        className={cn(
-          'w-full overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm',
-          abaPrincipal === 'diarias' ? 'p-3 md:p-4' : 'p-3.5 md:p-5',
-        )}
-      >
-        <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
-          <ToggleGroup
-            type="single"
-            value={abaPrincipal}
-            onValueChange={(v) => {
-              if (v === 'lancamentos' || v === 'diarias') setAbaPrincipal(v)
-            }}
-            aria-label="Área principal do financeiro"
-            data-onboarding="financas-toggle-principal"
-            className="inline-flex h-10 w-full rounded-lg border border-border/70 bg-muted/30 p-1 sm:w-auto"
-          >
-            <ToggleGroupItem
-              value="lancamentos"
-              aria-label="Lançamentos"
-              className="h-8 flex-1 gap-1.5 rounded-md px-3 text-xs font-medium data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm sm:flex-none"
-            >
-              <List className="h-3.5 w-3.5" />
-              Lançamentos
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="diarias"
-              aria-label="Diárias"
-              className="h-8 flex-1 gap-1.5 rounded-md px-3 text-xs font-medium data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm sm:flex-none"
-            >
-              <CalendarDays className="h-3.5 w-3.5" />
-              Diárias
-            </ToggleGroupItem>
-          </ToggleGroup>
-
-          {abaPrincipal === 'lancamentos' ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                {rotuloPeriodo(filtro)}
-              </span>
-              {carregando ? <RotateCcw className="h-4 w-4 animate-spin text-sky-500" /> : null}
-            </div>
-          ) : null}
-        </div>
-
-        {abaPrincipal === 'diarias' ? (
-          <PainelDiarias funcionarios={funcionarios} onAlterou={refetch} embutido />
-        ) : (
-          <>
-        <div
-          className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
-          data-onboarding="financas-periodo"
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <ToggleGroup
+          type="single"
+          value={abaPrincipal}
+          onValueChange={(v) => {
+            if (v === 'lancamentos' || v === 'diarias') setAbaPrincipal(v)
+          }}
+          aria-label="Área principal do financeiro"
+          data-onboarding="financas-toggle-principal"
+          className="inline-flex h-11 w-full rounded-lg border border-border/70 bg-muted/40 p-1 sm:w-auto md:h-10"
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => aplicarPreset('hoje')}
-              className={cn(
-                'h-8 rounded-md border px-2.5 text-xs font-medium transition-colors',
-                filtro.tipo === 'hoje'
-                  ? 'border-sky-500 bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200'
-                  : 'border-transparent text-muted-foreground hover:bg-muted',
-              )}
-            >
-              Hoje
-            </button>
+          <ToggleGroupItem
+            value="lancamentos"
+            aria-label="Lançamentos"
+            className="h-full flex-1 gap-1.5 rounded-md px-4 text-sm font-medium text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm sm:flex-none"
+          >
+            <List className="size-4" />
+            Lançamentos
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="diarias"
+            aria-label="Diárias"
+            className="h-full flex-1 gap-1.5 rounded-md px-4 text-sm font-medium text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm sm:flex-none"
+          >
+            <CalendarDays className="size-4" />
+            Diárias
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
 
-            {!ehMesAtual && filtro.tipo === 'mes' ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs shadow-none"
-                onClick={() => setFiltro(calcularPeriodo('mes'))}
+      {abaPrincipal === 'diarias' ? (
+        <Cartao className="p-3 md:p-4">
+          <PainelDiarias funcionarios={funcionarios} onAlterou={refetch} embutido />
+        </Cartao>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2" data-onboarding="financas-periodo">
+            <div className="flex items-center">
+              <Botao
+                variante="fantasma"
+                tamanho="icone"
+                className="size-11 md:size-10"
+                aria-label="Mês anterior"
+                onClick={() => navegarMes(-1)}
               >
-                Mês Atual
-              </Button>
+                <ChevronLeft />
+              </Botao>
+              <span className="min-w-[112px] text-center text-sm font-medium text-foreground">
+                {filtro.tipo === 'hoje' ? 'Hoje' : ehMesAtual ? 'Este mês' : rotuloMes}
+              </span>
+              <Botao
+                variante="fantasma"
+                tamanho="icone"
+                className="size-11 md:size-10"
+                aria-label="Próximo mês"
+                onClick={() => navegarMes(1)}
+              >
+                <ChevronRight />
+              </Botao>
+            </div>
+
+            <Chip ativo={filtro.tipo === 'hoje'} onClick={() => aplicarPreset('hoje')}>
+              Hoje
+            </Chip>
+            {!ehMesAtual && filtro.tipo === 'mes' ? (
+              <Chip onClick={() => setFiltro(calcularPeriodo('mes'))}>Este mês</Chip>
             ) : null}
 
-            <button
-              type="button"
-              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Mês anterior"
-              onClick={() => navegarMes(-1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="min-w-[120px] text-center text-base font-medium text-foreground/90">
-              {filtro.tipo === 'hoje' ? 'Hoje' : ehMesAtual ? 'Mês Atual' : rotuloMes}
-            </span>
-            <button
-              type="button"
-              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Próximo mês"
-              onClick={() => navegarMes(1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 text-muted-foreground"
+            <Botao
+              variante="fantasma"
+              tamanho="sm"
+              className="ml-auto text-muted-foreground"
               onClick={refetch}
               disabled={carregando}
+              aria-label="Atualizar dados"
             >
-              <RotateCcw className={cn('h-3.5 w-3.5', carregando && 'animate-spin')} />
-              Atualizar
-            </Button>
+              <RotateCcw className={cn(carregando && 'animate-spin')} />
+              <span className="hidden sm:inline">Atualizar</span>
+            </Botao>
           </div>
-        </div>
 
-        <div className="mb-3 w-full overflow-x-auto">
-          <ToggleGroup
-            type="single"
-            value={filtroRapido}
-            onValueChange={(v) => {
-              if (v) setFiltroRapido(v as FiltroRapido)
-            }}
-            aria-label="Filtros rápidos do financeiro"
-            className="flex w-max items-center justify-start gap-2"
-          >
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Filtros rápidos do financeiro">
             {CHIPS.map((chip) => (
-              <ToggleGroupItem
+              <Chip
                 key={chip.key}
-                value={chip.key}
+                ativo={filtroRapido === chip.key}
                 aria-label={chip.ariaLabel}
-                className={chip.alert ? CHIP_FILTRO_ALERTA : CHIP_FILTRO_DEFAULT}
+                onClick={() => setFiltroRapido(chip.key)}
               >
                 {chip.icon}
-                <span>{chip.label}</span>
-              </ToggleGroupItem>
+                {chip.label}
+              </Chip>
             ))}
-          </ToggleGroup>
-        </div>
+          </div>
 
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Entrada
+              type="search"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar descrição"
+              placeholder="Buscar lançamento"
               aria-label="Buscar descrição"
-              className="h-9 rounded-lg border-border/70 bg-background pl-9 shadow-none"
+              className="pl-9"
             />
           </div>
+
+          <FiltrosAtivosChips chips={chipsFiltroAtivo} onLimpar={handleLimparFiltros} />
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2" data-onboarding="financas-cards">
+            <CardRadialFinancas
+              titulo="Receitas"
+              descricao="recebidas até o momento"
+              parcial={receitaRecebida}
+              total={receitaTotalAlvo}
+              tipo="incoming"
+              carregando={carregando}
+              valoresOcultos={valoresOcultos}
+            />
+            <CardRadialFinancas
+              titulo="Despesas"
+              descricao="pagas até o momento"
+              parcial={despesaPaga}
+              total={despesaTotalAlvo}
+              tipo="outcoming"
+              carregando={carregando}
+              valoresOcultos={valoresOcultos}
+            />
+          </div>
+
+          {filtroRapido === 'a-receber' ? (
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+              <ListaPedidosNaoPagos
+                pedidos={pedidosNaoPagos}
+                total={resumo.pedidosNaoPagosTotal}
+                carregando={carregando}
+              />
+              <ListaCrediarioPendente
+                crediarios={crediarios}
+                total={resumo.crediarioAberto}
+                carregando={carregando}
+              />
+            </div>
+          ) : (
+            <Secao
+              titulo="Lançamentos"
+              descricao={`${rotuloPeriodo(filtro)} · ${movimentacoesFiltradas.length} ${movimentacoesFiltradas.length === 1 ? 'lançamento' : 'lançamentos'}`}
+            >
+              <div data-onboarding="financas-lancamentos">
+                <Cartao className="px-3 md:px-1">
+                  <ListaMovimentacoes
+                    movimentacoes={movimentacoesFiltradas}
+                    carregando={carregando}
+                    onRemover={removerMovimentacao}
+                    onEditar={setEditando}
+                    onVisualizar={handleVisualizar}
+                    embutido
+                  />
+                </Cartao>
+              </div>
+            </Secao>
+          )}
         </div>
-
-        <FiltrosAtivosChips chips={chipsFiltroAtivo} onLimpar={handleLimparFiltros} className="mb-4" />
-
-        <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2" data-onboarding="financas-cards">
-          <CardRadialFinancas
-            titulo="Receitas"
-            descricao="recebidas até o momento"
-            parcial={receitaRecebida}
-            total={receitaTotalAlvo}
-            tipo="incoming"
-            carregando={carregando}
-            valoresOcultos={valoresOcultos}
-          />
-          <CardRadialFinancas
-            titulo="Despesas"
-            descricao="pagas até o momento"
-            parcial={despesaPaga}
-            total={despesaTotalAlvo}
-            tipo="outcoming"
-            carregando={carregando}
-            valoresOcultos={valoresOcultos}
-          />
-        </div>
-
-        {filtroRapido === 'a-receber' ? (
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-            <ListaPedidosNaoPagos
-              pedidos={pedidosNaoPagos}
-              total={resumo.pedidosNaoPagosTotal}
-              carregando={carregando}
-            />
-            <ListaCrediarioPendente
-              crediarios={crediarios}
-              total={resumo.crediarioAberto}
-              carregando={carregando}
-            />
-          </div>
-        ) : (
-          <div data-onboarding="financas-lancamentos">
-            <ListaMovimentacoes
-              movimentacoes={movimentacoesFiltradas}
-              carregando={carregando}
-              onRemover={removerMovimentacao}
-              onEditar={setEditando}
-              onVisualizar={handleVisualizar}
-              embutido
-            />
-          </div>
-        )}
-          </>
-        )}
-      </div>
+      )}
 
       <ModalMovimentacao
         tipo={editando?.tipo ?? 'entrada'}
@@ -512,14 +464,14 @@ export function PainelFinancas() {
 
       <Tabs defaultValue="analise" className="space-y-4">
         <TabsList
-          className="inline-flex h-10 rounded-lg border border-border/70 bg-card p-1"
+          className="inline-flex h-11 w-full rounded-lg border border-border/70 bg-muted/40 p-1 sm:w-auto md:h-10"
           data-onboarding="financas-tabs"
         >
-          <TabsTrigger value="analise" className="h-8 rounded-md px-3 text-xs font-medium">
+          <TabsTrigger value="analise" className="h-full flex-1 rounded-md px-4 text-sm font-medium sm:flex-none">
             Análise
           </TabsTrigger>
-          <TabsTrigger value="pagamentos" className="h-8 rounded-md px-3 text-xs font-medium">
-            Pagamentos
+          <TabsTrigger value="pagamentos" className="h-full flex-1 rounded-md px-4 text-sm font-medium sm:flex-none">
+            Pagamentos recebidos
           </TabsTrigger>
         </TabsList>
 
@@ -539,7 +491,7 @@ export function PainelFinancas() {
             valoresOcultos={valoresOcultos}
           />
           {!valoresOcultos ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="px-1 text-sm text-muted-foreground">
               {resumo.pedidosCount} pedidos · ticket {formatarMoeda(resumo.ticketMedio)} · a receber{' '}
               {formatarMoeda(resumo.aReceberTotal)}
             </p>

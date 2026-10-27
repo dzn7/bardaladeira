@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Loader2, Minus, Plus } from 'lucide-react'
+import { CircleNotch as Loader2, Minus, Plus } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import {
   AlertDialog,

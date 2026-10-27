@@ -1,20 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import {
-    RefreshCw,
-    Package,
-    Layers,
-    Camera,
-    Trash2,
-    Plus,
-    Save,
-    Copy,
-    Pencil,
-    UtensilsCrossed,
-    GlassWater,
-    Search,
-} from 'lucide-react'
+import { ArrowsClockwise as RefreshCw, Package, Camera, Trash as Trash2, Plus, Copy, ForkKnife as UtensilsCrossed, Drop as GlassWater, MagnifyingGlass as Search } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
@@ -22,28 +9,29 @@ import ModalRecorteImagem from '@/components/admin/ModalRecorteImagem'
 import { validarArquivoImagem, arquivoParaUrl } from '@/lib/recorteImagem'
 import { enviarImagemParaR2 } from '@/lib/servicoUploadImagem'
 import { supabase, Combo, ComboItem, Produto, Bebida } from '@/lib/supabase'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
-import {
-    Empty,
-    EmptyContent,
-    EmptyDescription,
-    EmptyHeader,
-    EmptyMedia,
-    EmptyTitle,
-} from '@/components/ui/empty'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { MenuAcoes } from '@/components/ui/menu-acoes'
-import { Textarea } from '@/components/ui/textarea'
+    AreaTexto,
+    Botao,
+    CabecalhoPagina,
+    Campo,
+    Cartao,
+    Contador,
+    Entrada,
+    EntradaPreco,
+    Gaveta,
+    Interruptor,
+    LinhaInterruptor,
+    Lista,
+    ListaCarregando,
+    ListaVazia,
+    Pagina,
+    Selecao,
+    Selo,
+    formatarPreco,
+    lerPreco,
+    useConfirmar,
+} from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 
 type ComboExpandido = Combo & {
     itens: (ComboItem & {
@@ -52,7 +40,13 @@ type ComboExpandido = Combo & {
     })[]
 }
 
+type ErrosCombo = { nome?: string; preco?: string; itens?: string }
+
+const paraTextoPreco = (valor: number | null | undefined) =>
+    valor === null || valor === undefined ? '' : String(valor).replace('.', ',')
+
 export default function CombosPage() {
+    const confirmar = useConfirmar()
     const [combos, setCombos] = useState<ComboExpandido[]>([])
     const [produtos, setProdutos] = useState<Produto[]>([])
     const [bebidas, setBebidas] = useState<Bebida[]>([])
@@ -71,6 +65,9 @@ export default function CombosPage() {
     const [imagemCombo, setImagemCombo] = useState<string | null>(null)
     const [blobImagem, setBlobImagem] = useState<Blob | null>(null)
     const [salvandoCombo, setSalvandoCombo] = useState(false)
+    const [erros, setErros] = useState<ErrosCombo>({})
+    // Evita insert duplicado se um passo posterior (itens, upload) falhar e o usuário tentar de novo.
+    const idCriado = useRef<string | null>(null)
 
     const [recorteAberto, setRecorteAberto] = useState(false)
     const [imagemParaRecorte, setImagemParaRecorte] = useState('')
@@ -167,6 +164,8 @@ export default function CombosPage() {
         setItensCombo([])
         setImagemCombo(null)
         setBlobImagem(null)
+        setErros({})
+        idCriado.current = null
         setModalAberto(true)
     }
 
@@ -174,11 +173,13 @@ export default function CombosPage() {
         setComboEditando(combo)
         setNomeCombo(combo.nome)
         setDescricaoCombo(combo.descricao || '')
-        setPrecoCombo(combo.preco.toString())
-        setPrecoOriginal((combo as any).preco_original?.toString() || '')
-        setDescontoAtivo(!!(combo as any).preco_original || !!(combo as any).desconto_percentual)
+        setPrecoCombo(paraTextoPreco(combo.preco))
+        setPrecoOriginal(paraTextoPreco(combo.preco_original))
+        setDescontoAtivo(!!combo.preco_original || !!combo.desconto_percentual)
         setImagemCombo(combo.imagem_url)
         setBlobImagem(null)
+        setErros({})
+        idCriado.current = null
 
         const itens = combo.itens.map(item => ({
             tipo: item.produto_id ? 'produto' as const : 'bebida' as const,
@@ -229,6 +230,7 @@ export default function CombosPage() {
 
         if (primeiroItem) {
             setItensCombo([...itensCombo, { tipo, id: primeiroItem, quantidade: 1 }])
+            setErros((atual) => ({ ...atual, itens: undefined }))
         }
     }
 
@@ -246,31 +248,43 @@ export default function CombosPage() {
         setItensCombo(novosItens)
     }
 
+    const alterarTipoItem = (indice: number, novoTipo: 'produto' | 'bebida') => {
+        const novosItens = [...itensCombo]
+        novosItens[indice].tipo = novoTipo
+        novosItens[indice].id = novoTipo === 'produto'
+            ? produtos[0]?.id || ''
+            : bebidas[0]?.id || ''
+        setItensCombo(novosItens)
+    }
+
+    const precoFinalNumero = lerPreco(precoCombo)
+    const precoOriginalNumero = lerPreco(precoOriginal)
+    const percentualDesconto =
+        precoFinalNumero !== null && precoOriginalNumero !== null && precoOriginalNumero > precoFinalNumero
+            ? Math.round(((precoOriginalNumero - precoFinalNumero) / precoOriginalNumero) * 100)
+            : null
+
     const salvarCombo = async () => {
-        if (!nomeCombo.trim()) {
-            toast.warning('Preencha o nome do combo.')
-            return
-        }
-        if (!precoCombo || parseFloat(precoCombo) <= 0) {
-            toast.warning('Preencha o preço do combo.')
-            return
-        }
-        if (itensCombo.length === 0) {
-            toast.warning('Adicione pelo menos um item ao combo.')
-            return
-        }
+        const proximosErros: ErrosCombo = {}
+        if (!nomeCombo.trim()) proximosErros.nome = 'Informe o nome do combo.'
+        if (precoFinalNumero === null || precoFinalNumero <= 0) proximosErros.preco = 'Informe o preço do combo.'
+        if (itensCombo.length === 0) proximosErros.itens = 'Adicione pelo menos um item ao combo.'
+        setErros(proximosErros)
+        if (Object.keys(proximosErros).length > 0 || precoFinalNumero === null) return
 
         setSalvandoCombo(true)
         try {
             let comboId: string
 
-            const precoFinal = parseFloat(precoCombo)
-            const precoOrig = descontoAtivo && precoOriginal ? parseFloat(precoOriginal) : null
+            const precoFinal = precoFinalNumero
+            const precoOrig = descontoAtivo && precoOriginalNumero ? precoOriginalNumero : null
             const descontoCalc = precoOrig && precoOrig > precoFinal
                 ? Math.round(((precoOrig - precoFinal) / precoOrig) * 100)
                 : null
 
-            if (comboEditando) {
+            const idExistente = comboEditando?.id ?? idCriado.current
+
+            if (idExistente) {
                 const { error: erroUpdate } = await supabase
                     .from('combos')
                     .update({
@@ -280,10 +294,10 @@ export default function CombosPage() {
                         preco_original: precoOrig,
                         desconto_percentual: descontoCalc
                     })
-                    .eq('id', comboEditando.id)
+                    .eq('id', idExistente)
 
                 if (erroUpdate) throw erroUpdate
-                comboId = comboEditando.id
+                comboId = idExistente
 
                 await supabase
                     .from('combo_itens')
@@ -305,6 +319,7 @@ export default function CombosPage() {
 
                 if (erroInsert) throw erroInsert
                 comboId = novoCombo.id
+                idCriado.current = comboId
             }
 
             const itensParaInserir = itensCombo.map(item => ({
@@ -330,13 +345,13 @@ export default function CombosPage() {
                 }
             }
 
-            toast.success(comboEditando ? 'Combo atualizado com sucesso!' : 'Combo cadastrado com sucesso!')
+            toast.success(comboEditando ? 'Combo salvo' : 'Combo criado', { description: nomeCombo.trim() })
 
             fecharModal()
             carregarDados()
         } catch (erro) {
             console.error('Erro ao salvar combo:', erro)
-            toast.error('Não foi possível salvar o combo. Tente novamente.')
+            toast.error('Não foi possível salvar o combo.', { description: 'Tente novamente.' })
         } finally {
             setSalvandoCombo(false)
         }
@@ -371,7 +386,8 @@ export default function CombosPage() {
                 .from('combo_itens')
                 .insert(itensParaCopiar)
 
-            toast.success('Combo duplicado. Ele foi criado como desabilitado.')
+            toast.success('Combo duplicado', { description: 'A cópia foi criada pausada.' })
+            fecharModal()
             carregarDados()
         } catch (erro) {
             console.error('Erro ao duplicar combo:', erro)
@@ -383,6 +399,7 @@ export default function CombosPage() {
 
     const alternarDisponibilidade = async (combo: ComboExpandido) => {
         setSalvando(combo.id)
+        setCombos((atual) => atual.map(c => c.id === combo.id ? { ...c, disponivel: !combo.disponivel } : c))
         try {
             const { error } = await supabase
                 .from('combos')
@@ -390,20 +407,24 @@ export default function CombosPage() {
                 .eq('id', combo.id)
 
             if (error) throw error
-
-            setCombos(combos.map(c =>
-                c.id === combo.id ? { ...c, disponivel: !c.disponivel } : c
-            ))
+            toast.success(combo.disponivel ? 'Pausado no cardápio' : 'Voltou ao cardápio', { description: combo.nome })
         } catch (erro) {
             console.error('Erro ao alterar disponibilidade:', erro)
-            toast.error('Não foi possível alterar a disponibilidade.')
+            setCombos((atual) => atual.map(c => c.id === combo.id ? { ...c, disponivel: combo.disponivel } : c))
+            toast.error('Não foi possível alterar a disponibilidade.', { description: combo.nome })
         } finally {
             setSalvando(null)
         }
     }
 
     const excluirCombo = async (combo: ComboExpandido) => {
-        if (!confirm(`Deseja realmente excluir o combo "${combo.nome}"?`)) return
+        const ok = await confirmar({
+            titulo: `Excluir "${combo.nome}"?`,
+            descricao: 'O combo some do cardápio. Não dá para desfazer.',
+            confirmar: 'Excluir combo',
+            perigo: true,
+        })
+        if (!ok) return
 
         setSalvando(combo.id)
         try {
@@ -414,527 +435,398 @@ export default function CombosPage() {
 
             if (error) throw error
 
-            toast.success('Combo excluído com sucesso!')
+            toast.success('Combo excluído', { description: combo.nome })
+            fecharModal()
             carregarDados()
         } catch (erro) {
             console.error('Erro ao excluir combo:', erro)
-            toast.error('Não foi possível excluir o combo.')
+            toast.error('Não foi possível excluir o combo.', { description: 'Pause o combo para tirá-lo do cardápio.' })
         } finally {
             setSalvando(null)
         }
     }
 
-    const formatarPreco = (valor: number) => {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(valor)
-    }
+    const ativos = combos.filter((combo) => combo.disponivel).length
+    const ocupado = salvandoCombo || (comboEditando !== null && salvando === comboEditando.id)
+
+    const botaoNovo = (
+        <Botao onClick={abrirModalNovo}>
+            <Plus />
+            Novo combo
+        </Botao>
+    )
 
     return (
         <ProtectedRoute>
             <AdminLayout>
-                <div className="mx-auto w-full max-w-6xl space-y-5">
-                    <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                        <div className="min-w-0">
-                            <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
-                                <Layers className="size-5 text-primary" />
-                                Combos
-                            </h1>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Combos promocionais · {combos.length} cadastrado{combos.length === 1 ? '' : 's'}
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-9 shadow-none"
-                                onClick={carregarDados}
-                                disabled={carregando}
-                            >
-                                <RefreshCw className={`mr-2 size-4 ${carregando ? 'animate-spin' : ''}`} />
-                                Atualizar
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                className="h-9 shadow-none"
-                                onClick={abrirModalNovo}
-                            >
-                                <Plus className="mr-2 size-4" />
-                                Novo combo
-                            </Button>
-                        </div>
-                    </div>
+                <Pagina>
+                    <CabecalhoPagina
+                        titulo="Combos"
+                        descricao={`${combos.length} cadastrado${combos.length === 1 ? '' : 's'} · ${ativos} no cardápio`}
+                        acoes={
+                            <>
+                                <Botao variante="contorno" onClick={carregarDados} disabled={carregando}>
+                                    <RefreshCw className={cn(carregando && 'animate-spin')} />
+                                    Atualizar
+                                </Botao>
+                                {botaoNovo}
+                            </>
+                        }
+                    />
 
-                    <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            value={busca}
-                            onChange={(e) => setBusca(e.target.value)}
-                            placeholder="Buscar combo por nome…"
-                            className="h-10 pl-9"
-                            aria-label="Buscar combo por nome"
-                        />
-                    </div>
-
-                    {carregando ? (
-                        <div className="flex justify-center items-center py-16">
-                            <RefreshCw className="size-8 text-primary animate-spin" />
-                        </div>
-                    ) : combos.length === 0 ? (
-                        <Empty className="border border-dashed border-border/70 bg-card">
-                            <EmptyHeader>
-                                <EmptyMedia variant="icon">
-                                    <Package />
-                                </EmptyMedia>
-                                <EmptyTitle>Nenhum combo cadastrado</EmptyTitle>
-                                <EmptyDescription>
-                                    Crie combos promocionais com produtos e bebidas.
-                                </EmptyDescription>
-                            </EmptyHeader>
-                            <EmptyContent>
-                                <Button type="button" size="sm" className="h-9 shadow-none" onClick={abrirModalNovo}>
-                                    <Plus className="mr-2 size-4" />
-                                    Criar primeiro combo
-                                </Button>
-                            </EmptyContent>
-                        </Empty>
-                    ) : combosFiltrados.length === 0 ? (
-                        <Empty className="border border-dashed border-border/70 bg-card">
-                            <EmptyHeader>
-                                <EmptyMedia variant="icon">
-                                    <Search />
-                                </EmptyMedia>
-                                <EmptyTitle>Nenhum resultado</EmptyTitle>
-                                <EmptyDescription>
-                                    Nenhum combo corresponde a “{busca.trim()}”.
-                                </EmptyDescription>
-                            </EmptyHeader>
-                            <EmptyContent>
-                                <Button type="button" variant="outline" size="sm" className="h-9 shadow-none" onClick={() => setBusca('')}>
-                                    Limpar busca
-                                </Button>
-                            </EmptyContent>
-                        </Empty>
-                    ) : (
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                            {combosFiltrados.map((combo) => (
-                                <div
-                                    key={combo.id}
-                                    className="overflow-hidden rounded-xl border border-border/70 bg-card transition-colors hover:border-primary/40"
-                                >
-                                    <div className="flex items-start gap-3 border-b border-border/60 p-3.5">
-                                        <div className="size-14 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted">
-                                            {combo.imagem_url ? (
-                                                <img
-                                                    src={combo.imagem_url}
-                                                    alt={combo.nome}
-                                                    className="h-full w-full object-cover"
-                                                />
-                                            ) : (
-                                                <div className="flex h-full w-full items-center justify-center">
-                                                    <Package className="size-5 text-muted-foreground" />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-foreground">
-                                                    {combo.nome}
-                                                </h3>
-                                                <MenuAcoes
-                                                    ariaLabel={`Ações do combo ${combo.nome}`}
-                                                    disabled={salvando === combo.id}
-                                                    items={[
-                                                        {
-                                                            key: 'editar',
-                                                            label: 'Editar',
-                                                            icon: <Pencil className="size-4" />,
-                                                            onSelect: () => abrirModalEditar(combo),
-                                                        },
-                                                        {
-                                                            key: 'duplicar',
-                                                            label: 'Duplicar',
-                                                            icon: <Copy className="size-4" />,
-                                                            onSelect: () => { void duplicarCombo(combo) },
-                                                        },
-                                                        {
-                                                            key: 'excluir',
-                                                            label: 'Excluir',
-                                                            icon: <Trash2 className="size-4" />,
-                                                            variant: 'destructive',
-                                                            separatorBefore: true,
-                                                            onSelect: () => { void excluirCombo(combo) },
-                                                        },
-                                                    ]}
-                                                />
-                                            </div>
-                                            <p className="mt-1 text-base font-bold tabular-nums text-primary">
-                                                {formatarPreco(combo.preco)}
-                                            </p>
-                                            <button
-                                                type="button"
-                                                onClick={() => void alternarDisponibilidade(combo)}
-                                                disabled={salvando === combo.id}
-                                                className="mt-1.5 inline-flex"
-                                                aria-label={combo.disponivel ? 'Desativar combo' : 'Ativar combo'}
-                                            >
-                                                <Badge
-                                                    variant={combo.disponivel ? 'default' : 'secondary'}
-                                                    className={
-                                                        combo.disponivel
-                                                            ? 'cursor-pointer bg-primary/15 text-primary hover:bg-primary/20'
-                                                            : 'cursor-pointer text-muted-foreground'
-                                                    }
-                                                >
-                                                    {combo.disponivel ? 'Ativo' : 'Inativo'}
-                                                </Badge>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-muted/40 px-3.5 py-2.5">
-                                        <p className="mb-1.5 text-xs font-medium text-muted-foreground">Itens inclusos</p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {combo.itens.map((item, idx) => (
-                                                <span
-                                                    key={idx}
-                                                    className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-card px-2 py-0.5 text-xs text-foreground"
-                                                >
-                                                    <span className="font-medium text-primary">{item.quantidade}x</span>
-                                                    <span className="max-w-[120px] truncate">
-                                                        {item.produto?.nome || item.bebida?.nome || 'Item'}
-                                                    </span>
-                                                </span>
-                                            ))}
-                                            {combo.itens.length === 0 && (
-                                                <span className="text-xs italic text-muted-foreground">Nenhum item</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                    {combos.length > 0 && (
+                        <div className="relative">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Entrada
+                                type="search"
+                                value={busca}
+                                onChange={(e) => setBusca(e.target.value)}
+                                placeholder="Buscar combo"
+                                className="pl-9"
+                                aria-label="Buscar combo por nome"
+                            />
                         </div>
                     )}
 
-                    <input
-                        ref={inputFileRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={selecionarImagem}
-                        className="hidden"
-                    />
-
-                    <Dialog open={modalAberto} onOpenChange={(aberto) => { if (!aberto) fecharModal() }}>
-                        <DialogContent className="flex max-h-[min(92dvh,880px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
-                            <DialogHeader className="shrink-0 border-b border-border/70 px-4 py-3 sm:px-6 sm:py-4">
-                                <DialogTitle>
-                                    {comboEditando ? 'Editar Combo' : 'Novo Combo'}
-                                </DialogTitle>
-                            </DialogHeader>
-
-                            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6">
-                                <div className="flex flex-col gap-4 sm:flex-row">
-                                    <button
-                                        type="button"
-                                        onClick={() => inputFileRef.current?.click()}
-                                        className="flex h-36 w-full shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border/70 bg-muted transition-colors hover:border-primary sm:w-36"
-                                        aria-label="Adicionar imagem do combo"
-                                    >
-                                        {imagemCombo ? (
-                                            <img
-                                                src={imagemCombo}
-                                                alt="Preview"
-                                                className="h-full w-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="p-2 text-center">
-                                                <Camera className="mx-auto mb-1 size-8 text-muted-foreground" />
-                                                <p className="text-xs text-muted-foreground">Adicionar imagem</p>
-                                            </div>
-                                        )}
-                                    </button>
-
-                                    <div className="flex-1 space-y-3">
-                                        <div className="space-y-1.5">
-                                            <Label htmlFor="combo-nome">Nome do Combo</Label>
-                                            <Input
-                                                id="combo-nome"
-                                                value={nomeCombo}
-                                                onChange={(e) => setNomeCombo(e.target.value)}
-                                                placeholder="Ex: 2 MAX TOP + 2 COCA COLA"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <Label htmlFor="combo-preco">Preço Final (R$)</Label>
-                                            <div className="relative">
-                                                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                                                <Input
-                                                    id="combo-preco"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    value={precoCombo}
-                                                    onChange={(e) => setPrecoCombo(e.target.value)}
-                                                    placeholder="0,00"
-                                                    className="pl-10"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="rounded-xl border border-border/70 bg-card p-3 text-card-foreground">
-                                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                                        Prévia do card no cliente
-                                    </p>
-                                    <div className="mx-auto w-40 overflow-hidden rounded-xl border border-border/70 bg-card">
-                                        <div className="relative aspect-[4/5] bg-muted">
-                                            {imagemCombo ? (
-                                                <img src={imagemCombo} alt="Prévia do combo" className="h-full w-full object-cover" />
-                                            ) : (
-                                                <div className="flex h-full w-full items-center justify-center">
-                                                    <Package className="size-8 text-muted-foreground/50" />
-                                                </div>
-                                            )}
-                                            <div className="absolute left-2 top-2 rounded-md border border-border/70 bg-background/90 px-2 py-0.5 text-[9px] font-semibold uppercase text-foreground backdrop-blur">
-                                                Combo
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2 border-t border-border/70 p-2.5">
-                                            <p className="line-clamp-1 text-[11px] font-semibold text-foreground">
-                                                {nomeCombo || 'Nome do combo'}
-                                            </p>
-                                            <p className="text-xs font-semibold leading-none text-foreground">
-                                                R$ {(parseFloat(precoCombo || '0') || 0).toFixed(2)}
-                                            </p>
-                                            <div className="rounded-md bg-primary px-2 py-1.5 text-center text-[10px] font-semibold text-primary-foreground">
-                                                + Adicionar
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="rounded-xl border border-border/70 bg-muted/30 p-4">
-                                    <label className="flex cursor-pointer items-start gap-3">
-                                        <Checkbox
-                                            checked={descontoAtivo}
-                                            onCheckedChange={(checked) => {
-                                                const ativo = checked === true
-                                                setDescontoAtivo(ativo)
-                                                if (!ativo) setPrecoOriginal('')
+                    {carregando && combos.length === 0 ? (
+                        <ListaCarregando linhas={4} />
+                    ) : combos.length === 0 ? (
+                        <ListaVazia
+                            icone={<Package />}
+                            titulo="Nenhum combo cadastrado"
+                            descricao="Junte produtos e bebidas num preço especial."
+                            acao={
+                                <Botao onClick={abrirModalNovo}>
+                                    <Plus />
+                                    Criar primeiro combo
+                                </Botao>
+                            }
+                        />
+                    ) : combosFiltrados.length === 0 ? (
+                        <ListaVazia
+                            icone={<Search />}
+                            titulo="Nenhum combo encontrado"
+                            descricao={`Nenhum combo com “${busca.trim()}”.`}
+                            acao={<Botao variante="contorno" onClick={() => setBusca('')}>Limpar busca</Botao>}
+                        />
+                    ) : (
+                        <Lista>
+                            {combosFiltrados.map((combo) => {
+                                const resumoItens = combo.itens
+                                    .map((item) => `${item.quantidade}x ${item.produto?.nome || item.bebida?.nome || 'Item'}`)
+                                    .join(' · ')
+                                return (
+                                    <li key={combo.id}>
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => abrirModalEditar(combo)}
+                                            onKeyDown={(evento) => {
+                                                if (evento.key === 'Enter') abrirModalEditar(combo)
                                             }}
-                                            className="mt-0.5"
-                                            aria-label="Ativar desconto"
-                                        />
-                                        <div>
-                                            <span className="text-sm font-medium text-foreground">Ativar Desconto</span>
-                                            <p className="text-xs text-muted-foreground">Mostra badge de economia no site</p>
+                                            className={cn(
+                                                'flex min-h-16 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                                                !combo.disponivel && 'opacity-60',
+                                            )}
+                                        >
+                                            <div className="size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
+                                                {combo.imagem_url ? (
+                                                    <img src={combo.imagem_url} alt="" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <div className="flex h-full w-full items-center justify-center">
+                                                        <Package className="size-5 text-muted-foreground" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate font-medium text-foreground">{combo.nome}</p>
+                                                <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                                    <span className="text-sm font-medium tabular-nums text-primary">{formatarPreco(combo.preco)}</span>
+                                                    {combo.desconto_percentual ? <Selo tom="primario">-{combo.desconto_percentual}%</Selo> : null}
+                                                    {!combo.disponivel ? <Selo>Pausado</Selo> : null}
+                                                </div>
+                                                <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                                                    {resumoItens || 'Nenhum item'}
+                                                </p>
+                                            </div>
+                                            <Interruptor
+                                                marcado={combo.disponivel}
+                                                aoMudar={() => void alternarDisponibilidade(combo)}
+                                                desabilitado={salvando === combo.id}
+                                                rotuloAcessivel={`${combo.disponivel ? 'Pausar' : 'Ativar'} ${combo.nome} no cardápio`}
+                                            />
                                         </div>
-                                    </label>
+                                    </li>
+                                )
+                            })}
+                        </Lista>
+                    )}
 
-                                    {descontoAtivo && (
-                                        <div className="mt-4 space-y-3">
-                                            <div className="space-y-1.5">
-                                                <Label htmlFor="combo-preco-original">Preço Original (De:)</Label>
-                                                <div className="relative">
-                                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                                                    <Input
-                                                        id="combo-preco-original"
-                                                        type="number"
-                                                        step="0.01"
-                                                        min="0"
-                                                        value={precoOriginal}
-                                                        onChange={(e) => setPrecoOriginal(e.target.value)}
-                                                        placeholder="0,00"
-                                                        className="pl-10"
-                                                    />
+                    {combos.length > 0 && (
+                        <p className="px-1 text-sm text-muted-foreground">
+                            Toque no combo para editar. Combo pausado não aparece no cardápio.
+                        </p>
+                    )}
+                </Pagina>
+
+                <Gaveta
+                    aberto={modalAberto}
+                    aoFechar={fecharModal}
+                    bloqueada={ocupado}
+                    largura="lg"
+                    titulo={comboEditando ? 'Editar combo' : 'Novo combo'}
+                    descricao="Escolha os itens e o preço que o cliente paga."
+                    rodape={
+                        comboEditando ? (
+                            <>
+                                <Botao
+                                    variante="perigoSuave"
+                                    className="md:mr-auto"
+                                    onClick={() => void excluirCombo(comboEditando)}
+                                    disabled={ocupado}
+                                >
+                                    Excluir
+                                </Botao>
+                                <Botao
+                                    variante="contorno"
+                                    onClick={() => void duplicarCombo(comboEditando)}
+                                    disabled={ocupado}
+                                    carregando={salvando === comboEditando.id && !salvandoCombo}
+                                >
+                                    <Copy />
+                                    Duplicar
+                                </Botao>
+                                <Botao carregando={salvandoCombo} disabled={ocupado} onClick={() => void salvarCombo()}>
+                                    Salvar
+                                </Botao>
+                            </>
+                        ) : (
+                            <>
+                                <Botao variante="contorno" onClick={fecharModal} disabled={salvandoCombo}>Cancelar</Botao>
+                                <Botao carregando={salvandoCombo} onClick={() => void salvarCombo()}>Criar combo</Botao>
+                            </>
+                        )
+                    }
+                >
+                    <form
+                        className="space-y-5"
+                        onSubmit={(evento) => {
+                            evento.preventDefault()
+                            void salvarCombo()
+                        }}
+                    >
+                        <input
+                            ref={inputFileRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={selecionarImagem}
+                            className="hidden"
+                        />
+
+                        <div className="flex flex-col gap-4 sm:flex-row">
+                            <div className="shrink-0 space-y-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => inputFileRef.current?.click()}
+                                    className="flex aspect-square w-32 items-center justify-center overflow-hidden rounded-xl border border-dashed border-border/70 bg-muted transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    aria-label={imagemCombo ? 'Trocar foto do combo' : 'Adicionar foto do combo'}
+                                >
+                                    {imagemCombo ? (
+                                        <img src={imagemCombo} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                        <span className="flex flex-col items-center gap-1 p-2 text-center text-[13px] text-muted-foreground">
+                                            <Camera className="size-6" />
+                                            Adicionar foto
+                                        </span>
+                                    )}
+                                </button>
+                                {imagemCombo && (
+                                    <Botao variante="fantasma" tamanho="sm" className="w-32" onClick={() => inputFileRef.current?.click()}>
+                                        Trocar foto
+                                    </Botao>
+                                )}
+                            </div>
+
+                            <div className="flex-1 space-y-4">
+                                <Campo rotulo="Nome" htmlFor="combo-nome" erro={erros.nome}>
+                                    <Entrada
+                                        id="combo-nome"
+                                        value={nomeCombo}
+                                        onChange={(e) => setNomeCombo(e.target.value)}
+                                        placeholder="Ex.: 2 X-Burguer + 2 Coca-Cola"
+                                        autoComplete="off"
+                                    />
+                                </Campo>
+                                <Campo rotulo="Preço" htmlFor="combo-preco" erro={erros.preco} ajuda="O valor que o cliente paga pelo combo.">
+                                    <EntradaPreco id="combo-preco" valor={precoCombo} aoMudar={setPrecoCombo} />
+                                </Campo>
+                            </div>
+                        </div>
+
+                        <section className="space-y-2">
+                            <div className="flex items-baseline justify-between gap-3">
+                                <h3 className="text-sm font-medium text-foreground">Itens do combo</h3>
+                                <span className="text-[13px] text-muted-foreground">
+                                    {itensCombo.length} {itensCombo.length === 1 ? 'item' : 'itens'}
+                                </span>
+                            </div>
+
+                            {itensCombo.length === 0 ? (
+                                <p className="rounded-xl border border-dashed border-border/70 px-4 py-5 text-center text-sm text-muted-foreground">
+                                    Adicione os produtos e bebidas que vêm no combo.
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {itensCombo.map((item, idx) => (
+                                        <Cartao key={idx} className="space-y-2 p-3">
+                                            <div className="flex gap-2">
+                                                <div className="w-28 shrink-0">
+                                                    <Selecao
+                                                        value={item.tipo}
+                                                        onChange={(e) => alterarTipoItem(idx, e.target.value as 'produto' | 'bebida')}
+                                                        aria-label={`Tipo do item ${idx + 1}`}
+                                                    >
+                                                        <option value="produto">Produto</option>
+                                                        <option value="bebida">Bebida</option>
+                                                    </Selecao>
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <Selecao
+                                                        value={item.id}
+                                                        onChange={(e) => atualizarItem(idx, 'id', e.target.value)}
+                                                        className="truncate"
+                                                        aria-label={`Item ${idx + 1}`}
+                                                    >
+                                                        {item.tipo === 'produto'
+                                                            ? produtos.map(p => (
+                                                                <option key={p.id} value={p.id}>{p.nome}</option>
+                                                            ))
+                                                            : bebidas.map(b => (
+                                                                <option key={b.id} value={b.id}>{b.nome}</option>
+                                                            ))
+                                                        }
+                                                    </Selecao>
                                                 </div>
                                             </div>
-
-                                            {precoOriginal && precoCombo && parseFloat(precoOriginal) > parseFloat(precoCombo) && (
-                                                <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card p-3">
-                                                    <div className="flex size-12 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
-                                                        {Math.round(((parseFloat(precoOriginal) - parseFloat(precoCombo)) / parseFloat(precoOriginal)) * 100)}%
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-medium text-foreground">Preview do Badge</p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            <span className="text-muted-foreground line-through">R$ {parseFloat(precoOriginal).toFixed(2)}</span>
-                                                            {' → '}
-                                                            <span className="font-bold text-primary">R$ {parseFloat(precoCombo).toFixed(2)}</span>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="combo-descricao">Descrição (opcional)</Label>
-                                    <Textarea
-                                        id="combo-descricao"
-                                        value={descricaoCombo}
-                                        onChange={(e) => setDescricaoCombo(e.target.value)}
-                                        placeholder="Descreva o combo..."
-                                        rows={2}
-                                        className="resize-none"
-                                    />
-                                </div>
-
-                                <div>
-                                    <div className="mb-2 flex items-center justify-between">
-                                        <Label>Itens do Combo</Label>
-                                        <span className="text-xs text-muted-foreground">{itensCombo.length} item(ns)</span>
-                                    </div>
-
-                                    <div className="mb-3 space-y-2">
-                                        {itensCombo.map((item, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/40 p-2">
-                                                <select
-                                                    value={item.tipo}
-                                                    onChange={(e) => {
-                                                        const novoTipo = e.target.value as 'produto' | 'bebida'
-                                                        const novosItens = [...itensCombo]
-                                                        novosItens[idx].tipo = novoTipo
-                                                        novosItens[idx].id = novoTipo === 'produto'
-                                                            ? produtos[0]?.id || ''
-                                                            : bebidas[0]?.id || ''
-                                                        setItensCombo(novosItens)
-                                                    }}
-                                                    className="rounded-md border border-border/70 bg-card px-2 py-1.5 text-xs font-medium"
-                                                    aria-label={`Tipo do item ${idx + 1}`}
-                                                >
-                                                    <option value="produto">Produto</option>
-                                                    <option value="bebida">Bebida</option>
-                                                </select>
-
-                                                <select
-                                                    value={item.id}
-                                                    onChange={(e) => atualizarItem(idx, 'id', e.target.value)}
-                                                    className="min-w-0 flex-1 truncate rounded-md border border-border/70 bg-card px-2 py-1.5 text-xs"
-                                                    aria-label={`Item ${idx + 1}`}
-                                                >
-                                                    {item.tipo === 'produto'
-                                                        ? produtos.map(p => (
-                                                            <option key={p.id} value={p.id}>{p.nome}</option>
-                                                        ))
-                                                        : bebidas.map(b => (
-                                                            <option key={b.id} value={b.id}>{b.nome}</option>
-                                                        ))
-                                                    }
-                                                </select>
-
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-xs text-muted-foreground">Qtd:</span>
-                                                    <Input
-                                                        type="text"
-                                                        inputMode="numeric"
-                                                        pattern="[0-9]*"
-                                                        value={item.quantidade === 0 ? '' : item.quantidade}
-                                                        onChange={(e) => {
-                                                            const valor = e.target.value.replace(/\D/g, '')
-                                                            if (valor === '') {
-                                                                atualizarItem(idx, 'quantidade', 0)
-                                                            } else {
-                                                                atualizarItem(idx, 'quantidade', parseInt(valor))
-                                                            }
-                                                        }}
-                                                        onBlur={(e) => {
-                                                            if (!e.target.value || parseInt(e.target.value) < 1) {
-                                                                atualizarItem(idx, 'quantidade', 1)
-                                                            }
-                                                        }}
-                                                        onFocus={(e) => e.target.select()}
-                                                        className="h-8 w-12 px-2 text-center text-xs"
-                                                        aria-label={`Quantidade do item ${idx + 1}`}
-                                                    />
-                                                </div>
-
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Contador
+                                                    valor={item.quantidade}
+                                                    aoMudar={(valor) => atualizarItem(idx, 'quantidade', valor)}
+                                                    minimo={1}
+                                                    rotuloAcessivel={`quantidade do item ${idx + 1}`}
+                                                />
+                                                <Botao
+                                                    variante="perigoSuave"
+                                                    tamanho="sm"
+                                                    className="h-11"
                                                     onClick={() => removerItem(idx)}
                                                     aria-label={`Remover item ${idx + 1}`}
                                                 >
-                                                    <Trash2 className="size-3.5" />
-                                                </Button>
+                                                    <Trash2 />
+                                                    Remover
+                                                </Botao>
                                             </div>
-                                        ))}
+                                        </Cartao>
+                                    ))}
+                                </div>
+                            )}
 
-                                        {itensCombo.length === 0 && (
-                                            <div className="py-6 text-center text-sm text-muted-foreground">
-                                                Adicione itens ao combo
-                                            </div>
-                                        )}
-                                    </div>
+                            {erros.itens && <p className="text-[13px] text-destructive" role="alert">{erros.itens}</p>}
 
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 shadow-none"
-                                            onClick={() => adicionarItem('produto')}
-                                        >
-                                            <UtensilsCrossed className="mr-1.5 size-3.5" />
-                                            Adicionar Produto
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 shadow-none"
-                                            onClick={() => adicionarItem('bebida')}
-                                        >
-                                            <GlassWater className="mr-1.5 size-3.5" />
-                                            Adicionar Bebida
-                                        </Button>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Botao variante="contorno" onClick={() => adicionarItem('produto')}>
+                                    <UtensilsCrossed />
+                                    Produto
+                                </Botao>
+                                <Botao variante="contorno" onClick={() => adicionarItem('bebida')}>
+                                    <GlassWater />
+                                    Bebida
+                                </Botao>
+                            </div>
+                        </section>
+
+                        <div className="space-y-3">
+                            <LinhaInterruptor
+                                titulo="Mostrar desconto"
+                                descricao="Exibe o preço antigo riscado e o selo de economia no cardápio."
+                                marcado={descontoAtivo}
+                                aoMudar={(ativo) => {
+                                    setDescontoAtivo(ativo)
+                                    if (!ativo) setPrecoOriginal('')
+                                }}
+                                rotuloAcessivel="Ativar desconto"
+                            />
+
+                            {descontoAtivo && (
+                                <Campo
+                                    rotulo="Preço antes do desconto"
+                                    htmlFor="combo-preco-original"
+                                    ajuda={
+                                        percentualDesconto !== null && precoOriginalNumero !== null && precoFinalNumero !== null ? (
+                                            <span>
+                                                Selo de <strong className="font-semibold text-primary">-{percentualDesconto}%</strong>:{' '}
+                                                <span className="line-through">{formatarPreco(precoOriginalNumero)}</span> por{' '}
+                                                <span className="font-medium text-foreground">{formatarPreco(precoFinalNumero)}</span>
+                                            </span>
+                                        ) : (
+                                            'Precisa ser maior que o preço do combo para aparecer o selo.'
+                                        )
+                                    }
+                                >
+                                    <EntradaPreco id="combo-preco-original" valor={precoOriginal} aoMudar={setPrecoOriginal} />
+                                </Campo>
+                            )}
+                        </div>
+
+                        <Campo rotulo="Descrição" htmlFor="combo-descricao" opcional>
+                            <AreaTexto
+                                id="combo-descricao"
+                                value={descricaoCombo}
+                                onChange={(e) => setDescricaoCombo(e.target.value)}
+                                placeholder="Conte o que vem no combo"
+                                rows={2}
+                            />
+                        </Campo>
+
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-foreground">Como aparece no cardápio</p>
+                            <div className="w-40 overflow-hidden rounded-xl border border-border/70 bg-card">
+                                <div className="relative aspect-[4/5] bg-muted">
+                                    {imagemCombo ? (
+                                        <img src={imagemCombo} alt="Prévia do combo" className="h-full w-full object-cover" />
+                                    ) : (
+                                        <div className="flex h-full w-full items-center justify-center">
+                                            <Package className="size-8 text-muted-foreground/50" />
+                                        </div>
+                                    )}
+                                    <span className="absolute left-2 top-2 rounded-md bg-background/90 px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                                        Combo
+                                    </span>
+                                </div>
+                                <div className="space-y-2 border-t border-border/70 p-2.5">
+                                    <p className="line-clamp-1 text-xs font-semibold text-foreground">
+                                        {nomeCombo || 'Nome do combo'}
+                                    </p>
+                                    <p className="text-xs font-semibold leading-none tabular-nums text-foreground">
+                                        {formatarPreco(precoFinalNumero ?? 0)}
+                                    </p>
+                                    <div className="rounded-md bg-primary px-2 py-1.5 text-center text-[11px] font-semibold text-primary-foreground">
+                                        + Adicionar
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <DialogFooter className="shrink-0 border-t border-border/70 bg-muted/40 px-4 py-3 sm:px-6">
-                                <Button type="button" variant="outline" size="sm" className="h-9 shadow-none" onClick={fecharModal}>
-                                    Cancelar
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    className="h-9 shadow-none"
-                                    onClick={() => void salvarCombo()}
-                                    disabled={salvandoCombo}
-                                >
-                                    {salvandoCombo ? (
-                                        <>
-                                            <RefreshCw className="mr-2 size-4 animate-spin" />
-                                            Salvando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save className="mr-2 size-4" />
-                                            {comboEditando ? 'Salvar' : 'Criar Combo'}
-                                        </>
-                                    )}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+                    </form>
+                </Gaveta>
 
-                    <ModalRecorteImagem
-                        aberto={recorteAberto}
-                        imagemUrl={imagemParaRecorte}
-                        onConfirmar={confirmarRecorte}
-                        onFechar={() => setRecorteAberto(false)}
-                    />
-                </div>
+                <ModalRecorteImagem
+                    aberto={recorteAberto}
+                    imagemUrl={imagemParaRecorte}
+                    onConfirmar={confirmarRecorte}
+                    onFechar={() => setRecorteAberto(false)}
+                />
             </AdminLayout>
         </ProtectedRoute>
     )

@@ -2,26 +2,9 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
-import {
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  RotateCcw,
-  Check,
-  RefreshCw,
-  Loader2,
-  User,
-} from 'lucide-react'
+import { MagnifyingGlassPlus as ZoomIn, MagnifyingGlassMinus as ZoomOut, ArrowClockwise as RotateCw, ArrowCounterClockwise as RotateCcw, Check, ArrowsClockwise as RefreshCw, CircleNotch as Loader2, User } from '@phosphor-icons/react'
 import { obterImagemRecortada, type AreaRecorte } from '@/lib/recorteImagem'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Botao, Gaveta } from '@/components/admin/ui'
 
 const Cropper = dynamic(() => import('react-easy-crop'), {
   ssr: false,
@@ -193,85 +176,75 @@ export default function ModalRecorteAvatar({
   }
 
   return (
-    <Dialog
-      open={aberto}
-      onOpenChange={(proximo) => {
-        if (!proximo) onFechar()
-      }}
-      variant="dialog"
+    <Gaveta
+      aberto={aberto}
+      aoFechar={onFechar}
+      bloqueada={processando}
+      titulo={titulo}
+      descricao="Arraste a foto e ajuste o zoom. O recorte é redondo."
+      largura="lg"
+      rodape={
+        <>
+          <Botao variante="contorno" onClick={onFechar} disabled={processando}>
+            Cancelar
+          </Botao>
+          <Botao carregando={processando} onClick={() => void confirmar()} disabled={!areaRecortada}>
+            {!processando && <Check />}
+            Aplicar
+          </Botao>
+        </>
+      }
     >
-      <DialogContent className="flex max-h-[92dvh] w-full max-w-lg flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="shrink-0 space-y-1 border-b border-border/60 px-5 pb-4 pt-5 pr-12 text-left">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <User className="h-4 w-4" />
-            </div>
-            <div>
-              <DialogTitle className="text-[15px] font-semibold tracking-tight">{titulo}</DialogTitle>
-              <DialogDescription className="text-[13px] text-muted-foreground">
-                Recorte circular para o perfil.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:flex-row">
-          <div className="relative min-h-[280px] flex-1 bg-muted/40">
-            {/* @ts-expect-error react-easy-crop via dynamic() tipagem incompleta */}
-            <Cropper
-              image={imagemUrl}
-              crop={crop}
-              zoom={zoom}
-              rotation={rotacao}
-              aspect={1}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={aoCompletarRecorte}
-              cropShape="round"
-              showGrid={false}
-              style={{
-                containerStyle: { backgroundColor: 'hsl(var(--muted))' },
-                cropAreaStyle: {
-                  border: '3px solid hsl(var(--primary))',
-                  boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.55)',
-                },
-              }}
-            />
-          </div>
-
-          <div className="flex w-full shrink-0 flex-row items-center justify-center gap-4 border-t border-border/60 bg-muted/20 p-3 sm:w-36 sm:flex-col sm:border-l sm:border-t-0">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Preview
-            </span>
-            <div className="size-20 overflow-hidden rounded-full border-2 border-primary bg-muted shadow-sm sm:size-24">
-              {previewUrl ? (
-                <img src={previewUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center">
-                  <User className="h-8 w-8 text-muted-foreground" />
-                </div>
-              )}
-            </div>
-            <p className="hidden text-center text-[10px] text-muted-foreground sm:block">
-              Como fica no perfil
-            </p>
-          </div>
+      <div className="space-y-4">
+        <div className="relative h-[300px] overflow-hidden rounded-xl bg-muted/40 sm:h-[340px]">
+          {/* @ts-expect-error react-easy-crop via dynamic() tipagem incompleta */}
+          <Cropper
+            image={imagemUrl}
+            crop={crop}
+            zoom={zoom}
+            rotation={rotacao}
+            aspect={1}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={aoCompletarRecorte}
+            cropShape="round"
+            showGrid={false}
+            style={{
+              containerStyle: { backgroundColor: 'hsl(var(--muted))' },
+              cropAreaStyle: {
+                border: '3px solid hsl(var(--primary))',
+                boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.55)',
+              },
+            }}
+          />
         </div>
 
-        <div className="space-y-3 border-t border-border/60 px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-3">
-            <span className="w-12 text-xs font-medium text-muted-foreground">Zoom</span>
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="size-8 shadow-none"
+        <div className="flex items-center gap-3">
+          <div className="size-16 shrink-0 overflow-hidden rounded-full border-2 border-primary bg-muted">
+            {previewUrl ? (
+              <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <User className="size-6 text-muted-foreground" />
+              </div>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">Como a foto aparece no perfil.</p>
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium text-foreground">Zoom</p>
+          <div className="flex items-center gap-2">
+            <Botao
+              variante="contorno"
+              tamanho="icone"
+              className="size-11 md:size-10"
               onClick={() => setZoom((z) => Math.max(z - 0.1, zoomMin))}
               disabled={zoom <= zoomMin}
               aria-label="Diminuir zoom"
             >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
+              <ZoomOut />
+            </Botao>
             <input
               type="range"
               min={zoomMin}
@@ -282,89 +255,62 @@ export default function ModalRecorteAvatar({
               className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-muted accent-primary"
               aria-label="Zoom"
             />
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="size-8 shadow-none"
+            <Botao
+              variante="contorno"
+              tamanho="icone"
+              className="size-11 md:size-10"
               onClick={() => setZoom((z) => Math.min(z + 0.1, zoomMax))}
               disabled={zoom >= zoomMax}
               aria-label="Aumentar zoom"
             >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-            <span className="w-10 text-right text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
+              <ZoomIn />
+            </Botao>
+            <span className="w-11 text-right text-sm tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
           </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Rotação</span>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="size-8 shadow-none"
-                onClick={() => setRotacao((r) => (r - 90) % 360)}
-                aria-label="Rotacionar esquerda"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="size-8 shadow-none"
-                onClick={() => setRotacao((r) => (r + 90) % 360)}
-                aria-label="Rotacionar direita"
-              >
-                <RotateCw className="h-4 w-4" />
-              </Button>
-              <span className="text-xs text-muted-foreground">{rotacao}°</span>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 shadow-none"
-              onClick={() => {
-                setCrop({ x: 0, y: 0 })
-                setZoom(1)
-                setRotacao(0)
-              }}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Resetar
-            </Button>
-          </div>
-
-          {erro ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {erro}
-            </div>
-          ) : null}
         </div>
 
-        <DialogFooter className="gap-2 border-t border-border/60 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-4">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full shadow-none sm:h-9 sm:w-auto"
-            onClick={onFechar}
-            disabled={processando}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Botao
+              variante="contorno"
+              tamanho="icone"
+              className="size-11 md:size-10"
+              onClick={() => setRotacao((r) => (r - 90) % 360)}
+              aria-label="Girar para a esquerda"
+            >
+              <RotateCcw />
+            </Botao>
+            <Botao
+              variante="contorno"
+              tamanho="icone"
+              className="size-11 md:size-10"
+              onClick={() => setRotacao((r) => (r + 90) % 360)}
+              aria-label="Girar para a direita"
+            >
+              <RotateCw />
+            </Botao>
+            <span className="text-sm tabular-nums text-muted-foreground">{rotacao}°</span>
+          </div>
+          <Botao
+            variante="fantasma"
+            className="h-11 md:h-10"
+            onClick={() => {
+              setCrop({ x: 0, y: 0 })
+              setZoom(1)
+              setRotacao(0)
+            }}
           >
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            className="h-11 w-full gap-2 shadow-none sm:h-9 sm:w-auto"
-            onClick={() => void confirmar()}
-            disabled={processando || !areaRecortada}
-          >
-            {processando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            Aplicar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <RefreshCw />
+            Desfazer ajustes
+          </Botao>
+        </div>
+
+        {erro ? (
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {erro}
+          </p>
+        ) : null}
+      </div>
+    </Gaveta>
   )
 }

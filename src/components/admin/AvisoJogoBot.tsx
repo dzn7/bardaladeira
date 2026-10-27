@@ -1,15 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertCircle, CalendarClock, CheckCircle2, Loader2, Save, Trophy } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { cn } from '@/lib/utils'
+import { WarningCircle as AlertCircle, FloppyDisk as Save } from '@phosphor-icons/react'
+import { toast } from 'sonner'
+import { Botao, Campo, Cartao, Entrada, LinhaInterruptor, ListaCarregando, Secao, Selo } from '@/components/admin/ui'
 import { supabase } from '@/lib/supabase'
 
 type AvisoJogoConfig = {
@@ -132,7 +126,6 @@ export default function AvisoJogoBot() {
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [sucesso, setSucesso] = useState<string | null>(null)
 
   const preview = useMemo(() => montarPreview(config), [config])
   const temAlteracoes = useMemo(
@@ -180,7 +173,6 @@ export default function AvisoJogoBot() {
   const salvarConfig = async () => {
     setSalvando(true)
     setErro(null)
-    setSucesso(null)
 
     try {
       const payload = {
@@ -215,8 +207,7 @@ export default function AvisoJogoBot() {
       }
 
       setConfigOriginal(config)
-      setSucesso('Aviso de jogo salvo.')
-      window.setTimeout(() => setSucesso(null), 3000)
+      toast.success('Aviso de jogo salvo')
     } catch (error) {
       setErro(error instanceof Error ? error.message : 'Erro ao salvar aviso de jogo.')
     } finally {
@@ -225,156 +216,117 @@ export default function AvisoJogoBot() {
   }
 
   if (carregando) {
-    return (
-      <Card className="border-border/70 shadow-none">
-        <CardContent className="flex items-center justify-center gap-2 p-8 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Carregando aviso de jogo
-        </CardContent>
-      </Card>
-    )
+    return <ListaCarregando linhas={3} />
   }
 
   return (
-    <Card className="border-border/70 shadow-none">
-      <CardHeader className="p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Trophy className="size-4 text-primary" />
-              Aviso de jogo no WhatsApp
-            </CardTitle>
-            <CardDescription>
-              Envia uma vez por contato antes do horário do jogo.
-            </CardDescription>
-          </div>
-          <Badge variant={config.enabled ? 'success' : 'secondary'} className="w-fit rounded-lg">
-            {config.enabled ? 'Ativo' : 'Desligado'}
-          </Badge>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4 p-5 pt-0">
-        {(erro || sucesso) && (
-          <div className={cn(
-            'flex items-center gap-2 rounded-lg border p-3 text-sm',
-            erro
-              ? 'border-destructive/30 bg-destructive/10 text-destructive'
-              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-          )}>
-            {erro ? <AlertCircle className="size-4 shrink-0" /> : <CheckCircle2 className="size-4 shrink-0" />}
-            {erro || sucesso}
-          </div>
-        )}
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.85fr)]">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex min-h-11 items-center gap-2 sm:col-span-2">
-              <Checkbox
-                id="game-enabled"
-                checked={config.enabled}
-                onCheckedChange={(checked) => atualizarCampo('enabled', Boolean(checked))}
-              />
-              <Label htmlFor="game-enabled" className="text-sm font-medium">
-                Avisar clientes sobre esse jogo
-              </Label>
+    <Secao
+      titulo="Aviso de jogo"
+      descricao="A Carol manda uma vez para cada contato, antes do jogo."
+      acao={<Selo tom={config.enabled ? 'sucesso' : 'neutro'}>{config.enabled ? 'Ligado' : 'Desligado'}</Selo>}
+    >
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.85fr)]">
+        <Cartao className="space-y-4 p-4">
+          {erro && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span className="min-w-0 break-words">{erro}</span>
             </div>
+          )}
 
-            <div className="space-y-1.5">
-              <Label htmlFor="game-team-a">Time 1</Label>
-              <Input
+          <LinhaInterruptor
+            id="game-enabled"
+            titulo="Avisar clientes sobre este jogo"
+            marcado={config.enabled}
+            aoMudar={(marcado) => atualizarCampo('enabled', marcado)}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Campo rotulo="Time 1" htmlFor="game-team-a">
+              <Entrada
                 id="game-team-a"
                 value={config.team_a}
                 onChange={(event) => atualizarCampo('team_a', event.target.value)}
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="game-team-b">Time 2</Label>
-              <Input
+            </Campo>
+            <Campo rotulo="Time 2" htmlFor="game-team-b">
+              <Entrada
                 id="game-team-b"
                 value={config.team_b}
                 onChange={(event) => atualizarCampo('team_b', event.target.value)}
               />
-            </div>
+            </Campo>
+          </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="game-date">Data</Label>
-              <Input
-                id="game-date"
-                type="date"
-                value={config.date}
-                onChange={(event) => atualizarCampo('date', event.target.value)}
+          <Campo rotulo="Data" htmlFor="game-date">
+            <Entrada
+              id="game-date"
+              type="date"
+              value={config.date}
+              onChange={(event) => atualizarCampo('date', event.target.value)}
+            />
+          </Campo>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Campo rotulo="Começa às" htmlFor="game-start">
+              <Entrada
+                id="game-start"
+                type="time"
+                value={config.start_time}
+                onChange={(event) => atualizarCampo('start_time', event.target.value)}
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="game-start">Início</Label>
-                <Input
-                  id="game-start"
-                  type="time"
-                  value={config.start_time}
-                  onChange={(event) => atualizarCampo('start_time', event.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="game-end">Fim</Label>
-                <Input
-                  id="game-end"
-                  type="time"
-                  value={config.end_time}
-                  onChange={(event) => atualizarCampo('end_time', event.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 sm:col-span-2">
-              <Checkbox
-                id="game-promo-enabled"
-                checked={config.promotion_enabled}
-                onCheckedChange={(checked) => atualizarCampo('promotion_enabled', Boolean(checked))}
+            </Campo>
+            <Campo rotulo="Termina às" htmlFor="game-end">
+              <Entrada
+                id="game-end"
+                type="time"
+                value={config.end_time}
+                onChange={(event) => atualizarCampo('end_time', event.target.value)}
               />
-              <Label htmlFor="game-promo-enabled" className="text-sm font-medium">
-                Incluir promoção na mensagem
-              </Label>
-            </div>
+            </Campo>
+          </div>
 
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="game-promo">Promoção</Label>
-              <Input
+          <LinhaInterruptor
+            id="game-promo-enabled"
+            titulo="Incluir promoção na mensagem"
+            marcado={config.promotion_enabled}
+            aoMudar={(marcado) => atualizarCampo('promotion_enabled', marcado)}
+          />
+
+          {config.promotion_enabled ? (
+            <Campo rotulo="Promoção" htmlFor="game-promo">
+              <Entrada
                 id="game-promo"
                 value={config.promotion_text}
                 onChange={(event) => atualizarCampo('promotion_text', event.target.value)}
               />
-            </div>
-          </div>
+            </Campo>
+          ) : null}
+        </Cartao>
 
-          <div className="space-y-3 rounded-lg border border-border/70 bg-muted/30 p-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <CalendarClock className="size-4 text-muted-foreground" />
-              Preview no WhatsApp
-            </div>
-            <Textarea
-              value={preview}
-              readOnly
-              className="min-h-[132px] resize-none bg-background text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              O bot marca o contato como avisado pelo ID desse jogo.
+        <div className="space-y-3">
+          <Cartao className="space-y-2 p-4">
+            <p className="text-sm font-medium text-foreground">Como o cliente vai ler</p>
+            <p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm text-foreground">{preview}</p>
+            <p className="text-[13px] text-muted-foreground">
+              Cada contato recebe este aviso uma vez por jogo.
             </p>
-            <Button
-              type="button"
-              onClick={salvarConfig}
-              disabled={!temAlteracoes || salvando}
-              className="h-11 w-full gap-2 sm:h-10"
-            >
-              {salvando ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              Salvar aviso
-            </Button>
-          </div>
+          </Cartao>
+          <Botao
+            tamanho="lg"
+            className="w-full md:h-10 md:text-sm"
+            onClick={salvarConfig}
+            disabled={!temAlteracoes}
+            carregando={salvando}
+          >
+            {!salvando && <Save className="size-4" />}
+            Salvar aviso
+          </Botao>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Secao>
   )
 }

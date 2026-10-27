@@ -1,27 +1,33 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import {
-  BadgePercent,
-  CheckCircle2,
-  Gift,
-  Layers,
-  Loader2,
-  Pencil,
-  Plus,
-  Save,
-  Search,
-  Trash2,
-  Truck,
-  X,
-  XCircle,
-} from 'lucide-react'
+import { MagnifyingGlass, Plus, SealPercent } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { supabase, Combo, Produto } from '@/lib/supabase'
 import { Cupom, normalizarCodigoCupom, TipoAplicacaoCupom, TipoDescontoCupom } from '@/lib/cupons'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import {
+  AreaTexto,
+  Botao,
+  CabecalhoPagina,
+  Campo,
+  Cartao,
+  Chip,
+  Entrada,
+  EntradaPreco,
+  Gaveta,
+  Interruptor,
+  LinhaInterruptor,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Secao,
+  Segmentos,
+  Selecao,
+  Selo,
+  useConfirmar,
+} from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 
 type CupomComMetricas = Cupom & {
   totalDescontoAplicado: number
@@ -80,7 +86,7 @@ const formatarData = (valor: string | null): string => {
   if (!valor) return 'Sem data'
   const data = new Date(valor)
   if (Number.isNaN(data.getTime())) return 'Data inválida'
-  return data.toLocaleString('pt-BR')
+  return data.toLocaleDateString('pt-BR')
 }
 
 const converterIsoParaInput = (valor: string | null): string => {
@@ -108,9 +114,33 @@ const paraNumero = (valor: string): number => {
   return Number.isFinite(numero) ? numero : 0
 }
 
-const CLASSE_CAMPO = 'min-w-0 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white'
+
+// Vírgula vira ponto para o Number() de paraNumero/montarPayload continuar igual.
+const decimal = (valor: string) => valor.replace(',', '.')
+
+const descreverDesconto = (cupom: Cupom) =>
+  cupom.tipo_desconto === 'percentual'
+    ? `${cupom.valor_desconto}% off`
+    : cupom.tipo_desconto === 'valor_fixo'
+      ? `${formatarMoeda(cupom.valor_desconto)} off`
+      : 'Frete grátis'
+
+type ErrosFormulario = Partial<Record<'codigo' | 'nome' | 'valorDesconto' | 'produtoId' | 'comboId' | 'validadeFim', string>>
+
+const OPCOES_TIPO: { valor: TipoDescontoCupom; rotulo: string }[] = [
+  { valor: 'percentual', rotulo: 'Porcentagem' },
+  { valor: 'valor_fixo', rotulo: 'Valor em R$' },
+  { valor: 'frete_gratis', rotulo: 'Frete grátis' },
+]
+
+const OPCOES_APLICACAO: { valor: TipoAplicacaoCupom; rotulo: string }[] = [
+  { valor: 'pedido', rotulo: 'Pedido inteiro' },
+  { valor: 'produto', rotulo: 'Um produto' },
+  { valor: 'combo', rotulo: 'Um combo' },
+]
 
 export default function GerenciadorCupons() {
+  const confirmar = useConfirmar()
   const [cupons, setCupons] = useState<CupomComMetricas[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [combos, setCombos] = useState<Combo[]>([])
@@ -122,7 +152,7 @@ export default function GerenciadorCupons() {
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'ativos' | 'inativos'>('todos')
   const [filtroAplicacao, setFiltroAplicacao] = useState<'todos' | TipoAplicacaoCupom>('todos')
   const [formulario, setFormulario] = useState<EstadoFormularioCupom>(ESTADO_INICIAL_FORMULARIO)
-  const [cupomParaExcluir, setCupomParaExcluir] = useState<CupomComMetricas | null>(null)
+  const [erros, setErros] = useState<ErrosFormulario>({})
 
   useEffect(() => {
     void carregarDados()
@@ -206,6 +236,7 @@ export default function GerenciadorCupons() {
   const limparFormulario = () => {
     setFormulario(ESTADO_INICIAL_FORMULARIO)
     setIdCupomEditando(null)
+    setErros({})
   }
 
   const abrirModalNovo = () => {
@@ -219,31 +250,32 @@ export default function GerenciadorCupons() {
     limparFormulario()
   }
 
-  const validarFormulario = (): string | null => {
-    if (!formulario.codigo.trim()) return 'Informe o código do cupom.'
-    if (!formulario.nome.trim()) return 'Informe o nome do cupom.'
+  const validarFormulario = (): ErrosFormulario => {
+    const proximos: ErrosFormulario = {}
+    if (!formulario.codigo.trim()) proximos.codigo = 'Informe o código do cupom.'
+    if (!formulario.nome.trim()) proximos.nome = 'Informe o nome do cupom.'
 
     if (formulario.tipoDesconto !== 'frete_gratis' && paraNumero(formulario.valorDesconto) <= 0) {
-      return 'Informe um valor de desconto maior que zero.'
+      proximos.valorDesconto = 'Informe um desconto maior que zero.'
     }
 
     if (formulario.aplicaEm === 'produto' && !formulario.produtoId) {
-      return 'Selecione o produto para este cupom.'
+      proximos.produtoId = 'Escolha o produto.'
     }
 
     if (formulario.aplicaEm === 'combo' && !formulario.comboId) {
-      return 'Selecione o combo para este cupom.'
+      proximos.comboId = 'Escolha o combo.'
     }
 
     if (formulario.validadeInicio && formulario.validadeFim) {
       const inicio = new Date(formulario.validadeInicio).getTime()
       const fim = new Date(formulario.validadeFim).getTime()
       if (fim < inicio) {
-        return 'A validade final não pode ser menor que a validade inicial.'
+        proximos.validadeFim = 'O fim não pode ser antes do início.'
       }
     }
 
-    return null
+    return proximos
   }
 
   const montarPayload = () => {
@@ -275,11 +307,9 @@ export default function GerenciadorCupons() {
   }
 
   const salvarCupom = async () => {
-    const erroValidacao = validarFormulario()
-    if (erroValidacao) {
-      toast.warning(erroValidacao)
-      return
-    }
+    const proximosErros = validarFormulario()
+    setErros(proximosErros)
+    if (Object.keys(proximosErros).length > 0) return
 
     setSalvando(true)
     try {
@@ -300,12 +330,14 @@ export default function GerenciadorCupons() {
         if (error) throw error
       }
 
+      toast.success(idCupomEditando ? 'Cupom salvo' : 'Cupom criado', { description: payload.codigo })
       setModalFormularioAberto(false)
       limparFormulario()
       await carregarDados()
     } catch (erro: any) {
       console.error('[Cupons] Erro ao salvar cupom:', erro)
       if (erro?.message?.includes('idx_cupons_codigo_unico')) {
+        setErros({ codigo: 'Já existe um cupom com este código.' })
         toast.error('Já existe um cupom com este código.')
       } else {
         toast.error('Não foi possível salvar o cupom.')
@@ -317,6 +349,7 @@ export default function GerenciadorCupons() {
 
   const iniciarEdicao = (cupom: CupomComMetricas) => {
     setIdCupomEditando(cupom.id)
+    setErros({})
     setFormulario({
       codigo: cupom.codigo,
       nome: cupom.nome,
@@ -339,30 +372,49 @@ export default function GerenciadorCupons() {
   }
 
   const alternarStatusCupom = async (cupom: CupomComMetricas) => {
+    const marcar = (ativo: boolean) =>
+      setCupons((atual) => atual.map((item) => (item.id === cupom.id ? { ...item, ativo } : item)))
+    marcar(!cupom.ativo)
     try {
       const { error } = await supabase
         .from('cupons')
         .update({ ativo: !cupom.ativo })
         .eq('id', cupom.id)
       if (error) throw error
+      toast.success(cupom.ativo ? 'Cupom pausado' : 'Cupom ativado', { description: cupom.codigo })
     } catch (erro) {
       console.error('[Cupons] Erro ao alterar status:', erro)
+      marcar(cupom.ativo)
       toast.error('Não foi possível alterar o status do cupom.')
     }
   }
 
   const excluirCupomConfirmado = async (cupom: CupomComMetricas) => {
+    setSalvando(true)
     try {
       const { error } = await supabase.from('cupons').delete().eq('id', cupom.id)
       if (error) throw error
       toast.success(`Cupom ${cupom.codigo} excluído`)
-      if (idCupomEditando === cupom.id) limparFormulario()
+      setModalFormularioAberto(false)
+      limparFormulario()
     } catch (erro) {
       console.error('[Cupons] Erro ao excluir cupom:', erro)
-      toast.error('Não foi possível excluir o cupom.')
+      toast.error('Não foi possível excluir o cupom.', { description: 'Pause o cupom para ele parar de valer.' })
     } finally {
-      setCupomParaExcluir(null)
+      setSalvando(false)
     }
+  }
+
+  const pedirExclusao = async () => {
+    const cupom = cupons.find((item) => item.id === idCupomEditando)
+    if (!cupom) return
+    const ok = await confirmar({
+      titulo: `Excluir o cupom ${cupom.codigo}?`,
+      descricao: 'O código para de funcionar no checkout. Não dá para desfazer.',
+      confirmar: 'Excluir cupom',
+      perigo: true,
+    })
+    if (ok) await excluirCupomConfirmado(cupom)
   }
 
   const cuponsFiltrados = useMemo(() => {
@@ -415,504 +467,385 @@ export default function GerenciadorCupons() {
     }
   }, [formulario.tipoDesconto, formulario.valorDesconto, formulario.limiteDesconto])
 
+  const mudar = <K extends keyof EstadoFormularioCupom>(campo: K, valor: EstadoFormularioCupom[K]) =>
+    setFormulario((anterior) => ({ ...anterior, [campo]: valor }))
+
+  const alvoDoCupom = (cupom: Cupom) => {
+    if (cupom.aplica_em === 'produto') return produtos.find((p) => p.id === cupom.produto_id)?.nome ?? 'Um produto'
+    if (cupom.aplica_em === 'combo') return combos.find((c) => c.id === cupom.combo_id)?.nome ?? 'Um combo'
+    return null
+  }
+
+  const filtrosAtivos = filtroBusca.trim() !== '' || filtroStatus !== 'todos' || filtroAplicacao !== 'todos'
+  const editando = idCupomEditando !== null
+
   return (
-    <div className="min-w-0 space-y-6">
-      <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="grid flex-1 gap-4 md:grid-cols-3">
-          <div className="min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cupons ativos</p>
-            <p className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-white">{quantidadeAtivos}</p>
-          </div>
-          <div className="min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cupons inativos</p>
-            <p className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-white">{quantidadeInativos}</p>
-          </div>
-          <div className="min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Desconto concedido</p>
-            <p className="mt-2 truncate text-2xl font-semibold text-zinc-900 dark:text-white">{formatarMoeda(totalDescontosConcedidos)}</p>
-          </div>
-        </div>
+    <Pagina>
+      <CabecalhoPagina
+        titulo="Cupons"
+        descricao={`${quantidadeAtivos} ativos · ${quantidadeInativos} pausados · ${formatarMoeda(totalDescontosConcedidos)} em descontos`}
+        acoes={
+          <Botao onClick={abrirModalNovo}>
+            <Plus className="size-4" />
+            Criar cupom
+          </Botao>
+        }
+      />
 
-        <Button
-          onClick={abrirModalNovo}
-          className="h-11 gap-2 rounded-lg px-4"
-        >
-          <Plus className="h-4 w-4" />
-          Criar cupom
-        </Button>
-      </div>
-
-      <section className="min-w-0 space-y-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Cupons cadastrados</h2>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Lista em tempo real com métricas de uso e regras.</p>
+      {cupons.length > 0 && (
+        <div className="space-y-3">
+          <div className="relative">
+            <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Entrada
+              type="search"
+              value={filtroBusca}
+              onChange={(evento) => setFiltroBusca(evento.target.value)}
+              placeholder="Buscar por código ou nome"
+              aria-label="Buscar cupom"
+              className="pl-9"
+            />
           </div>
-          <div className="grid w-full min-w-0 gap-2 sm:grid-cols-3 lg:w-auto">
-            <label className="relative min-w-0">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
-              <Input
-                value={filtroBusca}
-                onChange={(evento) => setFiltroBusca(evento.target.value)}
-                placeholder="Buscar cupom..."
-                className="h-10 rounded-lg pl-8"
-              />
-            </label>
-            <select
-              value={filtroStatus}
-              onChange={(evento) => setFiltroStatus(evento.target.value as 'todos' | 'ativos' | 'inativos')}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
-            >
-              <option value="todos">Todos os status</option>
-              <option value="ativos">Somente ativos</option>
-              <option value="inativos">Somente inativos</option>
-            </select>
-            <select
-              value={filtroAplicacao}
-              onChange={(evento) => setFiltroAplicacao(evento.target.value as 'todos' | TipoAplicacaoCupom)}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
-            >
-              <option value="todos">Todas aplicações</option>
-              <option value="pedido">Pedido</option>
-              <option value="produto">Produto</option>
-              <option value="combo">Combo</option>
-            </select>
-          </div>
-        </div>
-
-        {carregando ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
-          </div>
-        ) : cuponsFiltrados.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-700">
-            <Gift className="mx-auto h-10 w-10 text-zinc-400" />
-            <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Nenhum cupom encontrado com os filtros atuais.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {cuponsFiltrados.map((cupom) => (
-              <article key={cupom.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
-                <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold text-white dark:bg-zinc-200 dark:text-zinc-900">
-                        <BadgePercent className="h-3.5 w-3.5" />
-                        {cupom.codigo}
-                      </span>
-                      {cupom.ativo ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-green-100 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Ativo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-zinc-200 px-2 py-1 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
-                          <XCircle className="h-3.5 w-3.5" />
-                          Inativo
-                        </span>
-                      )}
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                        {cupom.tipo_desconto === 'frete_gratis' ? (
-                          <Truck className="h-3.5 w-3.5" />
-                        ) : cupom.tipo_desconto === 'percentual' ? (
-                          <Gift className="h-3.5 w-3.5" />
-                        ) : (
-                          <Layers className="h-3.5 w-3.5" />
-                        )}
-                        {cupom.tipo_desconto === 'percentual' ? `${cupom.valor_desconto}%` : cupom.tipo_desconto === 'valor_fixo' ? formatarMoeda(cupom.valor_desconto) : 'Frete grátis'}
-                      </span>
-                    </div>
-                    <h3 className="break-words text-base font-semibold text-zinc-900 dark:text-white">{cupom.nome}</h3>
-                    {cupom.descricao && (
-                      <p className="break-words text-sm text-zinc-600 dark:text-zinc-300">{cupom.descricao}</p>
-                    )}
-                    <div className="grid gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:grid-cols-2 xl:grid-cols-3">
-                      <p>Aplicação: <strong className="text-zinc-700 dark:text-zinc-200">{cupom.aplica_em}</strong></p>
-                      <p>Pedido mínimo: <strong className="text-zinc-700 dark:text-zinc-200">{formatarMoeda(cupom.pedido_minimo)}</strong></p>
-                      <p>Usos: <strong className="text-zinc-700 dark:text-zinc-200">{cupom.quantidadeUsosConfirmados}</strong>{cupom.uso_maximo_total ? `/${cupom.uso_maximo_total}` : ''}</p>
-                      <p>Desconto concedido: <strong className="text-zinc-700 dark:text-zinc-200">{formatarMoeda(cupom.totalDescontoAplicado + cupom.totalFreteConcedido)}</strong></p>
-                      <p>Validade início: <strong className="text-zinc-700 dark:text-zinc-200">{formatarData(cupom.validade_inicio)}</strong></p>
-                      <p>Validade fim: <strong className="text-zinc-700 dark:text-zinc-200">{formatarData(cupom.validade_fim)}</strong></p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3 lg:w-[230px]">
-                    <button
-                      onClick={() => iniciarEdicao(cupom)}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-zinc-300 px-2 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => alternarStatusCupom(cupom)}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-zinc-300 px-2 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                    >
-                      {cupom.ativo ? 'Desativar' : 'Ativar'}
-                    </button>
-                    <button
-                      onClick={() => setCupomParaExcluir(cupom)}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-300 px-2 py-2 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Excluir
-                    </button>
-                  </div>
-                </div>
-              </article>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 scrollbar-hide md:mx-0 md:flex-wrap md:px-0">
+            {([
+              ['todos', 'Todos'],
+              ['ativos', 'Ativos'],
+              ['inativos', 'Pausados'],
+            ] as const).map(([valor, rotulo]) => (
+              <Chip key={valor} ativo={filtroStatus === valor} onClick={() => setFiltroStatus(valor)}>
+                {rotulo}
+              </Chip>
             ))}
-          </div>
-        )}
-      </section>
-
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-        <p className="font-medium text-zinc-800 dark:text-zinc-100">Como configurar os principais tipos de cupom</p>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li><strong>Cupom de um pedido:</strong> marque <em>Uso único global</em> para permitir somente 1 uso total.</li>
-          <li><strong>Cupom de frete grátis:</strong> selecione <em>Frete grátis</em>; só funciona para entrega.</li>
-          <li><strong>Cupom limitado:</strong> defina limite total e/ou limite por cliente.</li>
-          <li><strong>Cupom só para combo:</strong> escolha aplicação em <em>Combo</em> e selecione o combo alvo.</li>
-          <li><strong>Cupom só para produto:</strong> escolha aplicação em <em>Produto</em> e selecione o produto alvo.</li>
-        </ul>
-      </div>
-
-      {modalFormularioAberto && (
-        <div className="fixed inset-0 z-[1000]">
-          <button
-            aria-label="Fechar modal de cupom"
-            onClick={fecharModalFormulario}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          />
-
-          <div className="relative flex min-h-full items-end justify-center p-3 sm:items-center sm:p-4">
-            <div className="relative z-[1001] flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)]">
-              <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800 sm:px-6 sm:py-4">
-                <div>
-                  <h2 className="text-base font-semibold text-zinc-900 dark:text-white sm:text-lg">
-                    {idCupomEditando ? 'Editar cupom' : 'Criar cupom'}
-                  </h2>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 sm:text-sm">
-                    Configure regras de desconto com validações, limite e validade.
-                  </p>
-                </div>
-                <button
-                  onClick={fecharModalFormulario}
-                  className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-                  <section className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="min-w-0">
-                        <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Código</span>
-                        <Input
-                          value={formulario.codigo}
-                          onChange={(evento) => setFormulario((anterior) => ({ ...anterior, codigo: normalizarCodigoCupom(evento.target.value) }))}
-                          placeholder="EX: PRIMEIRA10"
-                          className={CLASSE_CAMPO}
-                        />
-                      </label>
-
-                      <label className="min-w-0">
-                        <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Nome interno</span>
-                        <Input
-                          value={formulario.nome}
-                          onChange={(evento) => setFormulario((anterior) => ({ ...anterior, nome: evento.target.value }))}
-                          placeholder="Campanha de boas-vindas"
-                          className={CLASSE_CAMPO}
-                        />
-                      </label>
-
-                      <label className="min-w-0 sm:col-span-2">
-                        <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Descrição</span>
-                        <textarea
-                          value={formulario.descricao}
-                          onChange={(evento) => setFormulario((anterior) => ({ ...anterior, descricao: evento.target.value }))}
-                          rows={2}
-                          placeholder="Anotação interna sobre objetivo do cupom."
-                          className={CLASSE_CAMPO}
-                        />
-                      </label>
-                    </div>
-
-                    <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
-                      <p className="mb-3 text-sm font-semibold text-zinc-900 dark:text-white">Regras de desconto</p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="min-w-0">
-                          <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Tipo de desconto</span>
-                          <select
-                            value={formulario.tipoDesconto}
-                            onChange={(evento) => setFormulario((anterior) => ({ ...anterior, tipoDesconto: evento.target.value as TipoDescontoCupom }))}
-                            className={CLASSE_CAMPO}
-                          >
-                            <option value="percentual">Percentual (%)</option>
-                            <option value="valor_fixo">Valor fixo (R$)</option>
-                            <option value="frete_gratis">Frete grátis</option>
-                          </select>
-                        </label>
-
-                        <label className="min-w-0">
-                          <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Valor do desconto</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            disabled={formulario.tipoDesconto === 'frete_gratis'}
-                            value={formulario.valorDesconto}
-                            onChange={(evento) => setFormulario((anterior) => ({ ...anterior, valorDesconto: evento.target.value }))}
-                            placeholder={formulario.tipoDesconto === 'percentual' ? 'Ex: 10' : 'Ex: 12.50'}
-                            className={`${CLASSE_CAMPO} disabled:cursor-not-allowed disabled:bg-zinc-100 dark:disabled:bg-zinc-700`}
-                          />
-                        </label>
-
-                        <label className="min-w-0">
-                          <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Pedido mínimo (R$)</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={formulario.pedidoMinimo}
-                            onChange={(evento) => setFormulario((anterior) => ({ ...anterior, pedidoMinimo: evento.target.value }))}
-                            className={CLASSE_CAMPO}
-                          />
-                        </label>
-
-                        <label className="min-w-0">
-                          <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Limite de desconto (R$)</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={formulario.limiteDesconto}
-                            onChange={(evento) => setFormulario((anterior) => ({ ...anterior, limiteDesconto: evento.target.value }))}
-                            placeholder="Opcional"
-                            className={CLASSE_CAMPO}
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
-                      <p className="mb-3 text-sm font-semibold text-zinc-900 dark:text-white">Escopo do cupom</p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="min-w-0">
-                          <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Aplicar em</span>
-                          <select
-                            value={formulario.aplicaEm}
-                            onChange={(evento) => setFormulario((anterior) => ({
-                              ...anterior,
-                              aplicaEm: evento.target.value as TipoAplicacaoCupom,
-                              produtoId: evento.target.value === 'produto' ? anterior.produtoId : '',
-                              comboId: evento.target.value === 'combo' ? anterior.comboId : '',
-                            }))}
-                            className={CLASSE_CAMPO}
-                          >
-                            <option value="pedido">Pedido inteiro</option>
-                            <option value="produto">Produto específico</option>
-                            <option value="combo">Combo específico</option>
-                          </select>
-                        </label>
-
-                        <label className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700">
-                          <Input
-                            type="checkbox"
-                            checked={formulario.ativo}
-                            onChange={(evento) => setFormulario((anterior) => ({ ...anterior, ativo: evento.target.checked }))}
-                            className="h-4 w-4 rounded border-zinc-300 text-bordo-600"
-                          />
-                          <span className="text-sm text-zinc-700 dark:text-zinc-300">Cupom ativo</span>
-                        </label>
-
-                        {formulario.aplicaEm === 'produto' && (
-                          <label className="min-w-0 sm:col-span-2">
-                            <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Produto alvo</span>
-                            <select
-                              value={formulario.produtoId}
-                              onChange={(evento) => setFormulario((anterior) => ({ ...anterior, produtoId: evento.target.value }))}
-                              className={CLASSE_CAMPO}
-                            >
-                              <option value="">Selecione um produto</option>
-                              {produtos.map((produto) => (
-                                <option key={produto.id} value={produto.id}>{produto.nome}</option>
-                              ))}
-                            </select>
-                          </label>
-                        )}
-
-                        {formulario.aplicaEm === 'combo' && (
-                          <label className="min-w-0 sm:col-span-2">
-                            <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Combo alvo</span>
-                            <select
-                              value={formulario.comboId}
-                              onChange={(evento) => setFormulario((anterior) => ({ ...anterior, comboId: evento.target.value }))}
-                              className={CLASSE_CAMPO}
-                            >
-                              <option value="">Selecione um combo</option>
-                              {combos.map((combo) => (
-                                <option key={combo.id} value={combo.id}>{combo.nome}</option>
-                              ))}
-                            </select>
-                          </label>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
-                      <p className="mb-3 text-sm font-semibold text-zinc-900 dark:text-white">Limites e validade</p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700 sm:col-span-2">
-                          <Input
-                            type="checkbox"
-                            checked={formulario.usoUnico}
-                            onChange={(evento) => setFormulario((anterior) => ({
-                              ...anterior,
-                              usoUnico: evento.target.checked,
-                              usoMaximoTotal: evento.target.checked ? '1' : anterior.usoMaximoTotal,
-                            }))}
-                            className="h-4 w-4 rounded border-zinc-300 text-bordo-600"
-                          />
-                          <span className="text-sm text-zinc-700 dark:text-zinc-300">Uso único global</span>
-                        </label>
-
-                        <label className="min-w-0">
-                          <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Limite total de usos</span>
-                          <Input
-                            type="number"
-                            min="1"
-                            disabled={formulario.usoUnico}
-                            value={formulario.usoMaximoTotal}
-                            onChange={(evento) => setFormulario((anterior) => ({ ...anterior, usoMaximoTotal: evento.target.value }))}
-                            placeholder="Opcional"
-                            className={`${CLASSE_CAMPO} disabled:cursor-not-allowed disabled:bg-zinc-100 dark:disabled:bg-zinc-700`}
-                          />
-                        </label>
-
-                        <label className="min-w-0">
-                          <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Limite por cliente</span>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={formulario.usoMaximoPorCliente}
-                            onChange={(evento) => setFormulario((anterior) => ({ ...anterior, usoMaximoPorCliente: evento.target.value }))}
-                            placeholder="Opcional"
-                            className={CLASSE_CAMPO}
-                          />
-                        </label>
-
-                        <label className="min-w-0">
-                          <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Validade início</span>
-                          <Input
-                            type="datetime-local"
-                            value={formulario.validadeInicio}
-                            onChange={(evento) => setFormulario((anterior) => ({ ...anterior, validadeInicio: evento.target.value }))}
-                            className={`${CLASSE_CAMPO} min-w-0 max-w-full text-[13px] sm:text-sm`}
-                          />
-                        </label>
-
-                        <label className="min-w-0">
-                          <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300">Validade fim</span>
-                          <Input
-                            type="datetime-local"
-                            value={formulario.validadeFim}
-                            onChange={(evento) => setFormulario((anterior) => ({ ...anterior, validadeFim: evento.target.value }))}
-                            className={`${CLASSE_CAMPO} min-w-0 max-w-full text-[13px] sm:text-sm`}
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  </section>
-
-                  <aside className="space-y-4">
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-700 dark:bg-zinc-800/60">
-                      <p className="font-medium text-zinc-800 dark:text-zinc-100">Prévia rápida (pedido de exemplo)</p>
-                      <p className="mt-1 text-zinc-500 dark:text-zinc-400">
-                        Subtotal {formatarMoeda(previsaoDesconto.subtotalExemplo)} + frete {formatarMoeda(previsaoDesconto.freteExemplo)}.
-                      </p>
-                      <p className="mt-1 text-zinc-600 dark:text-zinc-300">
-                        Desconto estimado: {formatarMoeda(previsaoDesconto.desconto + previsaoDesconto.descontoFrete)}
-                      </p>
-                      <p className="mt-1 font-semibold text-zinc-900 dark:text-white">
-                        Total final estimado: {formatarMoeda(previsaoDesconto.total)}
-                      </p>
-                    </div>
-
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300">
-                      <p className="font-medium text-zinc-800 dark:text-zinc-100">Boas práticas</p>
-                      <ul className="mt-2 list-disc space-y-1 pl-5">
-                        <li>Use códigos simples e fáceis de lembrar.</li>
-                        <li>Defina validade para evitar cupons antigos ativos.</li>
-                        <li>Quando for promoção agressiva, limite uso por cliente.</li>
-                      </ul>
-                    </div>
-                  </aside>
-                </div>
-              </div>
-
-              <div className="flex flex-col-reverse gap-2 border-t border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:justify-end sm:gap-3 sm:p-5">
-                <Button
-                  variant="outline"
-                  onClick={fecharModalFormulario}
-                  className="w-full sm:w-auto"
-                >
-                  Cancelar
-                </Button>
-
-                <Button
-                  onClick={salvarCupom}
-                  disabled={salvando}
-                  className="w-full gap-2 sm:w-auto"
-                >
-                  {salvando ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : idCupomEditando ? (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Atualizar cupom
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" />
-                      Criar cupom
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
+            <span className="mx-1 w-px shrink-0 self-stretch bg-border/70" aria-hidden />
+            {([['todos', 'Qualquer alvo'], ...OPCOES_APLICACAO.map((o) => [o.valor, o.rotulo])] as [
+              'todos' | TipoAplicacaoCupom,
+              string,
+            ][]).map(([valor, rotulo]) => (
+              <Chip key={valor} ativo={filtroAplicacao === valor} onClick={() => setFiltroAplicacao(valor)}>
+                {rotulo}
+              </Chip>
+            ))}
           </div>
         </div>
       )}
 
-      <Dialog open={!!cupomParaExcluir} onOpenChange={(open) => !open && setCupomParaExcluir(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Excluir cupom</DialogTitle>
-            <DialogDescription>
-              Deseja realmente excluir o cupom <span className="font-mono font-semibold">{cupomParaExcluir?.codigo}</span>? Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2">
-            <button
-              onClick={() => setCupomParaExcluir(null)}
-              className="inline-flex h-9 items-center px-4 rounded-md border border-border/70 bg-card text-sm font-medium text-foreground hover:bg-muted transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={() => cupomParaExcluir && excluirCupomConfirmado(cupomParaExcluir)}
-              className="inline-flex h-9 items-center px-4 rounded-md bg-destructive text-sm font-medium text-white hover:bg-destructive/90 transition-colors"
-            >
-              Excluir
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+      {carregando && cupons.length === 0 ? (
+        <ListaCarregando linhas={4} />
+      ) : cupons.length === 0 ? (
+        <ListaVazia
+          icone={<SealPercent />}
+          titulo="Nenhum cupom ainda"
+          descricao="Crie um código de desconto para divulgar aos clientes."
+          acao={
+            <Botao onClick={abrirModalNovo}>
+              <Plus className="size-4" />
+              Criar cupom
+            </Botao>
+          }
+        />
+      ) : cuponsFiltrados.length === 0 ? (
+        <ListaVazia
+          icone={<MagnifyingGlass />}
+          titulo="Nenhum cupom encontrado"
+          descricao="Tente outra busca ou filtro."
+          acao={
+            filtrosAtivos ? (
+              <Botao
+                variante="contorno"
+                onClick={() => {
+                  setFiltroBusca('')
+                  setFiltroStatus('todos')
+                  setFiltroAplicacao('todos')
+                }}
+              >
+                Limpar filtros
+              </Botao>
+            ) : undefined
+          }
+        />
+      ) : (
+        <Lista>
+          {cuponsFiltrados.map((cupom) => {
+            const alvo = alvoDoCupom(cupom)
+            const concedido = cupom.totalDescontoAplicado + cupom.totalFreteConcedido
+            return (
+              <li key={cupom.id}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => iniciarEdicao(cupom)}
+                  onKeyDown={(evento) => {
+                    if (evento.key === 'Enter') iniciarEdicao(cupom)
+                  }}
+                  className={cn(
+                    'flex min-h-16 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                    !cupom.ativo && 'opacity-60',
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-baseline gap-2">
+                      <p className="shrink-0 font-mono text-sm font-semibold text-foreground">{cupom.codigo}</p>
+                      <p className="truncate text-sm text-muted-foreground">{cupom.nome}</p>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <Selo tom="primario">{descreverDesconto(cupom)}</Selo>
+                      {alvo && <Selo>Só em {alvo}</Selo>}
+                      {!cupom.ativo && <Selo>Pausado</Selo>}
+                      <span className="text-[13px] tabular-nums text-muted-foreground">
+                        {cupom.quantidadeUsosConfirmados}
+                        {cupom.uso_maximo_total ? `/${cupom.uso_maximo_total}` : ''}{' '}
+                        {cupom.quantidadeUsosConfirmados === 1 ? 'uso' : 'usos'}
+                        {concedido > 0 ? ` · ${formatarMoeda(concedido)}` : ''}
+                        {cupom.validade_fim ? ` · até ${formatarData(cupom.validade_fim)}` : ''}
+                      </span>
+                    </div>
+                  </div>
+                  <Interruptor
+                    marcado={cupom.ativo}
+                    aoMudar={() => void alternarStatusCupom(cupom)}
+                    rotuloAcessivel={`${cupom.ativo ? 'Pausar' : 'Ativar'} cupom ${cupom.codigo}`}
+                  />
+                </div>
+              </li>
+            )
+          })}
+        </Lista>
+      )}
+
+      <p className="px-1 text-sm text-muted-foreground">
+        Cupom pausado não vale no checkout. Frete grátis só funciona em pedidos de entrega.
+      </p>
+
+      <Gaveta
+        aberto={modalFormularioAberto}
+        aoFechar={fecharModalFormulario}
+        bloqueada={salvando}
+        largura="lg"
+        titulo={editando ? 'Editar cupom' : 'Criar cupom'}
+        descricao="Código, desconto e onde ele vale. Limites e validade são opcionais."
+        rodape={
+          editando ? (
+            <>
+              <Botao variante="perigoSuave" className="md:mr-auto" onClick={() => void pedirExclusao()} disabled={salvando}>
+                Excluir
+              </Botao>
+              <Botao carregando={salvando} onClick={() => void salvarCupom()}>Salvar</Botao>
+            </>
+          ) : (
+            <>
+              <Botao variante="contorno" onClick={fecharModalFormulario} disabled={salvando}>Cancelar</Botao>
+              <Botao carregando={salvando} onClick={() => void salvarCupom()}>Criar cupom</Botao>
+            </>
+          )
+        }
+      >
+        <form
+          className="space-y-6"
+          onSubmit={(evento) => {
+            evento.preventDefault()
+            void salvarCupom()
+          }}
+        >
+          <div className="space-y-4">
+            <Campo rotulo="Código" htmlFor="cupom-codigo" erro={erros.codigo} ajuda="O que o cliente digita no checkout.">
+              <Entrada
+                id="cupom-codigo"
+                value={formulario.codigo}
+                onChange={(evento) => mudar('codigo', normalizarCodigoCupom(evento.target.value))}
+                placeholder="Ex.: PRIMEIRA10"
+                autoComplete="off"
+                autoCapitalize="characters"
+                className="font-mono"
+              />
+            </Campo>
+            <Campo rotulo="Nome" htmlFor="cupom-nome" erro={erros.nome} ajuda="Só a equipe vê.">
+              <Entrada
+                id="cupom-nome"
+                value={formulario.nome}
+                onChange={(evento) => mudar('nome', evento.target.value)}
+                placeholder="Ex.: Boas-vindas"
+                autoComplete="off"
+              />
+            </Campo>
+            <Campo rotulo="Anotação" htmlFor="cupom-descricao" opcional>
+              <AreaTexto
+                id="cupom-descricao"
+                rows={2}
+                value={formulario.descricao}
+                onChange={(evento) => mudar('descricao', evento.target.value)}
+                placeholder="Para que serve este cupom."
+              />
+            </Campo>
+          </div>
+
+          <Secao titulo="Desconto">
+            <div className="space-y-4">
+              <Segmentos
+                opcoes={OPCOES_TIPO}
+                valor={formulario.tipoDesconto}
+                aoMudar={(valor) => mudar('tipoDesconto', valor)}
+                rotuloAcessivel="Tipo de desconto"
+              />
+              {formulario.tipoDesconto === 'percentual' && (
+                <Campo rotulo="Porcentagem" htmlFor="cupom-valor" erro={erros.valorDesconto}>
+                  <div className="relative">
+                    <Entrada
+                      id="cupom-valor"
+                      inputMode="decimal"
+                      value={formulario.valorDesconto}
+                      onChange={(evento) => mudar('valorDesconto', decimal(evento.target.value.replace(/[^\d.,]/g, '')))}
+                      placeholder="10"
+                      className="pr-9 font-mono tabular-nums"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                  </div>
+                </Campo>
+              )}
+              {formulario.tipoDesconto === 'valor_fixo' && (
+                <Campo rotulo="Valor" htmlFor="cupom-valor" erro={erros.valorDesconto}>
+                  <EntradaPreco
+                    id="cupom-valor"
+                    valor={formulario.valorDesconto}
+                    aoMudar={(valor) => mudar('valorDesconto', decimal(valor))}
+                  />
+                </Campo>
+              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Campo rotulo="Pedido mínimo" htmlFor="cupom-minimo" ajuda="Use 0 para qualquer valor.">
+                  <EntradaPreco
+                    id="cupom-minimo"
+                    valor={formulario.pedidoMinimo}
+                    aoMudar={(valor) => mudar('pedidoMinimo', decimal(valor))}
+                  />
+                </Campo>
+                {formulario.tipoDesconto !== 'frete_gratis' && (
+                  <Campo rotulo="Desconto máximo" htmlFor="cupom-limite" opcional>
+                    <EntradaPreco
+                      id="cupom-limite"
+                      valor={formulario.limiteDesconto}
+                      aoMudar={(valor) => mudar('limiteDesconto', decimal(valor))}
+                      placeholder="Sem teto"
+                    />
+                  </Campo>
+                )}
+              </div>
+              <Cartao className="bg-muted/40 p-4 text-sm">
+                <p className="text-muted-foreground">
+                  Pedido de {formatarMoeda(previsaoDesconto.subtotalExemplo)} + frete {formatarMoeda(previsaoDesconto.freteExemplo)}
+                </p>
+                <p className="mt-1 text-foreground">
+                  Desconto de {formatarMoeda(previsaoDesconto.desconto + previsaoDesconto.descontoFrete)} · cliente paga{' '}
+                  <span className="font-semibold tabular-nums">{formatarMoeda(previsaoDesconto.total)}</span>
+                </p>
+              </Cartao>
+            </div>
+          </Secao>
+
+          <Secao titulo="Onde vale">
+            <div className="space-y-4">
+              <Segmentos
+                opcoes={OPCOES_APLICACAO}
+                valor={formulario.aplicaEm}
+                aoMudar={(valor) =>
+                  setFormulario((anterior) => ({
+                    ...anterior,
+                    aplicaEm: valor,
+                    produtoId: valor === 'produto' ? anterior.produtoId : '',
+                    comboId: valor === 'combo' ? anterior.comboId : '',
+                  }))
+                }
+                rotuloAcessivel="Onde o cupom vale"
+              />
+              {formulario.aplicaEm === 'produto' && (
+                <Campo rotulo="Produto" htmlFor="cupom-produto" erro={erros.produtoId}>
+                  <Selecao id="cupom-produto" value={formulario.produtoId} onChange={(evento) => mudar('produtoId', evento.target.value)}>
+                    <option value="">Escolha um produto</option>
+                    {produtos.map((produto) => (
+                      <option key={produto.id} value={produto.id}>{produto.nome}</option>
+                    ))}
+                  </Selecao>
+                </Campo>
+              )}
+              {formulario.aplicaEm === 'combo' && (
+                <Campo rotulo="Combo" htmlFor="cupom-combo" erro={erros.comboId}>
+                  <Selecao id="cupom-combo" value={formulario.comboId} onChange={(evento) => mudar('comboId', evento.target.value)}>
+                    <option value="">Escolha um combo</option>
+                    {combos.map((combo) => (
+                      <option key={combo.id} value={combo.id}>{combo.nome}</option>
+                    ))}
+                  </Selecao>
+                </Campo>
+              )}
+            </div>
+          </Secao>
+
+          <Secao titulo="Limites e validade">
+            <div className="space-y-4">
+              <LinhaInterruptor
+                titulo="Uso único"
+                descricao="Vale uma vez só, para o primeiro cliente que usar."
+                marcado={formulario.usoUnico}
+                aoMudar={(marcado) =>
+                  setFormulario((anterior) => ({
+                    ...anterior,
+                    usoUnico: marcado,
+                    usoMaximoTotal: marcado ? '1' : anterior.usoMaximoTotal,
+                  }))
+                }
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Campo rotulo="Usos no total" htmlFor="cupom-uso-total" opcional>
+                  <Entrada
+                    id="cupom-uso-total"
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    disabled={formulario.usoUnico}
+                    value={formulario.usoMaximoTotal}
+                    onChange={(evento) => mudar('usoMaximoTotal', evento.target.value)}
+                    placeholder="Sem limite"
+                  />
+                </Campo>
+                <Campo rotulo="Usos por cliente" htmlFor="cupom-uso-cliente" opcional>
+                  <Entrada
+                    id="cupom-uso-cliente"
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    value={formulario.usoMaximoPorCliente}
+                    onChange={(evento) => mudar('usoMaximoPorCliente', evento.target.value)}
+                    placeholder="Sem limite"
+                  />
+                </Campo>
+                <Campo rotulo="Começa em" htmlFor="cupom-inicio" opcional>
+                  <Entrada
+                    id="cupom-inicio"
+                    type="datetime-local"
+                    value={formulario.validadeInicio}
+                    onChange={(evento) => mudar('validadeInicio', evento.target.value)}
+                    className="min-w-0"
+                  />
+                </Campo>
+                <Campo rotulo="Termina em" htmlFor="cupom-fim" opcional erro={erros.validadeFim}>
+                  <Entrada
+                    id="cupom-fim"
+                    type="datetime-local"
+                    value={formulario.validadeFim}
+                    onChange={(evento) => mudar('validadeFim', evento.target.value)}
+                    className="min-w-0"
+                  />
+                </Campo>
+              </div>
+              <LinhaInterruptor
+                titulo="Cupom ativo"
+                descricao="Desligue para pausar sem excluir."
+                marcado={formulario.ativo}
+                aoMudar={(marcado) => mudar('ativo', marcado)}
+              />
+            </div>
+          </Secao>
+          <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+        </form>
+      </Gaveta>
+    </Pagina>
   )
 }

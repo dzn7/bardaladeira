@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { RefreshCw } from 'lucide-react'
-
+import { ArrowsClockwise as RefreshCw } from '@phosphor-icons/react'
 let isReloading = false
 const PREFIXO_CACHE_ADMIN = 'bar-da-ladeira-admin-'
 

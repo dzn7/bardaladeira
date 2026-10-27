@@ -1,6 +1,6 @@
 'use client'
 
-import { ListFilter } from 'lucide-react'
+import { FunnelSimple as ListFilter } from '@phosphor-icons/react'
 import { FiltroAvancado } from '@/components/admin/filtros/FiltroAvancado'
 import { CampoSelectFiltro } from '@/components/admin/filtros/CampoSelectFiltro'
 

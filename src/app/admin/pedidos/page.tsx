@@ -2,28 +2,17 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  CheckSquare,
-  Loader2,
-  Package,
-  Plus,
-  RefreshCw,
-  Search,
-  Square,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { CheckSquare, CircleNotch as Loader2, Package, Plus, ArrowsClockwise as RefreshCw, MagnifyingGlass as Search, Square, Trash as Trash2, X } from '@phosphor-icons/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { FiltrosAtivosChips, type ChipFiltroAtivo } from '@/components/admin/filtros/FiltrosAtivosChips'
 import { GradeSkeleton, ListaVazia } from '@/components/admin/filtros/ListaEstado'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { gerarPDFPedido } from '@/lib/pdf-generator'
 import ModalEditarPedido from '@/components/admin/ModalEditarPedido'
-import ModalNotificacao from '@/components/ModalNotificacao'
+import { toast } from 'sonner'
+import { Botao, CabecalhoPagina, Entrada, useConfirmar } from '@/components/admin/ui'
 import ModalDetalhesPedido from '@/components/admin/ModalDetalhesPedido'
 import CardPedido, { type Pedido } from '@/components/admin/CardPedido'
 import {
@@ -114,19 +103,18 @@ function PedidosContent() {
   const [idsSelecionados, setIdsSelecionados] = useState<Set<string>>(new Set())
   const [excluindoEmMassa, setExcluindoEmMassa] = useState(false)
 
-  const [modalNotificacao, setModalNotificacao] = useState<{
-    aberto: boolean
-    tipo: 'sucesso' | 'erro' | 'aviso' | 'info' | 'confirmacao'
+  const confirmar = useConfirmar()
+  const notificar = ({ tipo, titulo, mensagem }: {
+    aberto?: boolean
+    tipo: 'sucesso' | 'erro' | 'aviso' | 'info'
     titulo: string
     mensagem: string
-    onConfirmar: () => void
-  }>({
-    aberto: false,
-    tipo: 'info',
-    titulo: '',
-    mensagem: '',
-    onConfirmar: () => {},
-  })
+    onConfirmar?: () => void
+  }) => {
+    const mostrar =
+      tipo === 'sucesso' ? toast.success : tipo === 'erro' ? toast.error : tipo === 'aviso' ? toast.warning : toast.info
+    mostrar(titulo, { description: mensagem })
+  }
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -526,48 +514,47 @@ function PedidosContent() {
   }
 
   const handleExcluirPedido = async (pedidoId: string) => {
-    setModalNotificacao({
-      aberto: true,
-      tipo: 'confirmacao',
-      titulo: 'Confirmar Exclusão',
-      mensagem: 'Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.',
-      onConfirmar: async () => {
-        try {
-          await supabase
-            .from('mesas')
-            .update({
-              status: 'livre',
-              nome_cliente: null,
-              ocupada_em: null,
-              liberar_em: null,
-              pedido_id: null,
-              observacoes: null,
-            })
-            .eq('pedido_id', pedidoId)
-
-          const { error } = await supabase.from('pedidos').delete().eq('id', pedidoId)
-          if (error) throw error
-
-          void carregarPedidos()
-          setModalNotificacao({
-            aberto: true,
-            tipo: 'sucesso',
-            titulo: 'Pedido Excluído',
-            mensagem: 'O pedido foi excluído com sucesso.',
-            onConfirmar: () => {},
-          })
-        } catch (error) {
-          console.error('Erro ao excluir pedido:', error)
-          setModalNotificacao({
-            aberto: true,
-            tipo: 'erro',
-            titulo: 'Erro ao Excluir',
-            mensagem: 'Não foi possível excluir o pedido. Tente novamente.',
-            onConfirmar: () => {},
-          })
-        }
-      },
+    const ok = await confirmar({
+      titulo: 'Excluir este pedido?',
+      descricao: 'O pedido some da lista e a mesa vinculada é liberada. Não dá para desfazer.',
+      confirmar: 'Excluir pedido',
+      perigo: true,
     })
+    if (!ok) return
+    try {
+      await supabase
+        .from('mesas')
+        .update({
+          status: 'livre',
+          nome_cliente: null,
+          ocupada_em: null,
+          liberar_em: null,
+          pedido_id: null,
+          observacoes: null,
+        })
+        .eq('pedido_id', pedidoId)
+
+      const { error } = await supabase.from('pedidos').delete().eq('id', pedidoId)
+      if (error) throw error
+
+      void carregarPedidos()
+      notificar({
+        aberto: true,
+        tipo: 'sucesso',
+        titulo: 'Pedido Excluído',
+        mensagem: 'O pedido foi excluído com sucesso.',
+        onConfirmar: () => {},
+      })
+    } catch (error) {
+      console.error('Erro ao excluir pedido:', error)
+      notificar({
+        aberto: true,
+        tipo: 'erro',
+        titulo: 'Erro ao Excluir',
+        mensagem: 'Não foi possível excluir o pedido. Tente novamente.',
+        onConfirmar: () => {},
+      })
+    }
   }
 
   const enviarParaCrediario = async (pedido: Pedido) => {
@@ -583,7 +570,7 @@ function PedidosContent() {
       setPedidos((prev) => prev.map((item) => (
         item.id === pedido.id ? { ...item, forma_pagamento: 'Crediário' } : item
       )))
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'sucesso',
         titulo: 'Pedido enviado ao crediário',
@@ -592,7 +579,7 @@ function PedidosContent() {
       })
     } catch (erro) {
       console.error('Erro ao enviar pedido para crediário:', erro)
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'erro',
         titulo: 'Erro no crediário',
@@ -626,7 +613,7 @@ function PedidosContent() {
         ),
       )
 
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'sucesso',
         titulo: 'Pagamento confirmado',
@@ -635,7 +622,7 @@ function PedidosContent() {
       })
     } catch (erro) {
       console.error('Erro ao confirmar pagamento:', erro)
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'erro',
         titulo: 'Erro ao confirmar pagamento',
@@ -714,7 +701,7 @@ function PedidosContent() {
         ),
       )
 
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'sucesso',
         titulo: 'Pedido concluído',
@@ -725,7 +712,7 @@ function PedidosContent() {
       })
     } catch (erro) {
       console.error('Erro ao concluir pedido:', erro)
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'erro',
         titulo: 'Erro ao concluir pedido',
@@ -737,7 +724,7 @@ function PedidosContent() {
 
   const restaurarPedidoParaMesa = async (pedido: Pedido) => {
     if (!pedido.mesa_id) {
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'erro',
         titulo: 'Mesa não encontrada',
@@ -748,7 +735,7 @@ function PedidosContent() {
     }
 
     if (!pedidoDentroDoDiaOperacional(pedido.created_at)) {
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'aviso',
         titulo: 'Pedido fora do dia',
@@ -772,7 +759,7 @@ function PedidosContent() {
       }
 
       if (mesa.status === 'ocupada' && mesa.pedido_id && String(mesa.pedido_id) !== pedido.id) {
-        setModalNotificacao({
+        notificar({
           aberto: true,
           tipo: 'aviso',
           titulo: 'Mesa ocupada',
@@ -821,7 +808,7 @@ function PedidosContent() {
         ),
       )
 
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'sucesso',
         titulo: 'Mesa restaurada',
@@ -830,7 +817,7 @@ function PedidosContent() {
       })
     } catch (erro) {
       console.error('Erro ao voltar pedido para mesa:', erro)
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'erro',
         titulo: 'Erro ao voltar para mesa',
@@ -860,56 +847,55 @@ function PedidosContent() {
     setIdsSelecionados(new Set())
   }
 
-  const handleExcluirSelecionados = () => {
+  const handleExcluirSelecionados = async () => {
     if (idsSelecionados.size === 0) return
-    setModalNotificacao({
-      aberto: true,
-      tipo: 'confirmacao',
-      titulo: 'Excluir Pedidos Selecionados',
-      mensagem: `Tem certeza que deseja excluir ${idsSelecionados.size} pedido${idsSelecionados.size > 1 ? 's' : ''}? Esta ação não pode ser desfeita.`,
-      onConfirmar: async () => {
-        setExcluindoEmMassa(true)
-        try {
-          const ids = Array.from(idsSelecionados)
-
-          await supabase
-            .from('mesas')
-            .update({
-              status: 'livre',
-              nome_cliente: null,
-              ocupada_em: null,
-              liberar_em: null,
-              pedido_id: null,
-              observacoes: null,
-            })
-            .in('pedido_id', ids)
-
-          const { error } = await supabase.from('pedidos').delete().in('id', ids)
-          if (error) throw error
-
-          cancelarSelecao()
-          void carregarPedidos()
-          setModalNotificacao({
-            aberto: true,
-            tipo: 'sucesso',
-            titulo: 'Pedidos Excluídos',
-            mensagem: `${ids.length} pedido${ids.length > 1 ? 's foram excluídos' : ' foi excluído'} com sucesso.`,
-            onConfirmar: () => {},
-          })
-        } catch (error) {
-          console.error('Erro ao excluir pedidos em massa:', error)
-          setModalNotificacao({
-            aberto: true,
-            tipo: 'erro',
-            titulo: 'Erro ao Excluir',
-            mensagem: 'Não foi possível excluir os pedidos. Tente novamente.',
-            onConfirmar: () => {},
-          })
-        } finally {
-          setExcluindoEmMassa(false)
-        }
-      },
+    const ok = await confirmar({
+      titulo: `Excluir ${idsSelecionados.size} pedido${idsSelecionados.size > 1 ? 's' : ''}?`,
+      descricao: 'Os pedidos selecionados somem da lista e as mesas vinculadas são liberadas. Não dá para desfazer.',
+      confirmar: 'Excluir',
+      perigo: true,
     })
+    if (!ok) return
+    setExcluindoEmMassa(true)
+    try {
+      const ids = Array.from(idsSelecionados)
+
+      await supabase
+        .from('mesas')
+        .update({
+          status: 'livre',
+          nome_cliente: null,
+          ocupada_em: null,
+          liberar_em: null,
+          pedido_id: null,
+          observacoes: null,
+        })
+        .in('pedido_id', ids)
+
+      const { error } = await supabase.from('pedidos').delete().in('id', ids)
+      if (error) throw error
+
+      cancelarSelecao()
+      void carregarPedidos()
+      notificar({
+        aberto: true,
+        tipo: 'sucesso',
+        titulo: 'Pedidos Excluídos',
+        mensagem: `${ids.length} pedido${ids.length > 1 ? 's foram excluídos' : ' foi excluído'} com sucesso.`,
+        onConfirmar: () => {},
+      })
+    } catch (error) {
+      console.error('Erro ao excluir pedidos em massa:', error)
+      notificar({
+        aberto: true,
+        tipo: 'erro',
+        titulo: 'Erro ao Excluir',
+        mensagem: 'Não foi possível excluir os pedidos. Tente novamente.',
+        onConfirmar: () => {},
+      })
+    } finally {
+      setExcluindoEmMassa(false)
+    }
   }
 
   const enviarParaImpressao = async (pedidoId: string, tipo: 'cozinha' | 'cliente') => {
@@ -925,7 +911,7 @@ function PedidosContent() {
       })
 
       if (resultado.duplicado) {
-        setModalNotificacao({
+        notificar({
           aberto: true,
           tipo: 'aviso',
           titulo: 'Já na Fila',
@@ -936,7 +922,7 @@ function PedidosContent() {
       }
       if (!resultado.sucesso) throw new Error(resultado.erro || 'Falha ao enfileirar impressão.')
 
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'sucesso',
         titulo: 'Enviado para Impressão',
@@ -945,7 +931,7 @@ function PedidosContent() {
       })
     } catch (error) {
       console.error('Erro ao enviar para impressão:', error)
-      setModalNotificacao({
+      notificar({
         aberto: true,
         tipo: 'erro',
         titulo: 'Erro',
@@ -963,71 +949,58 @@ function PedidosContent() {
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="space-y-4 sm:space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div className="min-w-0">
-              <h2 className="text-xl sm:text-2xl font-semibold text-foreground truncate">
-                Pedidos do dia — {totalPedidosDia} pedido{totalPedidosDia === 1 ? '' : 's'}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Pedidos — {totalPedidos} pedido{totalPedidos === 1 ? '' : 's'} encontrado{totalPedidos === 1 ? '' : 's'}
-              </p>
-            </div>
-            <div className="flex gap-2 flex-shrink-0">
-              {!modoSelecao ? (
-                <button
-                  onClick={() => setModoSelecao(true)}
-                  className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 text-sm font-medium text-foreground border border-border/70 bg-card rounded-lg hover:bg-accent transition-colors"
+        <div className="space-y-4 pb-24 sm:space-y-5">
+          <CabecalhoPagina
+            titulo="Pedidos"
+            descricao={`${totalPedidosDia} hoje · ${totalPedidos} ${totalPedidos === 1 ? 'encontrado' : 'encontrados'} no filtro`}
+            acoes={
+              <>
+                {!modoSelecao ? (
+                  <Botao variante="contorno" onClick={() => setModoSelecao(true)}>
+                    <CheckSquare className="size-4" />
+                    Selecionar
+                  </Botao>
+                ) : (
+                  <Botao variante="contorno" onClick={cancelarSelecao}>
+                    <X className="size-4" />
+                    Cancelar
+                  </Botao>
+                )}
+                <Botao
+                  variante="contorno"
+                  onClick={() => void carregarPedidos()}
+                  disabled={loading}
+                  aria-label="Atualizar lista"
+                  className="!flex-none px-3"
                 >
-                  <CheckSquare strokeWidth={1.6} className="w-4 h-4" />
-                  <span className="hidden sm:inline">Selecionar</span>
-                </button>
-              ) : (
-                <button
-                  onClick={cancelarSelecao}
-                  className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 text-sm font-medium text-foreground border border-border/70 bg-card rounded-lg hover:bg-accent transition-colors"
-                >
-                  <X strokeWidth={1.6} className="w-4 h-4" />
-                  <span className="hidden sm:inline">Cancelar</span>
-                </button>
-              )}
-              <button
-                onClick={() => void carregarPedidos()}
-                disabled={loading}
-                className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 text-sm font-medium text-foreground border border-border/70 bg-card rounded-lg hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw strokeWidth={1.6} className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Atualizar</span>
-              </button>
-              <button
-                onClick={() => router.push('/admin/pedidos/novo')}
-                className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors"
-              >
-                <Plus strokeWidth={1.6} className="w-4 h-4" />
-                <span className="hidden xs:inline">Novo</span>
-                <span className="hidden sm:inline"> Pedido</span>
-              </button>
-            </div>
-          </div>
+                  <RefreshCw className={cn('size-4', loading && 'animate-spin')} />
+                  <span className="hidden sm:inline">Atualizar</span>
+                </Botao>
+                <Botao onClick={() => router.push('/admin/pedidos/novo')}>
+                  <Plus className="size-4" />
+                  Novo pedido
+                </Botao>
+              </>
+            }
+          />
 
-          <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
+          <div className="space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="relative min-w-0 flex-1 sm:max-w-[280px]">
-                <Search strokeWidth={1.6} className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Buscar por nome, telefone ou ID..."
+              <div className="relative min-w-0 flex-1 sm:max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Entrada
+                  type="search"
+                  placeholder="Buscar por nome, telefone ou número"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  className="h-9 rounded-lg border-border/70 bg-background pl-9 pr-9 shadow-none"
+                  className="pl-9 pr-11"
                   aria-label="Buscar pedidos"
                 />
                 {busca ? (
                   <button
                     type="button"
                     onClick={() => setBusca('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground"
                     aria-label="Limpar busca"
                   >
                     <X strokeWidth={1.6} className="h-4 w-4" />
@@ -1109,8 +1082,9 @@ function PedidosContent() {
             {modoSelecao && pedidosFiltrados.length > 0 && (
               <div className="flex items-center gap-3 border-t border-border/70 pt-3">
                 <button
+                  type="button"
                   onClick={selecionarTodos}
-                  className="flex items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-muted-foreground"
+                  className="flex min-h-11 items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-muted-foreground"
                 >
                   {todosVisivelSelecionados ? (
                     <CheckSquare strokeWidth={1.6} className="h-4 w-4" />
@@ -1137,12 +1111,12 @@ function PedidosContent() {
             <ListaVazia
               icone={<Package className="h-6 w-6" strokeWidth={1.6} />}
               titulo="Nenhum pedido encontrado"
-              descricao="Tente ajustar os filtros ou criar um novo pedido"
+              descricao="Tente outro filtro ou crie um novo pedido."
               acao={
-                <Button onClick={() => router.push('/admin/pedidos/novo')} className="mt-2 gap-1.5">
-                  <Plus className="h-4 w-4" strokeWidth={1.6} />
+                <Botao onClick={() => router.push('/admin/pedidos/novo')} className="mt-2">
+                  <Plus className="size-4" />
                   Novo pedido
-                </Button>
+                </Botao>
               }
             />
           ) : (
@@ -1216,30 +1190,18 @@ function PedidosContent() {
                 initial={{ opacity: 0, y: 80 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 80 }}
-                className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-xl border border-border/70 bg-card px-5 py-3 shadow-lg"
+                className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex items-center gap-2 rounded-xl border border-border/70 bg-card py-2 pl-4 pr-2 shadow-lg md:mx-auto md:w-fit"
               >
-                <span className="text-sm font-medium text-foreground">
+                <span className="flex-1 text-sm font-medium text-foreground md:flex-none">
                   {idsSelecionados.size} selecionado{idsSelecionados.size > 1 ? 's' : ''}
                 </span>
-                <div className="h-4 w-px bg-border/70" />
-                <button
-                  onClick={handleExcluirSelecionados}
-                  disabled={excluindoEmMassa}
-                  className="flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
-                >
-                  {excluindoEmMassa ? (
-                    <Loader2 strokeWidth={1.6} className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 strokeWidth={1.6} className="w-4 h-4" />
-                  )}
+                <Botao variante="perigo" onClick={() => void handleExcluirSelecionados()} carregando={excluindoEmMassa}>
+                  {!excluindoEmMassa && <Trash2 className="size-4" />}
                   Excluir
-                </button>
-                <button
-                  onClick={cancelarSelecao}
-                  className="flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                >
-                  <X strokeWidth={1.6} className="w-4 h-4" />
-                </button>
+                </Botao>
+                <Botao variante="fantasma" tamanho="icone" className="size-11" onClick={cancelarSelecao} aria-label="Cancelar seleção">
+                  <X className="size-4" />
+                </Botao>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1269,16 +1231,6 @@ function PedidosContent() {
           onGerarPDF={(pedido) => handleGerarPDF(pedido.id)}
         />
 
-        <ModalNotificacao
-          aberto={modalNotificacao.aberto}
-          tipo={modalNotificacao.tipo}
-          titulo={modalNotificacao.titulo}
-          mensagem={modalNotificacao.mensagem}
-          onFechar={() => setModalNotificacao({ ...modalNotificacao, aberto: false })}
-          onConfirmar={modalNotificacao.onConfirmar}
-          textoBotaoConfirmar="Excluir"
-          textoBotaoCancelar="Cancelar"
-        />
       </AdminLayout>
     </ProtectedRoute>
   )

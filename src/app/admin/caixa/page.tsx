@@ -3,21 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import {
-  ArrowDownCircle,
-  ArrowUpCircle,
-  CheckCircle2,
-  Eye,
-  FileText,
-  Lock,
-  Plus,
-  RefreshCw,
-  Search,
-  Settings2,
-  Trash2,
-  Unlock,
-  Wallet,
-} from 'lucide-react'
+import { ArrowCircleDown as ArrowDownCircle, ArrowCircleUp as ArrowUpCircle, CaretRight, CheckCircle as CheckCircle2, FileText, Lock, Plus, ArrowsClockwise as RefreshCw, MagnifyingGlass as Search, GearSix as Settings2, Trash as Trash2, LockOpen as Unlock, Wallet } from '@phosphor-icons/react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
@@ -29,24 +15,20 @@ import {
   ModalNovaMovimentacao,
   ModalSangriaSuprimento,
 } from '@/components/admin/caixa'
-import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { MenuAcoes, type MenuAcaoItem } from '@/components/ui/menu-acoes'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+  Botao,
+  CabecalhoPagina,
+  Cartao,
+  Chip,
+  Entrada,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Selo,
+  useConfirmar,
+} from '@/components/admin/ui'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PaginacaoFinancas } from '@/features/financas/components/PaginacaoFinancas'
 import { formatarMoedaCaixa } from '@/lib/caixa-gaveta'
 import { gerarPdfCaixa } from '@/lib/gerarPdfCaixa'
@@ -100,8 +82,7 @@ export default function GestaoCaixaPage() {
   const [modalSangria, setModalSangria] = useState(false)
   const [modalSuprimento, setModalSuprimento] = useState(false)
   const [caixaDetalhe, setCaixaDetalhe] = useState<Caixa | null>(null)
-  const [excluirMovId, setExcluirMovId] = useState<string | null>(null)
-  const [excluirCaixaId, setExcluirCaixaId] = useState<string | null>(null)
+  const confirmar = useConfirmar()
 
   useEffect(() => {
     if (!notificacao.aberto) return
@@ -164,272 +145,227 @@ export default function GestaoCaixaPage() {
     }
   }
 
-  const acoesExtrato = (caixa: Caixa): MenuAcaoItem[] => {
-    const itens: MenuAcaoItem[] = [
-      {
-        key: 'detalhe',
-        label: 'Ver detalhes',
-        icon: <Eye className="h-4 w-4" strokeWidth={1.6} />,
-        onSelect: () => setCaixaDetalhe(caixa),
-      },
-      {
-        key: 'pdf',
-        label: 'PDF',
-        icon: <FileText className="h-4 w-4" strokeWidth={1.6} />,
-        onSelect: () => handlePdf(caixa),
-      },
-    ]
-    if (caixa.status === 'fechado') {
-      itens.push({
-        key: 'reabrir',
-        label: 'Reabrir',
-        icon: <Unlock className="h-4 w-4" strokeWidth={1.6} />,
-        onSelect: () => void reabrirCaixa(caixa.id),
-      })
-    }
-    itens.push({
-      key: 'excluir',
-      label: 'Excluir',
-      icon: <Trash2 className="h-4 w-4" strokeWidth={1.6} />,
-      onSelect: () => setExcluirCaixaId(caixa.id),
-      variant: 'destructive',
-      separatorBefore: true,
+  const pedirExclusaoMov = async (mov: MovimentacaoCaixa) => {
+    const ok = await confirmar({
+      titulo: 'Excluir movimento?',
+      descricao: `${mov.descricao || mov.categoria?.nome || 'Movimento'} · ${formatarMoedaCaixa(mov.valor)}. Não dá para desfazer.`,
+      confirmar: 'Excluir',
+      perigo: true,
     })
-    return itens
+    if (ok) void excluirMovimentacao(mov.id)
+  }
+
+  const pedirExclusaoCaixa = async (caixa: Caixa) => {
+    const ok = await confirmar({
+      titulo: 'Excluir este caixa?',
+      descricao: 'Apaga o caixa e todos os movimentos dele. Não dá para desfazer.',
+      confirmar: 'Excluir caixa',
+      perigo: true,
+    })
+    if (!ok) return
+    setCaixaDetalhe(null)
+    void excluirCaixa(caixa.id)
+  }
+
+  const abrirLancamento = () => {
+    setTipoMov('entrada')
+    setModalMov(true)
   }
 
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="mx-auto w-full max-w-6xl space-y-5">
-          <div className="overflow-hidden rounded-xl border border-border/70 bg-card p-4 shadow-sm md:p-5">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-lg font-semibold tracking-tight text-foreground">Caixa</h1>
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      'rounded-md',
-                      caixaAberto
-                        ? 'bg-amber-500/15 text-amber-800 dark:text-amber-100'
-                        : 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    {caixaAberto ? 'Aberto' : 'Fechado'}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Gaveta do dia: sangria, suprimento e fechamento em dinheiro.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-4">
-                  <div>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Saldo gaveta</p>
-                    <p className="font-mono text-xl font-semibold tabular-nums text-foreground">
-                      {formatarMoedaCaixa(estatisticas.saldoGaveta)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Entradas</p>
-                    <p className="font-mono text-xl font-semibold tabular-nums text-emerald-600">
-                      {formatarMoedaCaixa(estatisticas.totalEntradas)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Saídas</p>
-                    <p className="font-mono text-xl font-semibold tabular-nums text-destructive">
-                      {formatarMoedaCaixa(estatisticas.totalSaidas)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">PIX / Cartão</p>
-                    <p className="font-mono text-sm font-semibold tabular-nums text-muted-foreground">
-                      {formatarMoedaCaixa(resumoFormas.pix + resumoFormas.cartao)}
-                    </p>
-                  </div>
-                </div>
-              </div>
+        <Pagina className="max-w-6xl">
+          <CabecalhoPagina
+            titulo="Caixa"
+            descricao={
+              caixaAberto
+                ? 'Aberto · dinheiro da gaveta, sangria, suprimento e fechamento.'
+                : 'Fechado · abra o caixa para começar o dia.'
+            }
+            acoes={
+              !caixaAberto ? (
+                <Botao onClick={() => setModalAbrir(true)}>
+                  <Unlock />
+                  Abrir caixa
+                </Botao>
+              ) : (
+                <Botao onClick={() => setModalFechar(true)}>
+                  <Lock />
+                  Fechar caixa
+                </Botao>
+              )
+            }
+          />
 
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shadow-none"
-                  onClick={() => void carregarDados()}
-                  disabled={carregando}
-                >
-                  <RefreshCw className={cn('mr-2 h-4 w-4', carregando && 'animate-spin')} />
-                  Atualizar
-                </Button>
-                {!caixaAberto ? (
-                  <Button type="button" size="sm" className="h-9 shadow-none" onClick={() => setModalAbrir(true)}>
-                    <Unlock className="mr-2 h-4 w-4" />
-                    Abrir caixa
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 shadow-none"
-                      onClick={() => setModalSangria(true)}
-                    >
-                      <ArrowDownCircle className="mr-2 h-4 w-4" />
-                      Sangria
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 shadow-none"
-                      onClick={() => setModalSuprimento(true)}
-                    >
-                      <ArrowUpCircle className="mr-2 h-4 w-4" />
-                      Suprimento
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 shadow-none"
-                      disabled={sincronizando}
-                      onClick={() => void sincronizarTodosPedidos()}
-                    >
-                      <RefreshCw className={cn('mr-2 h-4 w-4', sincronizando && 'animate-spin')} />
-                      Sync
-                    </Button>
-                    <Button type="button" size="sm" className="h-9 shadow-none" onClick={() => setModalFechar(true)}>
-                      <Lock className="mr-2 h-4 w-4" />
-                      Fechar
-                    </Button>
-                  </>
-                )}
+          <Cartao className="p-4 md:p-5">
+            <p className="text-sm text-muted-foreground">Dinheiro na gaveta</p>
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-tight text-foreground">
+              {formatarMoedaCaixa(estatisticas.saldoGaveta)}
+            </p>
+            <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-border/70 pt-4">
+              <div className="min-w-0">
+                <dt className="text-[13px] text-muted-foreground">Entradas</dt>
+                <dd className="truncate font-mono text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400 md:text-base">
+                  {formatarMoedaCaixa(estatisticas.totalEntradas)}
+                </dd>
               </div>
-            </div>
-          </div>
+              <div className="min-w-0">
+                <dt className="text-[13px] text-muted-foreground">Saídas</dt>
+                <dd className="truncate font-mono text-sm font-semibold tabular-nums text-destructive md:text-base">
+                  {formatarMoedaCaixa(estatisticas.totalSaidas)}
+                </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-[13px] text-muted-foreground">PIX e cartão</dt>
+                <dd className="truncate font-mono text-sm font-semibold tabular-nums text-foreground md:text-base">
+                  {formatarMoedaCaixa(resumoFormas.pix + resumoFormas.cartao)}
+                </dd>
+              </div>
+            </dl>
+
+            {caixaAberto && (
+              <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border/70 pt-4 sm:flex sm:flex-wrap">
+                <Botao variante="contorno" onClick={() => setModalSangria(true)}>
+                  <ArrowDownCircle />
+                  Sangria
+                </Botao>
+                <Botao variante="contorno" onClick={() => setModalSuprimento(true)}>
+                  <ArrowUpCircle />
+                  Suprimento
+                </Botao>
+                <Botao variante="contorno" onClick={abrirLancamento}>
+                  <Plus />
+                  Lançamento
+                </Botao>
+                <Botao
+                  variante="contorno"
+                  carregando={sincronizando}
+                  onClick={() => void sincronizarTodosPedidos()}
+                >
+                  {!sincronizando && <RefreshCw />}
+                  Puxar pedidos
+                </Botao>
+              </div>
+            )}
+          </Cartao>
 
           <Tabs value={aba} onValueChange={(v) => setAba(v as Aba)} className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <TabsList className="h-10 w-full justify-start sm:w-auto">
-                <TabsTrigger value="hoje">Hoje</TabsTrigger>
-                <TabsTrigger value="pedidos">
+              <TabsList className="h-11 w-full justify-start sm:w-auto">
+                <TabsTrigger value="hoje" className="h-9 flex-1 sm:flex-none">Hoje</TabsTrigger>
+                <TabsTrigger value="pedidos" className="h-9 flex-1 sm:flex-none">
                   Pedidos
                   {pedidosPendentes.length > 0 && (
-                    <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold text-primary">
+                    <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
                       {pedidosPendentes.length}
                     </span>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="extrato">Extrato</TabsTrigger>
+                <TabsTrigger value="extrato" className="h-9 flex-1 sm:flex-none">Histórico</TabsTrigger>
               </TabsList>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-1">
                 <Link
                   href="/admin/caixa/relatorios"
-                  className="inline-flex h-9 items-center rounded-md px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="inline-flex h-11 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:h-9"
                 >
-                  <FileText className="mr-2 h-4 w-4" />
+                  <FileText className="size-4" />
                   Relatórios
                 </Link>
                 <Link
                   href="/admin/caixa/saldos"
-                  className="inline-flex h-9 items-center rounded-md px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="inline-flex h-11 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:h-9"
                 >
-                  <Settings2 className="mr-2 h-4 w-4" />
+                  <Settings2 className="size-4" />
                   Saldos
                 </Link>
+                <Botao
+                  variante="fantasma"
+                  tamanho="icone"
+                  className="md:size-9"
+                  aria-label="Atualizar"
+                  onClick={() => void carregarDados()}
+                  disabled={carregando}
+                >
+                  <RefreshCw className={cn(carregando && 'animate-spin')} />
+                </Botao>
               </div>
             </div>
 
             <TabsContent value="hoje" className="mt-0 space-y-3">
               {!caixaAberto ? (
                 <ListaVazia
+                  icone={<Wallet />}
                   titulo="Caixa fechado"
-                  descricao="Abra o caixa para registrar movimentos da gaveta."
+                  descricao="Abra o caixa para registrar o dinheiro que entra e sai da gaveta."
                   acao={
-                    <Button type="button" onClick={() => setModalAbrir(true)}>
+                    <Botao onClick={() => setModalAbrir(true)}>
+                      <Unlock />
                       Abrir caixa
-                    </Button>
+                    </Botao>
                   }
                 />
               ) : (
                 <>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="relative min-w-0 flex-1">
-                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
+                      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <Entrada
+                        type="search"
                         value={busca}
                         onChange={(e) => setBusca(e.target.value)}
                         placeholder="Buscar movimento"
-                        className="h-9 pl-8"
+                        aria-label="Buscar movimento"
+                        className="pl-9"
                       />
                     </div>
-                    <ToggleGroup
-                      type="single"
-                      value={filtroTipo}
-                      onValueChange={(v) => v && setFiltroTipo(v as FiltroTipo)}
-                      className="justify-start"
-                    >
-                      <ToggleGroupItem value="todos" className="h-9 px-3 text-xs">
-                        Todos
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="entrada" className="h-9 px-3 text-xs">
-                        Entradas
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="saida" className="h-9 px-3 text-xs">
-                        Saídas
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-9"
-                      onClick={() => {
-                        setTipoMov('entrada')
-                        setModalMov(true)
-                      }}
-                    >
-                      <Plus className="mr-1.5 h-4 w-4" />
-                      Lançamento
-                    </Button>
+                    <div className="flex gap-2 overflow-x-auto" role="group" aria-label="Filtrar por tipo">
+                      {FILTROS.map((filtro) => (
+                        <Chip
+                          key={filtro.valor}
+                          ativo={filtroTipo === filtro.valor}
+                          className="h-10"
+                          onClick={() => setFiltroTipo(filtro.valor)}
+                        >
+                          {filtro.rotulo}
+                        </Chip>
+                      ))}
+                    </div>
                   </div>
 
                   {carregando ? (
-                    <TabelaSkeleton linhas={6} />
+                    <ListaCarregando linhas={6} />
                   ) : movsFiltradas.length === 0 ? (
-                    <ListaVazia titulo="Sem movimentos" descricao="Sincronize pedidos ou registre sangria/suprimento." />
+                    busca || filtroTipo !== 'todos' ? (
+                      <ListaVazia
+                        icone={<Search />}
+                        titulo="Nenhum movimento encontrado"
+                        descricao="Tente outra busca ou filtro."
+                        acao={
+                          <Botao
+                            variante="contorno"
+                            onClick={() => {
+                              setBusca('')
+                              setFiltroTipo('todos')
+                            }}
+                          >
+                            Limpar filtros
+                          </Botao>
+                        }
+                      />
+                    ) : (
+                      <ListaVazia
+                        icone={<Wallet />}
+                        titulo="Nenhum movimento ainda"
+                        descricao="Puxe os pedidos do dia ou registre uma sangria ou suprimento."
+                      />
+                    )
                   ) : (
-                    <>
-                      <div className="hidden overflow-hidden rounded-xl border border-border/70 md:block">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="hover:bg-transparent">
-                              <TableHead className="w-12" />
-                              <TableHead>Descrição</TableHead>
-                              <TableHead>Forma</TableHead>
-                              <TableHead className="text-right">Valor</TableHead>
-                              <TableHead className="w-12" />
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {movsFiltradas.map((mov) => (
-                              <LinhaMovimento
-                                key={mov.id}
-                                mov={mov}
-                                onExcluir={() => setExcluirMovId(mov.id)}
-                              />
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                      <div className="space-y-2 md:hidden">
-                        {movsFiltradas.map((mov) => (
-                          <CardMovimento key={mov.id} mov={mov} onExcluir={() => setExcluirMovId(mov.id)} />
-                        ))}
-                      </div>
-                    </>
+                    <Lista>
+                      {movsFiltradas.map((mov) => (
+                        <LinhaMovimento key={mov.id} mov={mov} onExcluir={() => void pedirExclusaoMov(mov)} />
+                      ))}
+                    </Lista>
                   )}
                 </>
               )}
@@ -437,36 +373,41 @@ export default function GestaoCaixaPage() {
 
             <TabsContent value="pedidos" className="mt-0 space-y-3">
               {!caixaAberto ? (
-                <ListaVazia titulo="Caixa fechado" descricao="Abra o caixa para sincronizar pedidos." />
+                <ListaVazia
+                  icone={<Wallet />}
+                  titulo="Caixa fechado"
+                  descricao="Abra o caixa para lançar os pedidos do dia."
+                />
               ) : pedidosDia.length === 0 ? (
-                <ListaVazia titulo="Nenhum pedido no período" descricao="Pedidos do dia de trabalho aparecem aqui." />
+                <ListaVazia
+                  icone={<FileText />}
+                  titulo="Nenhum pedido hoje"
+                  descricao="Os pedidos do dia de trabalho aparecem aqui."
+                />
               ) : (
-                <div className="space-y-2">
+                <Lista>
                   {pedidosDia.map((pedido) => (
-                    <div
-                      key={pedido.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-3 py-3"
-                    >
+                    <li key={pedido.id} className="flex min-h-16 items-center justify-between gap-3 px-4 py-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{pedido.nome_cliente}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="truncate text-sm font-medium text-foreground">{pedido.nome_cliente}</p>
+                        <p className="text-[13px] text-muted-foreground">
                           {pedido.forma_pagamento} · {format(new Date(pedido.created_at), 'HH:mm')}
                         </p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="font-mono text-sm font-semibold tabular-nums">
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
                           {formatarMoedaCaixa(pedido.total)}
                         </span>
                         {pedido.sincronizado ? (
-                          <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-700">
-                            Sync
-                          </Badge>
+                          <Selo tom="sucesso">
+                            <CheckCircle2 className="size-3" weight="bold" />
+                            No caixa
+                          </Selo>
                         ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-8"
+                          <Botao
+                            variante="contorno"
+                            tamanho="sm"
+                            className="h-10 md:h-9"
                             onClick={() =>
                               void sincronizarPedido(
                                 pedido.id,
@@ -476,142 +417,74 @@ export default function GestaoCaixaPage() {
                               )
                             }
                           >
-                            Sync
-                          </Button>
+                            Lançar
+                          </Botao>
                         )}
                       </div>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </Lista>
               )}
             </TabsContent>
 
             <TabsContent value="extrato" className="mt-0 space-y-3">
               {carregando && historicoCaixas.length === 0 ? (
-                <TabelaSkeleton linhas={6} />
+                <ListaCarregando linhas={6} />
               ) : historicoCaixas.length === 0 ? (
-                <ListaVazia titulo="Sem sessões" descricao="O histórico de caixas aparece aqui após abrir/fechar." />
+                <ListaVazia
+                  icone={<FileText />}
+                  titulo="Nenhum caixa ainda"
+                  descricao="Cada caixa aberto e fechado aparece aqui."
+                />
               ) : (
                 <>
-                  <div className="hidden overflow-hidden rounded-xl border border-border/70 md:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="hover:bg-transparent">
-                          <TableHead className="w-12" />
-                          <TableHead>Sessão</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
-                          <TableHead className="text-right">Abertura</TableHead>
-                          <TableHead className="text-right">Entradas</TableHead>
-                          <TableHead className="text-right">Saídas</TableHead>
-                          <TableHead className="text-right">Diferença</TableHead>
-                          <TableHead className="w-12" />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {extratoPaginado.map((caixa) => {
-                          const aberto = caixa.status === 'aberto'
-                          return (
-                            <TableRow
-                              key={caixa.id}
-                              className="cursor-pointer border-border/60"
-                              onClick={() => setCaixaDetalhe(caixa)}
-                            >
-                              <TableCell className="py-3 pl-3">
-                                <div
-                                  className={cn(
-                                    'flex h-12 items-center border-l-4',
-                                    aberto ? 'border-amber-500' : 'border-emerald-500',
-                                  )}
-                                >
-                                  <span className="pl-3">
-                                    {aberto ? (
-                                      <Wallet className="h-4 w-4 text-amber-600" aria-hidden />
-                                    ) : (
-                                      <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
-                                    )}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="py-3">
-                                <span className="block text-sm font-medium">
-                                  {format(new Date(caixa.data_abertura), "dd MMM yyyy · HH:mm", { locale: ptBR })}
-                                </span>
-                                <span className="text-[11px] text-muted-foreground">
-                                  {caixa.responsavel_abertura || '—'}
-                                </span>
-                              </TableCell>
-                              <TableCell className="py-3">
-                                <div className="flex justify-center">
-                                  <Badge variant="secondary" className={aberto ? 'bg-amber-500/15 text-amber-800' : ''}>
-                                    {aberto ? 'Aberto' : 'Fechado'}
-                                  </Badge>
-                                </div>
-                              </TableCell>
-                              <TableCell className="py-3 text-right font-mono text-sm tabular-nums">
-                                {formatarMoedaCaixa(caixa.valor_abertura)}
-                              </TableCell>
-                              <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-emerald-600">
-                                {formatarMoedaCaixa(caixa.total_entradas)}
-                              </TableCell>
-                              <TableCell className="py-3 text-right font-mono text-sm tabular-nums text-destructive">
-                                {formatarMoedaCaixa(caixa.total_saidas)}
-                              </TableCell>
-                              <TableCell className="py-3 text-right font-mono text-sm tabular-nums">
-                                {caixa.diferenca == null ? '—' : formatarMoedaCaixa(caixa.diferenca)}
-                              </TableCell>
-                              <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
-                                <MenuAcoes items={acoesExtrato(caixa)} ariaLabel="Ações da sessão" />
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  <div className="space-y-2 md:hidden">
+                  <Lista>
                     {extratoPaginado.map((caixa) => {
                       const aberto = caixa.status === 'aberto'
                       return (
-                        <button
-                          key={caixa.id}
-                          type="button"
-                          onClick={() => setCaixaDetalhe(caixa)}
-                          className="flex w-full items-start gap-3 rounded-xl border border-border/70 bg-card p-3 text-left"
-                        >
-                          <div
-                            className={cn(
-                              'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-l-4',
-                              aberto ? 'border-amber-500 bg-amber-500/10' : 'border-emerald-500 bg-emerald-500/10',
-                            )}
+                        <li key={caixa.id}>
+                          <button
+                            type="button"
+                            onClick={() => setCaixaDetalhe(caixa)}
+                            className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                           >
-                            {aberto ? (
-                              <Wallet className="h-4 w-4 text-amber-600" />
-                            ) : (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium">
-                              {format(new Date(caixa.data_abertura), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{caixa.responsavel_abertura || '—'}</p>
-                            <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                              <span className="font-mono tabular-nums text-emerald-600">
-                                +{formatarMoedaCaixa(caixa.total_entradas)}
-                              </span>
-                              <span className="font-mono tabular-nums text-destructive">
-                                −{formatarMoedaCaixa(caixa.total_saidas)}
-                              </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="truncate text-sm font-medium text-foreground">
+                                  {format(new Date(caixa.data_abertura), "dd MMM yyyy · HH:mm", { locale: ptBR })}
+                                </p>
+                                {aberto && <Selo tom="alerta">Aberto</Selo>}
+                              </div>
+                              <p className="truncate text-[13px] text-muted-foreground">
+                                {caixa.responsavel_abertura || 'Sem responsável'}
+                              </p>
                             </div>
-                          </div>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <MenuAcoes items={acoesExtrato(caixa)} />
-                          </div>
-                        </button>
+                            <div className="hidden shrink-0 text-right md:block">
+                              <p className="text-[13px] text-muted-foreground">Abertura</p>
+                              <p className="font-mono text-sm tabular-nums text-foreground">
+                                {formatarMoedaCaixa(caixa.valor_abertura)}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="font-mono text-sm tabular-nums text-emerald-600 dark:text-emerald-400">
+                                +{formatarMoedaCaixa(caixa.total_entradas)}
+                              </p>
+                              <p className="font-mono text-sm tabular-nums text-destructive">
+                                −{formatarMoedaCaixa(caixa.total_saidas)}
+                              </p>
+                            </div>
+                            <div className="hidden w-28 shrink-0 text-right md:block">
+                              <p className="text-[13px] text-muted-foreground">Diferença</p>
+                              <p className="font-mono text-sm tabular-nums text-foreground">
+                                {caixa.diferenca == null ? '—' : formatarMoedaCaixa(caixa.diferenca)}
+                              </p>
+                            </div>
+                            <CaretRight className="size-4 shrink-0 text-muted-foreground" />
+                          </button>
+                        </li>
                       )
                     })}
-                  </div>
+                  </Lista>
 
                   <PaginacaoFinancas
                     paginaAtual={paginaExtrato}
@@ -628,7 +501,7 @@ export default function GestaoCaixaPage() {
               )}
             </TabsContent>
           </Tabs>
-        </div>
+        </Pagina>
 
         <ModalAbrirCaixa
           aberto={modalAbrir}
@@ -671,142 +544,90 @@ export default function GestaoCaixaPage() {
             registrarMovimentacao(tipo, valor, categoriaId, funcionarioId, descricao, forma)
           }
         />
-        <ModalDetalhesCaixa caixa={caixaDetalhe} onFechar={() => setCaixaDetalhe(null)} />
-
-        <AlertDialog open={Boolean(excluirMovId)} onOpenChange={(o) => !o && setExcluirMovId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Excluir movimento?</AlertDialogTitle>
-              <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  if (excluirMovId) void excluirMovimentacao(excluirMovId)
-                  setExcluirMovId(null)
-                }}
-              >
-                Excluir
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog open={Boolean(excluirCaixaId)} onOpenChange={(o) => !o && setExcluirCaixaId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Excluir sessão de caixa?</AlertDialogTitle>
-              <AlertDialogDescription>Remove a sessão e seus movimentos vinculados.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  if (excluirCaixaId) void excluirCaixa(excluirCaixaId)
-                  setExcluirCaixaId(null)
-                }}
-              >
-                Excluir
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ModalDetalhesCaixa
+          caixa={caixaDetalhe}
+          onFechar={() => setCaixaDetalhe(null)}
+          acoes={
+            caixaDetalhe ? (
+              <>
+                <Botao
+                  variante="perigoSuave"
+                  className="md:mr-auto"
+                  onClick={() => void pedirExclusaoCaixa(caixaDetalhe)}
+                >
+                  Excluir
+                </Botao>
+                {caixaDetalhe.status === 'fechado' && (
+                  <Botao
+                    variante="contorno"
+                    onClick={() => {
+                      void reabrirCaixa(caixaDetalhe.id)
+                      setCaixaDetalhe(null)
+                    }}
+                  >
+                    Reabrir
+                  </Botao>
+                )}
+                <Botao variante="contorno" onClick={() => handlePdf(caixaDetalhe)}>
+                  <FileText />
+                  PDF
+                </Botao>
+              </>
+            ) : null
+          }
+        />
       </AdminLayout>
     </ProtectedRoute>
   )
 }
 
+const FILTROS: { valor: FiltroTipo; rotulo: string }[] = [
+  { valor: 'todos', rotulo: 'Todos' },
+  { valor: 'entrada', rotulo: 'Entradas' },
+  { valor: 'saida', rotulo: 'Saídas' },
+]
+
 const LinhaMovimento = ({ mov, onExcluir }: { mov: MovimentacaoCaixa; onExcluir: () => void }) => {
   const entrada = mov.tipo === 'entrada'
   return (
-    <TableRow className="border-border/60">
-      <TableCell className="py-3 pl-3">
-        <div className={cn('flex h-10 items-center border-l-4', entrada ? 'border-emerald-500' : 'border-rose-500')}>
-          <span className="pl-3">
-            {entrada ? (
-              <ArrowUpCircle className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <ArrowDownCircle className="h-4 w-4 text-rose-500" />
-            )}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className="py-3">
-        <p className="text-sm font-medium">{mov.descricao || mov.categoria?.nome || 'Movimento'}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {format(new Date(mov.created_at), 'HH:mm')} · {mov.categoria?.nome || '—'}
-        </p>
-      </TableCell>
-      <TableCell className="py-3 text-sm text-muted-foreground">{mov.forma_pagamento || '—'}</TableCell>
-      <TableCell
+    <li className="flex min-h-16 items-center gap-3 py-2 pl-4 pr-2">
+      <span
         className={cn(
-          'py-3 text-right font-mono text-sm font-semibold tabular-nums',
-          entrada ? 'text-emerald-600' : 'text-destructive',
+          'flex size-9 shrink-0 items-center justify-center rounded-lg',
+          entrada
+            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+            : 'bg-red-500/10 text-red-600 dark:text-red-400',
+        )}
+        aria-hidden
+      >
+        {entrada ? <ArrowUpCircle className="size-4" /> : <ArrowDownCircle className="size-4" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground">{mov.descricao || mov.categoria?.nome || 'Movimento'}</p>
+        <p className="truncate text-[13px] text-muted-foreground">
+          {format(new Date(mov.created_at), 'HH:mm')}
+          {mov.categoria?.nome ? ` · ${mov.categoria.nome}` : ''}
+          {mov.forma_pagamento ? ` · ${mov.forma_pagamento}` : ''}
+        </p>
+      </div>
+      <span
+        className={cn(
+          'shrink-0 font-mono text-sm font-semibold tabular-nums',
+          entrada ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive',
         )}
       >
         {entrada ? '+' : '−'}
         {formatarMoedaCaixa(mov.valor)}
-      </TableCell>
-      <TableCell className="py-3">
-        <MenuAcoes
-          items={[
-            {
-              key: 'excluir',
-              label: 'Excluir',
-              icon: <Trash2 className="h-4 w-4" />,
-              onSelect: onExcluir,
-              variant: 'destructive',
-            },
-          ]}
-        />
-      </TableCell>
-    </TableRow>
-  )
-}
-
-const CardMovimento = ({ mov, onExcluir }: { mov: MovimentacaoCaixa; onExcluir: () => void }) => {
-  const entrada = mov.tipo === 'entrada'
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-card p-3">
-      <div
-        className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-l-4',
-          entrada ? 'border-emerald-500 bg-emerald-500/10' : 'border-rose-500 bg-rose-500/10',
-        )}
+      </span>
+      <Botao
+        variante="fantasma"
+        tamanho="icone"
+        className="shrink-0 text-muted-foreground hover:text-destructive"
+        aria-label={`Excluir ${mov.descricao || mov.categoria?.nome || 'movimento'}`}
+        onClick={onExcluir}
       >
-        {entrada ? (
-          <ArrowUpCircle className="h-4 w-4 text-emerald-600" />
-        ) : (
-          <ArrowDownCircle className="h-4 w-4 text-rose-500" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{mov.descricao || mov.categoria?.nome || 'Movimento'}</p>
-        <p className="text-xs text-muted-foreground">
-          {mov.forma_pagamento || '—'} · {format(new Date(mov.created_at), 'HH:mm')}
-        </p>
-        <p
-          className={cn(
-            'mt-1 font-mono text-sm font-semibold tabular-nums',
-            entrada ? 'text-emerald-600' : 'text-destructive',
-          )}
-        >
-          {entrada ? '+' : '−'}
-          {formatarMoedaCaixa(mov.valor)}
-        </p>
-      </div>
-      <MenuAcoes
-        items={[
-          {
-            key: 'excluir',
-            label: 'Excluir',
-            icon: <Trash2 className="h-4 w-4" />,
-            onSelect: onExcluir,
-            variant: 'destructive',
-          },
-        ]}
-      />
-    </div>
+        <Trash2 />
+      </Botao>
+    </li>
   )
 }

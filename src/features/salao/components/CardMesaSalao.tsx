@@ -1,25 +1,8 @@
 'use client'
 
-import {
-  BadgeCheck,
-  CheckCircle2,
-  Clock,
-  Edit3,
-  Eye,
-  Loader2,
-  Printer,
-  Store,
-  Timer,
-  Trash2,
-  UserCheck,
-  UserPlus,
-  UserRound,
-  Wallet,
-} from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { SealCheck as BadgeCheck, CheckCircle as CheckCircle2, Clock, PencilSimpleLine as Edit3, Eye, CircleNotch as Loader2, Printer, Storefront as Store, Timer, Trash as Trash2, UserCheck, UserPlus, UserCircle as UserRound, Wallet } from '@phosphor-icons/react'
+import { Botao, Selo } from '@/components/admin/ui'
 import { MenuAcoes, type MenuAcaoItem } from '@/components/ui/menu-acoes'
-import { Progress } from '@/components/ui/progress'
 import IconeMesa from '@/components/icons/IconeMesa'
 import { cn } from '@/lib/utils'
 
@@ -196,18 +179,9 @@ export const CardMesaSalao = ({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Badge
-            className={cn(
-              'rounded-full px-2.5 py-0.5 text-xs font-medium shadow-none',
-              tempoUrgente
-                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'
-                : atribuida
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100'
-                  : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
-            )}
-          >
+          <Selo tom={tempoUrgente ? 'perigo' : atribuida ? 'sucesso' : 'alerta'} className="text-xs">
             {tempoUrgente ? 'Tempo crítico' : atribuida ? 'Com garçom' : ehParceiro ? 'Aberto' : 'Ocupada'}
-          </Badge>
+          </Selo>
           <MenuAcoes ariaLabel={`Ações de ${titulo}`} items={itensMenu} disabled={atualizando} />
         </div>
       </div>
@@ -215,7 +189,7 @@ export const CardMesaSalao = ({
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Cliente</p>
+            <p className="text-xs text-muted-foreground">Cliente</p>
             <p className="mt-0.5 truncate text-sm font-semibold text-foreground">{cliente}</p>
             <p className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
               <UserRound className="h-3.5 w-3.5 shrink-0" />
@@ -223,7 +197,7 @@ export const CardMesaSalao = ({
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Total</p>
+            <p className="text-xs text-muted-foreground">Total</p>
             <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{totalFormatado}</p>
           </div>
         </div>
@@ -240,8 +214,6 @@ export const CardMesaSalao = ({
           <span className="truncate font-medium">{tempoTexto}</span>
         </div>
 
-        {tempoUrgente ? <Progress value={100} className="h-1.5 bg-red-100 dark:bg-red-950/40 [&>div]:bg-red-500" /> : null}
-
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-muted-foreground">Últimos movimentos</p>
@@ -249,7 +221,7 @@ export const CardMesaSalao = ({
               <button
                 type="button"
                 onClick={onVerTimeline}
-                className="text-xs font-medium text-primary hover:underline"
+                className="-my-2 -mr-2 inline-flex min-h-11 items-center px-2 text-sm font-medium text-primary hover:underline"
               >
                 Ver tudo
               </button>
@@ -281,53 +253,47 @@ export const CardMesaSalao = ({
 
         <div className="mt-auto flex flex-col gap-2 pt-1">
           {pagamentoPendente && onConfirmarPagamento ? (
-            <Button
-              type="button"
-              size="sm"
+            <Botao
               onClick={onConfirmarPagamento}
               disabled={atualizando || confirmandoPagamento}
-              className="h-10 gap-2 border border-emerald-700 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+              className="h-11 bg-emerald-600 text-white hover:bg-emerald-700 md:h-10"
             >
-              {confirmandoPagamento ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
-              {confirmandoPagamento ? 'Confirmando...' : 'Confirmar pagamento'}
-            </Button>
+              {confirmandoPagamento ? <Loader2 className="animate-spin" /> : <BadgeCheck />}
+              {confirmandoPagamento ? 'Confirmando…' : 'Confirmar pagamento'}
+            </Botao>
           ) : null}
 
           <div className="grid grid-cols-2 gap-2">
             {podeImprimir && onImprimir ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
+              <Botao
+                variante="contorno"
                 onClick={onImprimir}
                 disabled={atualizando || imprimindoPedido}
-                className="h-10 gap-2 shadow-none"
+                className="h-11 md:h-10"
               >
-                {imprimindoPedido ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                {imprimindoPedido ? 'Enviando...' : 'Imprimir'}
-              </Button>
+                {imprimindoPedido ? <Loader2 className="animate-spin" /> : <Printer />}
+                {imprimindoPedido ? 'Enviando…' : 'Imprimir'}
+              </Botao>
             ) : (
-              <Button type="button" size="sm" variant="outline" onClick={onAbrir} className="h-10 gap-2 shadow-none">
-                <Eye className="h-4 w-4" />
+              <Botao variante="contorno" onClick={onAbrir} className="h-11 md:h-10">
+                <Eye />
                 Abrir
-              </Button>
+              </Botao>
             )}
             {podeLiberar && onLiberar ? (
-              <Button
-                type="button"
-                size="sm"
+              <Botao
                 onClick={onLiberar}
                 disabled={atualizando || fechandoPonto}
-                className="h-10 gap-2 shadow-none"
+                className="h-11 md:h-10"
               >
-                {fechandoPonto ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                {fechandoPonto ? 'Fechando...' : ehParceiro ? 'Fechar' : `Fechar ${nomeTipo}`}
-              </Button>
+                {fechandoPonto ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+                {fechandoPonto ? 'Fechando…' : ehParceiro ? 'Fechar' : `Fechar ${nomeTipo}`}
+              </Botao>
             ) : onEditar ? (
-              <Button type="button" size="sm" onClick={onEditar} className="h-10 gap-2 shadow-none">
-                <Edit3 className="h-4 w-4" />
+              <Botao onClick={onEditar} className="h-11 md:h-10">
+                <Edit3 />
                 Editar
-              </Button>
+              </Botao>
             ) : null}
           </div>
         </div>

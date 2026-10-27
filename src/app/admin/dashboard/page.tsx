@@ -1,15 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import {
-  ShoppingCart,
-  Eye,
-  EyeOff,
-  ChevronLeft,
-  ChevronRight,
-  Calendar,
-  ArrowRight,
-} from 'lucide-react'
+import { ShoppingCart, Eye, EyeSlash as EyeOff, CaretLeft as ChevronLeft, CaretRight as ChevronRight, Calendar, ArrowRight } from '@phosphor-icons/react'
 import Link from 'next/link'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
@@ -18,15 +10,23 @@ import { gerarPDFPedido } from '@/lib/pdf-generator'
 import { cn } from '@/lib/utils'
 import { obterIntervaloDiaOperacionalAtual } from '@/lib/dia-operacional'
 import ModalEditarPedido from '@/components/admin/ModalEditarPedido'
-import ModalNotificacao from '@/components/ModalNotificacao'
 import ModalWhatsApp from '@/components/admin/ModalWhatsApp'
 import ModalDetalhesPedido from '@/components/admin/ModalDetalhesPedido'
 import GerenciadorImpressao from '@/components/admin/GerenciadorImpressao'
 import ControleStatusLoja from '@/components/admin/ControleStatusLoja'
 import CardPedido, { type Pedido } from '@/components/admin/CardPedido'
-import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
+import {
+  Botao,
+  CabecalhoPagina,
+  Cartao,
+  Esqueleto,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Secao,
+  useConfirmar,
+} from '@/components/admin/ui'
 import {
   carregarCrediarioPorPedido,
   carregarGarconsPorIds,
@@ -97,19 +97,8 @@ export default function Dashboard() {
   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false)
   const [pedidoDetalhesId, setPedidoDetalhesId] = useState<string | null>(null)
   const [novosPedidosIds, setNovosPedidosIds] = useState<Set<string>>(new Set())
-  const [modalNotificacao, setModalNotificacao] = useState<{
-    aberto: boolean
-    tipo: 'sucesso' | 'erro' | 'aviso' | 'info' | 'confirmacao'
-    titulo: string
-    mensagem: string
-    onConfirmar: () => void
-  }>({
-    aberto: false,
-    tipo: 'info',
-    titulo: '',
-    mensagem: '',
-    onConfirmar: () => {}
-  })
+  const confirmar = useConfirmar()
+
 
   const ehMesAtual = mesSelecionado === mesAtualSP.mes && anoSelecionado === mesAtualSP.ano
 
@@ -408,216 +397,179 @@ export default function Dashboard() {
   }
 
   const handleExcluirPedido = async (pedidoId: string) => {
-    setModalNotificacao({
-      aberto: true,
-      tipo: 'confirmacao',
-      titulo: 'Confirmar Exclusão',
-      mensagem: 'Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.',
-      onConfirmar: async () => {
-        try {
-          // Liberar mesa associada ao pedido (se houver)
-          await supabase
-            .from('mesas')
-            .update({
-              status: 'livre',
-              nome_cliente: null,
-              ocupada_em: null,
-              liberar_em: null,
-              pedido_id: null,
-              observacoes: null,
-            })
-            .eq('pedido_id', pedidoId)
-
-          // O trigger do banco remove automaticamente:
-          // - Movimentações do caixa
-          // - Entregas
-          // - Pagamentos
-          // - Itens do pedido
-          // - Adicionais dos itens
-          // - Fila de impressão
-          const { error } = await supabase
-            .from('pedidos')
-            .delete()
-            .eq('id', pedidoId)
-
-          if (error) throw error
-
-          carregarDados(mesSelecionado, anoSelecionado)
-          setModalNotificacao({
-            aberto: true,
-            tipo: 'sucesso',
-            titulo: 'Pedido Excluído',
-            mensagem: 'O pedido foi excluído com sucesso.',
-            onConfirmar: () => {}
-          })
-        } catch (error) {
-          console.error('Erro ao excluir pedido:', error)
-          setModalNotificacao({
-            aberto: true,
-            tipo: 'erro',
-            titulo: 'Erro ao Excluir',
-            mensagem: 'Não foi possível excluir o pedido. Tente novamente.',
-            onConfirmar: () => {}
-          })
-        }
-      }
+    const ok = await confirmar({
+      titulo: 'Excluir este pedido?',
+      descricao: 'O pedido some da lista e a mesa é liberada. Não dá para desfazer.',
+      confirmar: 'Excluir pedido',
+      perigo: true,
     })
+    if (!ok) return
+    try {
+      // Liberar mesa associada ao pedido (se houver)
+      await supabase
+        .from('mesas')
+        .update({
+          status: 'livre',
+          nome_cliente: null,
+          ocupada_em: null,
+          liberar_em: null,
+          pedido_id: null,
+          observacoes: null,
+        })
+        .eq('pedido_id', pedidoId)
+
+      // O trigger do banco remove automaticamente:
+      // - Movimentações do caixa
+      // - Entregas
+      // - Pagamentos
+      // - Itens do pedido
+      // - Adicionais dos itens
+      // - Fila de impressão
+      const { error } = await supabase
+        .from('pedidos')
+        .delete()
+        .eq('id', pedidoId)
+
+      if (error) throw error
+
+      carregarDados(mesSelecionado, anoSelecionado)
+      toast.success('Pedido excluído')
+    } catch (error) {
+      console.error('Erro ao excluir pedido:', error)
+      toast.error('Não foi possível excluir o pedido.', { description: 'Tente novamente.' })
+    }
   }
 
   if (loading) {
     return (
       <ProtectedRoute>
         <AdminLayout>
-          <div className="space-y-5">
-            <Skeleton className="h-28 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
-            <Skeleton className="h-16 w-full rounded-xl" />
-            <TabelaSkeleton linhas={5} />
-          </div>
+          <Pagina className="max-w-6xl" aria-busy="true" aria-label="Carregando">
+            <div className="space-y-2">
+              <Esqueleto className="h-7 w-40" />
+              <Esqueleto className="h-4 w-64" />
+            </div>
+            <Esqueleto className="h-[76px] w-full rounded-xl" />
+            <Esqueleto className="h-16 w-full rounded-xl" />
+            <ListaCarregando linhas={4} />
+          </Pagina>
         </AdminLayout>
       </ProtectedRoute>
     )
   }
 
+  const kpis = [
+    { rotulo: 'Pedidos hoje', valor: String(estatisticas.pedidosHoje) },
+    { rotulo: 'Vendas hoje', valor: formatarValor(`R$ ${formatarMoeda(estatisticas.receitaHoje)}`) },
+    { rotulo: `Pedidos em ${NOMES_MESES[mesSelecionado].toLowerCase()}`, valor: String(estatisticas.totalPedidos) },
+    { rotulo: `Vendas em ${NOMES_MESES[mesSelecionado].toLowerCase()}`, valor: formatarValor(`R$ ${formatarMoeda(estatisticas.receitaTotal)}`) },
+  ]
+
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="space-y-5">
-          <div className="flex w-full min-w-0 flex-col gap-4 overflow-hidden rounded-xl border border-border/70 bg-card p-4 shadow-sm md:flex-row md:items-end md:justify-between md:p-5">
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
-                Dashboard
-              </h1>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                Operação do dia e resumo do mês
-              </p>
-              <div className="mt-4 flex flex-wrap items-end gap-4 md:gap-6">
-                <div className="min-w-[72px]">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                    Pedidos hoje
-                  </p>
-                  <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                    {estatisticas.pedidosHoje}
-                  </p>
-                </div>
-                <div className="min-w-[100px]">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                    Receita hoje
-                  </p>
-                  <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                    {formatarValor(`R$ ${formatarMoeda(estatisticas.receitaHoje)}`)}
-                  </p>
-                </div>
-                <div className="min-w-[72px]">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                    Pedidos mês
-                  </p>
-                  <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                    {estatisticas.totalPedidos}
-                  </p>
-                </div>
-                <div className="min-w-[100px]">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                    Receita mês
-                  </p>
-                  <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                    {formatarValor(`R$ ${formatarMoeda(estatisticas.receitaTotal)}`)}
-                  </p>
-                </div>
-              </div>
-            </div>
+        <Pagina className="max-w-6xl">
+          <CabecalhoPagina
+            titulo="Dashboard"
+            descricao="Como está o dia e o resumo do mês."
+            acoes={
+              <>
+                <Botao
+                  variante="contorno"
+                  tamanho="icone"
+                  className="size-11 flex-none md:size-10"
+                  onClick={alternarValores}
+                  aria-label={valoresOcultos ? 'Mostrar valores' : 'Ocultar valores'}
+                  aria-pressed={valoresOcultos}
+                >
+                  {valoresOcultos ? <EyeOff /> : <Eye />}
+                </Botao>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="size-11 shadow-none sm:size-9"
-                onClick={alternarValores}
-                aria-label={valoresOcultos ? 'Mostrar valores' : 'Ocultar valores'}
-                aria-pressed={valoresOcultos}
+                <div className="inline-flex h-11 items-stretch overflow-hidden rounded-lg border border-border/70 bg-card md:h-10">
+                  <button
+                    type="button"
+                    onClick={() => navegarMes(-1)}
+                    className="inline-flex w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:w-10"
+                    aria-label="Mês anterior"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </button>
+                  <div className="flex min-w-[132px] flex-1 items-center justify-center gap-2 border-x border-border/70 px-3">
+                    <Calendar className="size-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">
+                      {NOMES_MESES[mesSelecionado]} {anoSelecionado}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navegarMes(1)}
+                    disabled={ehMesAtual}
+                    className="inline-flex w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-30 md:w-10"
+                    aria-label="Próximo mês"
+                  >
+                    <ChevronRight className="size-4" />
+                  </button>
+                </div>
+
+                {!ehMesAtual && (
+                  <Botao
+                    variante="fantasma"
+                    className="h-11 md:h-10"
+                    onClick={() => {
+                      setMesSelecionado(mesAtualSP.mes)
+                      setAnoSelecionado(mesAtualSP.ano)
+                    }}
+                  >
+                    Voltar ao mês atual
+                  </Botao>
+                )}
+              </>
+            }
+          />
+
+          <Cartao className="grid grid-cols-2 divide-border/70 md:grid-cols-4 md:divide-x">
+            {kpis.map((kpi, indice) => (
+              <div
+                key={kpi.rotulo}
+                className={cn(
+                  'min-w-0 px-4 py-3.5 md:px-5 md:py-4',
+                  indice % 2 === 1 && 'border-l border-border/70 md:border-l-0',
+                  indice >= 2 && 'border-t border-border/70 md:border-t-0',
+                )}
               >
-                {valoresOcultos ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </Button>
-
-              <div className="inline-flex h-11 items-stretch overflow-hidden rounded-md border border-border/70 bg-background sm:h-9">
-                <button
-                  type="button"
-                  onClick={() => navegarMes(-1)}
-                  className="inline-flex items-center justify-center px-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Mês anterior"
-                >
-                  <ChevronLeft className="size-4" strokeWidth={1.8} />
-                </button>
-                <div className="flex min-w-[140px] items-center justify-center gap-2 border-x border-border/70 px-3">
-                  <Calendar className="size-3.5 text-muted-foreground" strokeWidth={1.6} />
-                  <span className="text-sm font-medium text-foreground">
-                    {NOMES_MESES[mesSelecionado]} {anoSelecionado}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navegarMes(1)}
-                  disabled={ehMesAtual}
-                  className={cn(
-                    'inline-flex items-center justify-center px-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    ehMesAtual
-                      ? 'cursor-not-allowed text-muted-foreground opacity-30'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  )}
-                  aria-label="Próximo mês"
-                >
-                  <ChevronRight className="size-4" strokeWidth={1.8} />
-                </button>
+                <p className="truncate text-[13px] text-muted-foreground">{kpi.rotulo}</p>
+                <p className="mt-1 truncate text-lg font-semibold tabular-nums tracking-tight text-foreground md:text-xl">
+                  {kpi.valor}
+                </p>
               </div>
-
-              {!ehMesAtual && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-11 sm:h-9"
-                  onClick={() => {
-                    setMesSelecionado(mesAtualSP.mes)
-                    setAnoSelecionado(mesAtualSP.ano)
-                  }}
-                >
-                  Mês atual
-                </Button>
-              )}
-            </div>
-          </div>
+            ))}
+          </Cartao>
 
           <ControleStatusLoja />
 
           <GerenciadorImpressao />
 
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h2 className="text-base font-semibold tracking-tight text-foreground">
-                  Pedidos do dia
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Acompanhe status, pagamento e ações rápidas
-                </p>
-              </div>
+          <Secao
+            titulo="Pedidos de hoje"
+            descricao="Os 12 mais recentes do dia (a partir das 3h)."
+            acao={
               <Link
                 href="/admin/pedidos"
-                className="inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="-mr-2 inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9"
               >
                 Ver todos
                 <ArrowRight className="size-3.5" />
               </Link>
-            </div>
-
+            }
+          >
             {pedidos.length === 0 ? (
               <ListaVazia
-                icone={<ShoppingCart className="size-5" strokeWidth={1.5} />}
-                titulo="Nenhum pedido encontrado"
-                descricao="Quando houver pedidos no período, eles aparecem aqui."
+                icone={<ShoppingCart />}
+                titulo="Nenhum pedido hoje"
+                descricao="Quando entrar um pedido, ele aparece aqui na hora."
               />
             ) : (
-              <div className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {pedidos.map((pedido, index) => (
                   <CardPedido
                     key={pedido.id}
@@ -638,13 +590,13 @@ export default function Dashboard() {
                       setModalWhatsAppAberto(true)
                     }}
                     onGerarPDF={(p) => void handleGerarPDF(p.id)}
-                    onExcluir={(p) => handleExcluirPedido(p.id)}
+                    onExcluir={(p) => void handleExcluirPedido(p.id)}
                   />
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </Secao>
+        </Pagina>
 
         <ModalEditarPedido
           pedido={pedidoSelecionado}
@@ -681,17 +633,6 @@ export default function Dashboard() {
             setModalWhatsAppAberto(false)
             setPedidoWhatsApp(null)
           }}
-        />
-
-        <ModalNotificacao
-          aberto={modalNotificacao.aberto}
-          tipo={modalNotificacao.tipo}
-          titulo={modalNotificacao.titulo}
-          mensagem={modalNotificacao.mensagem}
-          onFechar={() => setModalNotificacao({ ...modalNotificacao, aberto: false })}
-          onConfirmar={modalNotificacao.onConfirmar}
-          textoBotaoConfirmar="Excluir"
-          textoBotaoCancelar="Cancelar"
         />
       </AdminLayout>
     </ProtectedRoute>

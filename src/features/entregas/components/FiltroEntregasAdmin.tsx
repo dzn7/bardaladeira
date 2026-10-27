@@ -1,15 +1,10 @@
 'use client'
 
-import { CalendarDays, ListFilter, User } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
-import { FiltroAvancado } from '@/components/admin/filtros/FiltroAvancado'
-import { CampoSelectFiltro } from '@/components/admin/filtros/CampoSelectFiltro'
+import { useState } from 'react'
+import { FunnelSimple } from '@phosphor-icons/react'
+import { Botao, Campo, Chip, Entrada, Gaveta, Segmentos, Selecao } from '@/components/admin/ui'
 import type { PeriodoEntrega } from '@/features/entregas/types'
 import type { StatusEntrega } from '@/lib/tipos-entregas'
-import { cn } from '@/lib/utils'
 
 export type FiltrosEntregasValor = {
   periodo: PeriodoEntrega
@@ -33,12 +28,12 @@ type FiltroEntregasAdminProps = {
   hasFilter: boolean
 }
 
-const STATUS_OPCOES: Array<{ valor: StatusEntrega | 'todos'; label: string }> = [
-  { valor: 'todos', label: 'Todos' },
-  { valor: 'pendente', label: 'Pendente' },
-  { valor: 'em_rota', label: 'Em rota' },
-  { valor: 'entregue', label: 'Entregue' },
-  { valor: 'cancelada', label: 'Cancelada' },
+const STATUS_OPCOES: Array<{ valor: StatusEntrega | 'todos'; rotulo: string }> = [
+  { valor: 'todos', rotulo: 'Todos' },
+  { valor: 'pendente', rotulo: 'Pendente' },
+  { valor: 'em_rota', rotulo: 'Em rota' },
+  { valor: 'entregue', rotulo: 'Entregue' },
+  { valor: 'cancelada', rotulo: 'Cancelada' },
 ]
 
 const ATALHOS: Array<{ valor: Exclude<PeriodoEntrega, 'personalizado'>; label: string }> = [
@@ -49,6 +44,12 @@ const ATALHOS: Array<{ valor: Exclude<PeriodoEntrega, 'personalizado'>; label: s
   { valor: 'mes', label: 'Mês' },
 ]
 
+const formatarDataCurta = (data: string) => {
+  const [ano, mes, dia] = data.split('-')
+  return ano && mes && dia ? `${dia}/${mes}` : data
+}
+
+/** Período sempre à vista (chips); status, datas e entregador ficam na gaveta "Filtros". */
 export const FiltroEntregasAdmin = ({
   valor,
   entregadores,
@@ -57,120 +58,121 @@ export const FiltroEntregasAdmin = ({
   onLimpar,
   hasFilter,
 }: FiltroEntregasAdminProps) => {
-  const valorToggle = valor.periodo === 'personalizado' ? undefined : valor.periodo
-
-  const abas = [
-    {
-      id: 'periodo',
-      label: 'Período',
-      icon: <CalendarDays className="h-4 w-4 shrink-0" />,
-      ativo: valor.periodo !== '7dias',
-      conteudo: (
-        <div className="space-y-4 pr-1">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Atalhos</Label>
-            <ToggleGroup
-              type="single"
-              value={valorToggle}
-              onValueChange={(v) => {
-                if (!v) return
-                onChange({ periodo: v as Exclude<PeriodoEntrega, 'personalizado'> })
-              }}
-              className="flex flex-wrap justify-start gap-2"
-            >
-              {ATALHOS.map((atalho) => (
-                <ToggleGroupItem
-                  key={atalho.valor}
-                  value={atalho.valor}
-                  className={cn(CHIP_FILTRO_DEFAULT, 'h-8')}
-                >
-                  {atalho.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="entregas-data-inicio">Data inicial</Label>
-            <Input
-              id="entregas-data-inicio"
-              type="date"
-              value={valor.dataInicio}
-              max={valor.dataFim}
-              onChange={(e) =>
-                onChange({ periodo: 'personalizado', dataInicio: e.target.value })
-              }
-              className="h-10 border-border/70 shadow-none"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="entregas-data-fim">Data final</Label>
-            <Input
-              id="entregas-data-fim"
-              type="date"
-              value={valor.dataFim}
-              min={valor.dataInicio}
-              onChange={(e) =>
-                onChange({ periodo: 'personalizado', dataFim: e.target.value })
-              }
-              className="h-10 border-border/70 shadow-none"
-            />
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'status',
-      label: 'Status',
-      icon: <ListFilter className="h-4 w-4 shrink-0" />,
-      ativo: valor.status !== 'todos',
-      conteudo: (
-        <div className="space-y-4 pr-1">
-          <CampoSelectFiltro
-            id="entregas-filtro-status"
-            label="Status da entrega"
-            value={valor.status}
-            onChange={(v) => onChange({ status: v as StatusEntrega | 'todos' })}
-            opcoes={STATUS_OPCOES}
-          />
-        </div>
-      ),
-    },
-    ...(mostrarEntregador
-      ? [
-          {
-            id: 'entregador',
-            label: 'Entregador',
-            icon: <User className="h-4 w-4 shrink-0" />,
-            ativo: valor.entregadorId !== 'todos',
-            conteudo: (
-              <div className="space-y-4 pr-1">
-                <CampoSelectFiltro
-                  id="entregas-filtro-entregador"
-                  label="Entregador"
-                  value={valor.entregadorId}
-                  onChange={(v) => onChange({ entregadorId: v })}
-                  opcoes={[
-                    { valor: 'todos', label: 'Todos' },
-                    ...entregadores.map((item) => ({
-                      valor: item.id,
-                      label: item.nome,
-                    })),
-                  ]}
-                />
-              </div>
-            ),
-          },
-        ]
-      : []),
-  ]
+  const [aberto, setAberto] = useState(false)
+  const extrasAtivos =
+    (valor.status !== 'todos' ? 1 : 0) +
+    (mostrarEntregador && valor.entregadorId !== 'todos' ? 1 : 0) +
+    (valor.periodo === 'personalizado' ? 1 : 0)
 
   return (
-    <FiltroAvancado
-      hasFilter={hasFilter}
-      onLimpar={onLimpar}
-      defaultAba="periodo"
-      triggerClassName="w-full sm:w-auto"
-      abas={abas}
-    />
+    <>
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+        {ATALHOS.map((atalho) => (
+          <Chip
+            key={atalho.valor}
+            ativo={valor.periodo === atalho.valor}
+            onClick={() => onChange({ periodo: atalho.valor })}
+            className="h-10"
+          >
+            {atalho.label}
+          </Chip>
+        ))}
+        {valor.periodo === 'personalizado' && (
+          <Chip ativo onClick={() => setAberto(true)} className="h-10">
+            {formatarDataCurta(valor.dataInicio)} a {formatarDataCurta(valor.dataFim)}
+          </Chip>
+        )}
+        <span className="mx-1 h-6 w-px shrink-0 bg-border" aria-hidden />
+        <Chip ativo={extrasAtivos > 0} onClick={() => setAberto(true)} className="h-10" aria-label="Abrir filtros">
+          <FunnelSimple className="size-4" />
+          Filtros{extrasAtivos > 0 ? ` (${extrasAtivos})` : ''}
+        </Chip>
+        {hasFilter && (
+          <Botao variante="fantasma" tamanho="sm" onClick={onLimpar} className="h-10 shrink-0 text-muted-foreground">
+            Limpar
+          </Botao>
+        )}
+      </div>
+
+      <Gaveta
+        aberto={aberto}
+        aoFechar={() => setAberto(false)}
+        titulo="Filtros"
+        rodape={
+          <>
+            <Botao variante="contorno" onClick={onLimpar} disabled={!hasFilter}>
+              Limpar
+            </Botao>
+            <Botao onClick={() => setAberto(false)}>Ver resultado</Botao>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          <Campo rotulo="Período">
+            <div className="flex flex-wrap gap-2">
+              {ATALHOS.map((atalho) => (
+                <Chip
+                  key={atalho.valor}
+                  ativo={valor.periodo === atalho.valor}
+                  onClick={() => onChange({ periodo: atalho.valor })}
+                  className="h-10"
+                >
+                  {atalho.label}
+                </Chip>
+              ))}
+            </div>
+          </Campo>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Campo rotulo="De" htmlFor="entregas-data-inicio">
+              <Entrada
+                id="entregas-data-inicio"
+                type="date"
+                value={valor.dataInicio}
+                max={valor.dataFim}
+                onChange={(e) => onChange({ periodo: 'personalizado', dataInicio: e.target.value })}
+              />
+            </Campo>
+            <Campo rotulo="Até" htmlFor="entregas-data-fim">
+              <Entrada
+                id="entregas-data-fim"
+                type="date"
+                value={valor.dataFim}
+                min={valor.dataInicio}
+                onChange={(e) => onChange({ periodo: 'personalizado', dataFim: e.target.value })}
+              />
+            </Campo>
+          </div>
+
+          <Campo rotulo="Situação da entrega">
+            <div id="entregas-filtro-status">
+              <Segmentos
+                rotuloAcessivel="Situação da entrega"
+                opcoes={STATUS_OPCOES}
+                valor={valor.status}
+                aoMudar={(status) => onChange({ status })}
+              />
+            </div>
+          </Campo>
+
+          {mostrarEntregador && (
+            <Campo rotulo="Entregador" htmlFor="entregas-filtro-entregador">
+              <Selecao
+                id="entregas-filtro-entregador"
+                value={valor.entregadorId}
+                onChange={(e) => onChange({ entregadorId: e.target.value })}
+              >
+                <option value="todos">Todos</option>
+                {entregadores.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nome}
+                  </option>
+                ))}
+              </Selecao>
+            </Campo>
+          )}
+        </div>
+      </Gaveta>
+    </>
   )
 }

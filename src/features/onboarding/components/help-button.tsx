@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { HelpCircle } from 'lucide-react'
+import { Question as HelpCircle } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { useOnboarding } from '../context'
 

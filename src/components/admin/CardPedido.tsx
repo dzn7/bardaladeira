@@ -1,23 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import {
-  BadgeCheck,
-  CheckCircle2,
-  CheckSquare,
-  Edit2,
-  Eye,
-  FileText,
-  Armchair,
-  Loader2,
-  MessageCircle,
-  Package,
-  Printer,
-  Square,
-  Trash2,
-  Truck,
-  Wallet,
-} from 'lucide-react'
+import { SealCheck as BadgeCheck, CheckCircle as CheckCircle2, CheckSquare, PencilSimple as Edit2, Eye, FileText, Armchair, CircleNotch as Loader2, ChatCircle as MessageCircle, Package, Printer, Square, Trash as Trash2, Truck, Wallet } from '@phosphor-icons/react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Badge } from '@/components/ui/badge'
@@ -36,16 +20,16 @@ import {
 import { BarraPagamentoParcial } from '@/components/admin/BarraPagamentoParcial'
 
 const acaoClass =
-  'flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border border-border/80 bg-secondary px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-60 dark:bg-secondary/90 dark:hover:bg-accent'
+  'flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-card px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-60 md:min-h-10 md:min-w-10'
 
 const acaoPrimariaClass =
-  'flex min-h-12 items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-70'
+  'flex min-h-12 items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-70'
 
 const acaoPagamentoClass =
   'border-emerald-700 bg-emerald-600 text-white ring-1 ring-emerald-700/20 hover:bg-emerald-700 focus-visible:ring-emerald-500/60 dark:border-emerald-300 dark:bg-emerald-400 dark:text-emerald-950 dark:hover:bg-emerald-300 dark:focus-visible:ring-emerald-300/70'
 
 const acaoImpressaoClass =
-  'border-primary bg-primary text-primary-foreground ring-1 ring-primary/20 hover:bg-primary/90 focus-visible:ring-ring/60 dark:border-amber-300 dark:bg-amber-300 dark:text-zinc-950 dark:hover:bg-amber-200'
+  'border-primary bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/60'
 
 export type AdicionalItem = {
   id: string
@@ -283,7 +267,7 @@ export default function CardPedido({
         <button
           type="button"
           onClick={() => onToggleSelecao(pedido.id)}
-          className="absolute left-3 top-3 z-10 rounded-md p-1.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute left-1.5 top-1.5 z-10 flex size-11 items-center justify-center rounded-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={estaSelecionado ? 'Desmarcar pedido' : 'Selecionar pedido'}
         >
           {estaSelecionado ? (
@@ -427,17 +411,13 @@ export default function CardPedido({
         </div>
 
         <div className="mt-auto border-t border-border/60 bg-muted/10 px-4 py-3">
-          <div className="mb-3 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
-                Total
-              </p>
-              <p className="font-mono text-lg font-semibold tabular-nums tracking-tight text-foreground">
-                {formatarValor(
-                  `R$ ${Number(pedido.total || 0).toFixed(2).replace('.', ',')}`,
-                )}
-              </p>
-            </div>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <p className="text-sm text-muted-foreground">Total</p>
+            <p className="font-mono text-lg font-semibold tabular-nums tracking-tight text-foreground">
+              {formatarValor(
+                `R$ ${Number(pedido.total || 0).toFixed(2).replace('.', ',')}`,
+              )}
+            </p>
           </div>
 
           {!modoSelecao && (
@@ -548,7 +528,7 @@ export default function CardPedido({
                         className={acaoClass}
                         aria-label="Ver detalhes"
                       >
-                        <Eye className="h-3.5 w-3.5" />
+                        <Eye className="size-4" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>Ver detalhes</TooltipContent>
@@ -564,7 +544,7 @@ export default function CardPedido({
                         className={acaoClass}
                         aria-label="Editar pedido"
                       >
-                        <Edit2 className="h-3.5 w-3.5" />
+                        <Edit2 className="size-4" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>Editar pedido</TooltipContent>
@@ -580,7 +560,7 @@ export default function CardPedido({
                         className={acaoClass}
                         aria-label="Enviar WhatsApp"
                       >
-                        <MessageCircle className="h-3.5 w-3.5" />
+                        <MessageCircle className="size-4" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>Enviar WhatsApp</TooltipContent>
@@ -596,7 +576,7 @@ export default function CardPedido({
                         className={acaoClass}
                         aria-label="Gerar PDF"
                       >
-                        <FileText className="h-3.5 w-3.5" />
+                        <FileText className="size-4" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>Gerar PDF</TooltipContent>
@@ -612,7 +592,7 @@ export default function CardPedido({
                         className={acaoClass}
                         aria-label="Enviar ao crediário"
                       >
-                        <Wallet className="h-3.5 w-3.5" />
+                        <Wallet className="size-4" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>Enviar ao crediário</TooltipContent>
@@ -628,7 +608,7 @@ export default function CardPedido({
                         className={cn(acaoClass, 'hover:text-destructive')}
                         aria-label="Excluir pedido"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="size-4" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>Excluir pedido</TooltipContent>

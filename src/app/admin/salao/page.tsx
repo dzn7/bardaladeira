@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw } from 'lucide-react'
+import { ArrowsClockwise as RefreshCw } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import AdminLayout from '@/components/admin/AdminLayout'
-import ModalNotificacao from '@/components/ModalNotificacao'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
-import { Button } from '@/components/ui/button'
+import { Botao, CabecalhoPagina, Pagina, useConfirmar } from '@/components/admin/ui'
 import PainelSalaoAtual from '@/features/salao/components/PainelSalaoAtual'
 import DialogNovoPedidoSalao from '@/features/salao/components/DialogNovoPedidoSalao'
 import { obterIntervaloDiaOperacionalAtual, estaNoDiaOperacionalAtual } from '@/lib/dia-operacional'
@@ -89,14 +88,6 @@ type GarcomSalao = {
   nome: string
 }
 
-type ModalConfirmacao = {
-  aberto: boolean
-  tipo: 'sucesso' | 'erro' | 'aviso' | 'info' | 'confirmacao'
-  titulo: string
-  mensagem: string
-  onConfirmar: () => void
-}
-
 type AcaoPedidoSalao = 'pagamento' | 'impressao'
 type AcoesPedidoSalao = Partial<Record<AcaoPedidoSalao, boolean>>
 
@@ -122,13 +113,7 @@ export default function SalaoPage() {
   const [atribuindoPedidoId, setAtribuindoPedidoId] = useState<string | null>(null)
   const [acoesPedido, setAcoesPedido] = useState<Record<string, AcoesPedidoSalao>>({})
   const [pontosEmFechamento, setPontosEmFechamento] = useState<Record<string, boolean>>({})
-  const [modalNotificacao, setModalNotificacao] = useState<ModalConfirmacao>({
-    aberto: false,
-    tipo: 'info',
-    titulo: '',
-    mensagem: '',
-    onConfirmar: () => {},
-  })
+  const confirmar = useConfirmar()
   const router = useRouter()
 
   const carregarMesas = useCallback(async () => {
@@ -364,13 +349,7 @@ export default function SalaoPage() {
       await Promise.all([carregarMesas(), carregarPedidos(), carregarGarcons()])
     } catch (erro) {
       console.error('[Salão] Erro ao carregar dados:', erro)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'erro',
-        titulo: 'Falha ao carregar salão',
-        mensagem: 'Não foi possível carregar as mesas ocupadas agora.',
-        onConfirmar: () => {},
-      })
+      toast.error('Falha ao carregar salão', { description: 'Não foi possível carregar as mesas ocupadas agora.' })
     } finally {
       setLoading(false)
     }
@@ -439,13 +418,7 @@ export default function SalaoPage() {
       await carregarPedidos()
     } catch (erro) {
       console.error('[Salão] Erro ao atribuir garçom:', erro)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'erro',
-        titulo: 'Erro ao atribuir garçom',
-        mensagem: 'Não foi possível vincular o garçom a esta mesa.',
-        onConfirmar: () => {},
-      })
+      toast.error('Erro ao atribuir garçom', { description: 'Não foi possível vincular o garçom a esta mesa.' })
     } finally {
       setAtribuindoPedidoId(null)
     }
@@ -559,19 +532,13 @@ export default function SalaoPage() {
       await carregarMesas()
     } catch (erro) {
       console.error('[Salão] Erro ao estender mesa:', erro)
-      setModalNotificacao({
-        aberto: true,
-        tipo: 'erro',
-        titulo: 'Erro ao estender',
-        mensagem: 'Não foi possível ajustar o tempo desta mesa.',
-        onConfirmar: () => {},
-      })
+      toast.error('Erro ao estender', { description: 'Não foi possível ajustar o tempo desta mesa.' })
     } finally {
       setAtualizandoMesa(null)
     }
   }
 
-  const liberarMesa = (mesa: PontoSalao) => {
+  const liberarMesa = async (mesa: PontoSalao) => {
     const pedidoVinculado =
       (mesa.pedido_id ? pedidos.find((pedido) => pedido.id === mesa.pedido_id) : null) ||
       pedidos.find((pedido) => pedido.mesa_id === mesa.id) ||
@@ -582,89 +549,78 @@ export default function SalaoPage() {
       )) ||
       null
 
-    setModalNotificacao({
-      aberto: true,
-      tipo: 'confirmacao',
-      titulo: `Fechar ${mesa.identificador || `Mesa ${mesa.numero}`}`,
-      mensagem: pedidoVinculado
-        ? 'Deseja marcar o pedido como entregue e liberar este ponto do salão?'
-        : 'Deseja liberar este ponto do salão?',
-      onConfirmar: async () => {
-        setAtualizandoMesa(mesa.id)
-        setPontosEmFechamento((atual) => ({ ...atual, [mesa.id]: true }))
-        try {
-          const agoraIso = new Date().toISOString()
-          if (pedidoVinculado && !statusPedidoEncerrado(pedidoVinculado.status)) {
-            const { error: erroPedido } = await supabase
-              .from('pedidos')
-              .update({
-                status: 'entregue',
-                updated_at: agoraIso,
-              })
-              .eq('id', pedidoVinculado.id)
-
-            if (erroPedido) throw erroPedido
-          }
-
-          const { error } = await supabase
-            .from('mesas')
-            .update({
-              status: 'livre',
-              nome_cliente: null,
-              ocupada_em: null,
-              liberar_em: null,
-              pedido_id: null,
-              observacoes: null,
-              updated_at: agoraIso,
-            })
-            .eq('id', mesa.id)
-
-          if (error) throw error
-          toast.success('Ponto fechado com sucesso')
-          await Promise.all([carregarMesas(), carregarPedidos()])
-        } catch (erro) {
-          console.error('[Salão] Erro ao liberar mesa:', erro)
-          setModalNotificacao({
-            aberto: true,
-            tipo: 'erro',
-            titulo: 'Erro ao fechar',
-            mensagem: 'Não foi possível fechar o ponto selecionado.',
-            onConfirmar: () => {},
-          })
-        } finally {
-          setAtualizandoMesa(null)
-          setPontosEmFechamento((atual) => ({ ...atual, [mesa.id]: false }))
-        }
-      },
+    const ok = await confirmar({
+      titulo: `Fechar ${mesa.identificador || `Mesa ${mesa.numero}`}?`,
+      descricao: pedidoVinculado
+        ? 'O pedido será marcado como entregue e o ponto fica livre.'
+        : 'O ponto fica livre para um novo atendimento.',
+      confirmar: 'Fechar',
     })
+    if (!ok) return
+
+    setAtualizandoMesa(mesa.id)
+    setPontosEmFechamento((atual) => ({ ...atual, [mesa.id]: true }))
+    try {
+      const agoraIso = new Date().toISOString()
+      if (pedidoVinculado && !statusPedidoEncerrado(pedidoVinculado.status)) {
+        const { error: erroPedido } = await supabase
+          .from('pedidos')
+          .update({
+            status: 'entregue',
+            updated_at: agoraIso,
+          })
+          .eq('id', pedidoVinculado.id)
+
+        if (erroPedido) throw erroPedido
+      }
+
+      const { error } = await supabase
+        .from('mesas')
+        .update({
+          status: 'livre',
+          nome_cliente: null,
+          ocupada_em: null,
+          liberar_em: null,
+          pedido_id: null,
+          observacoes: null,
+          updated_at: agoraIso,
+        })
+        .eq('id', mesa.id)
+
+      if (error) throw error
+      toast.success('Ponto fechado com sucesso')
+      await Promise.all([carregarMesas(), carregarPedidos()])
+    } catch (erro) {
+      console.error('[Salão] Erro ao liberar mesa:', erro)
+      toast.error('Erro ao fechar', { description: 'Não foi possível fechar o ponto selecionado.' })
+    } finally {
+      setAtualizandoMesa(null)
+      setPontosEmFechamento((atual) => ({ ...atual, [mesa.id]: false }))
+    }
   }
 
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="space-y-5">
-          <div className="flex w-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border/70 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
-            <div className="min-w-0">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground">Salão</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Mesas ocupadas, garçons e fechamento do pedido — tudo em um lugar.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 shadow-none"
-                onClick={() => void carregarTudo()}
-                disabled={loading}
-              >
-                <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />
-                Atualizar
-              </Button>
-              <DialogNovoPedidoSalao pontos={mesas} carregando={loading} />
-            </div>
-          </div>
+        <Pagina className="max-w-none">
+          <CabecalhoPagina
+            titulo="Salão"
+            descricao="Mesas ocupadas, garçons e fechamento do pedido."
+            acoes={
+              <>
+                <Botao
+                  variante="contorno"
+                  onClick={() => void carregarTudo()}
+                  disabled={loading}
+                  className="h-11 md:h-10"
+                >
+                  <RefreshCw className={cn(loading && 'animate-spin')} />
+                  Atualizar
+                </Botao>
+                <DialogNovoPedidoSalao pontos={mesas} carregando={loading} />
+              </>
+            }
+          />
 
           <PainelSalaoAtual
             mesas={mesas}
@@ -705,16 +661,7 @@ export default function SalaoPage() {
             acoesPedido={acoesPedido}
             pontosEmFechamento={pontosEmFechamento}
           />
-        </div>
-
-        <ModalNotificacao
-          aberto={modalNotificacao.aberto}
-          tipo={modalNotificacao.tipo}
-          titulo={modalNotificacao.titulo}
-          mensagem={modalNotificacao.mensagem}
-          onFechar={() => setModalNotificacao((atual) => ({ ...atual, aberto: false }))}
-          onConfirmar={modalNotificacao.onConfirmar}
-        />
+        </Pagina>
       </AdminLayout>
     </ProtectedRoute>
   )

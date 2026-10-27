@@ -1,20 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import {
-  BarChart3,
-  Calendar,
-  FileText,
-  RefreshCw,
-  CreditCard,
-  Banknote,
-  Smartphone,
-  Wallet,
-  Truck,
-  Store,
-  Package,
-  MapPin,
-} from 'lucide-react'
+import { ChartBar as BarChart3, Calendar, FileText, ArrowsClockwise as RefreshCw, CreditCard, Money as Banknote, DeviceMobile as Smartphone, Wallet, Truck, Storefront as Store, Package, MapPin } from '@phosphor-icons/react'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { supabase } from '@/lib/supabase'
@@ -35,10 +22,20 @@ import {
   Filler,
 } from 'chart.js'
 import { Bar, Line, Doughnut } from 'react-chartjs-2'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { CHIP_FILTRO_BOTAO } from '@/components/admin/filtros/chip-classes'
+import { toast } from 'sonner'
+import {
+  Botao,
+  CabecalhoPagina,
+  Campo,
+  Cartao,
+  Chip,
+  Entrada,
+  Esqueleto,
+  Lista,
+  ListaVazia,
+  Pagina,
+  Secao,
+} from '@/components/admin/ui'
 import { cn } from '@/lib/utils'
 
 ChartJS.register(
@@ -251,6 +248,7 @@ export default function RelatoriosPage() {
       })
     } catch (error) {
       console.error('Erro ao carregar relatórios:', error)
+      toast.error('Não foi possível carregar os relatórios.', { id: 'relatorios-erro', description: 'Confira a internet e toque em Atualizar.' })
     } finally {
       setLoading(false)
     }
@@ -544,116 +542,90 @@ export default function RelatoriosPage() {
     setDataFim(format(agora, 'yyyy-MM-dd'))
   }
 
-  const cardClass = 'rounded-xl border border-border/70 bg-card p-4 shadow-sm md:p-5'
-  const tituloSecaoClass = 'mb-4 flex items-center gap-2 text-base font-semibold tracking-tight text-foreground'
+  const corCrescimento =
+    dados && dados.estatisticas.crescimento >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
+
+  const kpis = dados
+    ? [
+        { rotulo: 'Vendas', valor: `R$ ${formatarMoeda(dados.estatisticas.receitaTotal)}` },
+        { rotulo: 'Pedidos', valor: String(dados.estatisticas.pedidosTotal) },
+        { rotulo: 'Ticket médio', valor: `R$ ${formatarMoeda(dados.estatisticas.ticketMedio)}` },
+        {
+          rotulo: 'Comparado ao período anterior',
+          valor: `${dados.estatisticas.crescimento >= 0 ? '+' : ''}${dados.estatisticas.crescimento.toFixed(1)}%`,
+          classe: corCrescimento,
+        },
+      ]
+    : []
+
+  const tiposPedido = dados
+    ? [
+        { rotulo: 'Entregas', icone: Truck, ...dados.pedidosPorTipo.entregas },
+        { rotulo: 'Retiradas', icone: Package, ...dados.pedidosPorTipo.retiradas },
+        { rotulo: 'No local', icone: Store, ...dados.pedidosPorTipo.local },
+      ]
+    : []
+
+  const entregasPeriodo = dados
+    ? [
+        { rotulo: 'Hoje', ajuda: 'Entregas concluídas', icone: MapPin, valor: dados.entregasPorPeriodo.hoje },
+        { rotulo: 'Esta semana', ajuda: 'Desde domingo', icone: Calendar, valor: dados.entregasPorPeriodo.semana },
+        { rotulo: 'Este mês', ajuda: 'Desde o dia 1', icone: BarChart3, valor: dados.entregasPorPeriodo.mes },
+      ]
+    : []
 
   return (
     <ProtectedRoute>
       <AdminLayout>
-        <div className="space-y-5 p-4 md:p-6 lg:p-8">
-          <div className="flex w-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border/70 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
-            <div className="min-w-0">
-              <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
-                <BarChart3 className="h-5 w-5 text-primary" aria-hidden />
-                Relatórios
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Vendas e desempenho do período selecionado
-              </p>
-            </div>
-            <div className="flex flex-wrap items-end gap-4 md:gap-6">
-              {dados ? (
-                <>
-                  <div className="min-w-[72px]">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Receita</p>
-                    <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                      R$ {formatarMoeda(dados.estatisticas.receitaTotal)}
-                    </p>
-                  </div>
-                  <div className="min-w-[72px]">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Pedidos</p>
-                    <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                      {dados.estatisticas.pedidosTotal}
-                    </p>
-                  </div>
-                  <div className="min-w-[72px]">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Ticket</p>
-                    <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                      R$ {formatarMoeda(dados.estatisticas.ticketMedio)}
-                    </p>
-                  </div>
-                  <div className="min-w-[72px]">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Crescimento</p>
-                    <p
-                      className={cn(
-                        'mt-0.5 text-xl font-semibold tabular-nums',
-                        dados.estatisticas.crescimento >= 0 ? 'text-emerald-600' : 'text-destructive'
-                      )}
-                    >
-                      {dados.estatisticas.crescimento >= 0 ? '+' : ''}
-                      {dados.estatisticas.crescimento.toFixed(1)}%
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-wrap gap-4">
-                  <Skeleton className="h-12 w-20" />
-                  <Skeleton className="h-12 w-16" />
-                  <Skeleton className="h-12 w-20" />
-                  <Skeleton className="h-12 w-16" />
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shadow-none"
+        <Pagina className="max-w-6xl">
+          <CabecalhoPagina
+            titulo="Relatórios"
+            descricao="Vendas e desempenho do período escolhido."
+            acoes={
+              <>
+                <Botao
+                  variante="contorno"
+                  className="h-11 md:h-10"
                   onClick={exportarPDF}
                   disabled={!dados || loading}
                   aria-label="Exportar PDF"
                 >
-                  <FileText className="mr-2 h-4 w-4" />
-                  PDF
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-9 shadow-none"
+                  <FileText />
+                  Baixar PDF
+                </Botao>
+                <Botao
+                  variante="contorno"
+                  className="h-11 md:h-10"
                   onClick={() => void carregarDados()}
                   disabled={loading}
                   aria-label="Atualizar relatórios"
                 >
-                  <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />
+                  <RefreshCw className={cn(loading && 'animate-spin')} />
                   Atualizar
-                </Button>
+                </Botao>
+              </>
+            }
+          />
+
+          <Cartao className="space-y-4 p-4 md:p-5">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">Período</p>
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Período rápido">
+                {[7, 15, 30, 90].map((dias) => (
+                  <Chip
+                    key={dias}
+                    ativo={periodo === dias}
+                    onClick={() => aplicarPeriodoRapido(dias)}
+                    className="h-11 normal-case md:h-9"
+                  >
+                    Últimos {dias} dias
+                  </Chip>
+                ))}
               </div>
             </div>
-          </div>
-
-          <div className={cardClass}>
-            <div className="flex flex-col gap-4 md:flex-row md:items-end">
-              <div className="min-w-0 flex-1">
-                <p className="mb-2 text-sm font-medium text-foreground">Período rápido</p>
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Período rápido">
-                  {[7, 15, 30, 90].map((dias) => (
-                    <button
-                      key={dias}
-                      type="button"
-                      onClick={() => aplicarPeriodoRapido(dias)}
-                      aria-pressed={periodo === dias}
-                      className={CHIP_FILTRO_BOTAO}
-                    >
-                      {dias} dias
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label htmlFor="relatorio-data-inicio" className="mb-2 block text-sm font-medium text-foreground">
-                  Data início
-                </label>
-                <Input
+            <div className="grid grid-cols-2 gap-3 sm:max-w-md">
+              <Campo rotulo="De" htmlFor="relatorio-data-inicio">
+                <Entrada
                   id="relatorio-data-inicio"
                   type="date"
                   value={dataInicio}
@@ -662,468 +634,401 @@ export default function RelatoriosPage() {
                     const novaData = e.target.value
                     setDataInicio(novaData < dataMinima ? dataMinima : novaData)
                   }}
-                  className="h-9 w-full shadow-none sm:w-auto"
                 />
-              </div>
-              <div>
-                <label htmlFor="relatorio-data-fim" className="mb-2 block text-sm font-medium text-foreground">
-                  Data fim
-                </label>
-                <Input
+              </Campo>
+              <Campo rotulo="Até" htmlFor="relatorio-data-fim">
+                <Entrada
                   id="relatorio-data-fim"
                   type="date"
                   value={dataFim}
                   onChange={(e) => setDataFim(e.target.value)}
-                  className="h-9 w-full shadow-none sm:w-auto"
                 />
-              </div>
+              </Campo>
             </div>
-          </div>
+          </Cartao>
 
           {loading && !dados ? (
             <div className="space-y-5" aria-busy="true" aria-label="Carregando relatórios">
+              <Esqueleto className="h-[76px] w-full rounded-xl" />
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <Skeleton className="h-72 w-full rounded-xl" />
-                <Skeleton className="h-72 w-full rounded-xl" />
+                <Esqueleto className="h-72 w-full rounded-xl" />
+                <Esqueleto className="h-72 w-full rounded-xl" />
               </div>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <Skeleton className="h-64 w-full rounded-xl" />
-                <Skeleton className="h-64 w-full rounded-xl" />
-              </div>
-              <Skeleton className="h-56 w-full rounded-xl" />
+              <Esqueleto className="h-56 w-full rounded-xl" />
             </div>
           ) : !dados ? (
-            <div className={cn(cardClass, 'flex flex-col items-center justify-center gap-3 py-16 text-center')}>
-              <p className="text-sm text-muted-foreground">Nenhum dado disponível</p>
-              <Button type="button" size="sm" className="h-9 shadow-none" onClick={() => void carregarDados()}>
-                Tentar novamente
-              </Button>
-            </div>
+            <ListaVazia
+              icone={<BarChart3 />}
+              titulo="Não deu para carregar os relatórios"
+              descricao="Confira a internet e tente de novo."
+              acao={
+                <Botao variante="contorno" onClick={() => void carregarDados()}>
+                  Tentar de novo
+                </Botao>
+              }
+            />
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className={cardClass}>
-                  <h2 className={tituloSecaoClass}>
-                    <Package className="h-4 w-4 text-primary" aria-hidden />
-                    Pedidos por tipo
-                  </h2>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-2 text-center sm:p-3">
-                      <Truck className="mx-auto mb-1 h-4 w-4 text-muted-foreground" aria-hidden />
-                      <p className="text-lg font-semibold tabular-nums text-foreground sm:text-xl">
-                        {dados.pedidosPorTipo.entregas.quantidade}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground sm:text-xs">Entregas</p>
-                      <p className="mt-0.5 truncate text-[10px] font-medium tabular-nums text-foreground sm:text-sm">
-                        R$ {formatarMoeda(dados.pedidosPorTipo.entregas.total)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-2 text-center sm:p-3">
-                      <Package className="mx-auto mb-1 h-4 w-4 text-muted-foreground" aria-hidden />
-                      <p className="text-lg font-semibold tabular-nums text-foreground sm:text-xl">
-                        {dados.pedidosPorTipo.retiradas.quantidade}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground sm:text-xs">Retiradas</p>
-                      <p className="mt-0.5 truncate text-[10px] font-medium tabular-nums text-foreground sm:text-sm">
-                        R$ {formatarMoeda(dados.pedidosPorTipo.retiradas.total)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-2 text-center sm:p-3">
-                      <Store className="mx-auto mb-1 h-4 w-4 text-muted-foreground" aria-hidden />
-                      <p className="text-lg font-semibold tabular-nums text-foreground sm:text-xl">
-                        {dados.pedidosPorTipo.local.quantidade}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground sm:text-xs">No local</p>
-                      <p className="mt-0.5 truncate text-[10px] font-medium tabular-nums text-foreground sm:text-sm">
-                        R$ {formatarMoeda(dados.pedidosPorTipo.local.total)}
-                      </p>
-                    </div>
+              <Cartao
+                className={cn(
+                  'grid grid-cols-2 md:grid-cols-4 transition-opacity',
+                  loading && 'opacity-60',
+                )}
+                aria-busy={loading || undefined}
+              >
+                {kpis.map((kpi, indice) => (
+                  <div
+                    key={kpi.rotulo}
+                    className={cn(
+                      'min-w-0 px-4 py-3.5 md:px-5 md:py-4',
+                      indice % 2 === 1 && 'border-l border-border/70',
+                      indice >= 2 && 'border-t border-border/70 md:border-t-0',
+                      indice === 2 && 'md:border-l',
+                    )}
+                  >
+                    <p className="truncate text-[13px] text-muted-foreground">{kpi.rotulo}</p>
+                    <p
+                      className={cn(
+                        'mt-1 truncate text-lg font-semibold tabular-nums tracking-tight text-foreground md:text-xl',
+                        kpi.classe,
+                      )}
+                    >
+                      {kpi.valor}
+                    </p>
                   </div>
-                  <div className="mt-4 h-48">
-                    <Doughnut
-                      data={{
-                        labels: ['Entregas', 'Retiradas', 'No Local'],
-                        datasets: [
-                          {
-                            data: [
-                              dados.pedidosPorTipo.entregas.quantidade,
-                              dados.pedidosPorTipo.retiradas.quantidade,
-                              dados.pedidosPorTipo.local.quantidade,
-                            ],
-                            backgroundColor: [
-                              'rgba(2, 150, 249, 0.85)',
-                              'rgba(16, 185, 129, 0.8)',
-                              'rgba(100, 116, 139, 0.75)',
-                            ],
-                            borderWidth: 0,
-                          },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { position: 'bottom' },
-                        },
-                      }}
-                    />
-                  </div>
-                </div>
+                ))}
+              </Cartao>
 
-                <div className={cardClass}>
-                  <h2 className={tituloSecaoClass}>
-                    <Truck className="h-4 w-4 text-primary" aria-hidden />
-                    Entregas realizadas
-                  </h2>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                          <MapPin className="h-4 w-4 text-primary" aria-hidden />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Hoje</p>
-                          <p className="text-xs text-muted-foreground">Entregas concluídas</p>
-                        </div>
-                      </div>
-                      <p className="text-2xl font-semibold tabular-nums text-foreground">
-                        {dados.entregasPorPeriodo.hoje}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                          <Calendar className="h-4 w-4 text-primary" aria-hidden />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Esta semana</p>
-                          <p className="text-xs text-muted-foreground">Desde domingo</p>
-                        </div>
-                      </div>
-                      <p className="text-2xl font-semibold tabular-nums text-foreground">
-                        {dados.entregasPorPeriodo.semana}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                          <BarChart3 className="h-4 w-4 text-primary" aria-hidden />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Este mês</p>
-                          <p className="text-xs text-muted-foreground">Desde o dia 1</p>
-                        </div>
-                      </div>
-                      <p className="text-2xl font-semibold tabular-nums text-foreground">
-                        {dados.entregasPorPeriodo.mes}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
-                    <span className="text-sm text-muted-foreground">Média diária (mês)</span>
-                    <span className="font-semibold tabular-nums text-foreground">
-                      {dados.entregasPorPeriodo.mes > 0
-                        ? (dados.entregasPorPeriodo.mes / new Date().getDate()).toFixed(1)
-                        : '0'}{' '}
-                      entregas/dia
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className={cardClass}>
-                  <h2 className={tituloSecaoClass}>Vendas por dia</h2>
-                  <div className="relative h-64">
-                    <Bar
-                      data={{
-                        labels: dados.vendasPorDia.map((v) => v.data),
-                        datasets: [
-                          {
-                            label: 'Receita (R$)',
-                            data: dados.vendasPorDia.map((v) => v.total),
-                            backgroundColor: 'rgba(2, 150, 249, 0.8)',
-                            borderColor: 'rgba(2, 150, 249, 1)',
-                            borderWidth: 2,
-                          },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { display: false },
-                          tooltip: {
-                            callbacks: {
-                              label: (context: { parsed: { y: number | null } }) =>
-                                `R$ ${(context.parsed.y || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                            },
-                          },
-                        },
-                        scales: {
-                          y: { beginAtZero: true },
-                        },
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className={cardClass}>
-                  <h2 className={tituloSecaoClass}>Horários de pico</h2>
-                  <div className="relative h-64">
-                    <Line
-                      data={{
-                        labels: dados.horariosPico.map((h) => `${h.hora}h`),
-                        datasets: [
-                          {
-                            label: 'Pedidos',
-                            data: dados.horariosPico.map((h) => h.quantidade),
-                            borderColor: 'rgba(2, 150, 249, 1)',
-                            backgroundColor: 'rgba(2, 150, 249, 0.1)',
-                            fill: true,
-                            tension: 0.4,
-                          },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { display: false },
-                        },
-                        scales: {
-                          y: { beginAtZero: true },
-                        },
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className={cardClass}>
-                <h2 className={tituloSecaoClass}>
-                  <CreditCard className="h-4 w-4 text-primary" aria-hidden />
-                  Faturamento por forma de pagamento
-                </h2>
-
-                {dados.faturamentoPorPagamento.length > 0 ? (
-                  <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                    {dados.faturamentoPorPagamento.map((item) => {
-                      const config = FORMAS_PAGAMENTO_CONFIG[item.forma] || {
-                        nome: item.forma,
-                        icone: CreditCard,
-                        cor: 'text-muted-foreground',
-                        bgCor: 'bg-muted/50',
-                        chartCor: 'rgba(100, 116, 139, 0.8)',
-                      }
-                      const Icone = config.icone
-                      const percentual =
-                        dados.estatisticas.receitaTotal > 0
-                          ? ((item.total / dados.estatisticas.receitaTotal) * 100).toFixed(1)
-                          : '0'
-
-                      return (
-                        <div
-                          key={item.forma}
-                          className={cn('rounded-lg border border-border/60 p-4', config.bgCor)}
-                        >
-                          <div className="mb-3 flex items-center gap-3">
-                            <div className={cn('rounded-lg border border-border/60 bg-card p-2', config.cor)}>
-                              <Icone className="h-4 w-4" aria-hidden />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-foreground">{config.nome}</p>
-                              <p className="text-xs text-muted-foreground">{item.quantidade} transações</p>
-                            </div>
-                          </div>
-                          <div className="flex items-end justify-between gap-2">
-                            <p className={cn('text-xl font-semibold tabular-nums', config.cor)}>
-                              R$ {formatarMoeda(item.total)}
-                            </p>
-                            <span className="text-sm font-medium tabular-nums text-muted-foreground">
-                              {percentual}%
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <Secao titulo="Pedidos por tipo">
+                  <Cartao className="p-4 md:p-5">
+                    <ul className="divide-y divide-border/70">
+                      {tiposPedido.map((tipo) => {
+                        const Icone = tipo.icone
+                        return (
+                          <li key={tipo.rotulo} className="flex min-h-12 items-center gap-3 py-2 first:pt-0">
+                            <Icone className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                            <span className="min-w-0 flex-1 truncate text-sm text-foreground">{tipo.rotulo}</span>
+                            <span className="text-sm tabular-nums text-muted-foreground">{tipo.quantidade}</span>
+                            <span className="w-28 text-right text-sm font-medium tabular-nums text-foreground">
+                              R$ {formatarMoeda(tipo.total)}
                             </span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                    <div className="mt-3 h-48">
+                      <Doughnut
+                        data={{
+                          labels: ['Entregas', 'Retiradas', 'No Local'],
+                          datasets: [
+                            {
+                              data: [
+                                dados.pedidosPorTipo.entregas.quantidade,
+                                dados.pedidosPorTipo.retiradas.quantidade,
+                                dados.pedidosPorTipo.local.quantidade,
+                              ],
+                              backgroundColor: [
+                                'rgba(2, 150, 249, 0.85)',
+                                'rgba(16, 185, 129, 0.8)',
+                                'rgba(100, 116, 139, 0.75)',
+                              ],
+                              borderWidth: 0,
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { position: 'bottom' },
+                          },
+                        }}
+                      />
+                    </div>
+                  </Cartao>
+                </Secao>
+
+                <Secao titulo="Entregas feitas">
+                  <Lista>
+                    {entregasPeriodo.map((linha) => {
+                      const Icone = linha.icone
+                      return (
+                        <li key={linha.rotulo} className="flex min-h-14 items-center gap-3 px-4 py-3">
+                          <Icone className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground">{linha.rotulo}</p>
+                            <p className="text-[13px] text-muted-foreground">{linha.ajuda}</p>
                           </div>
-                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/60">
-                            <div
-                              className="h-full rounded-full transition-all duration-500"
-                              style={{
-                                width: `${percentual}%`,
-                                backgroundColor: config.chartCor,
-                              }}
-                            />
-                          </div>
-                        </div>
+                          <p className="text-xl font-semibold tabular-nums text-foreground">{linha.valor}</p>
+                        </li>
                       )
                     })}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-muted-foreground">
-                    <CreditCard className="mx-auto mb-2 h-10 w-10 opacity-30" aria-hidden />
-                    <p className="text-sm">Nenhum pagamento registrado no período</p>
-                  </div>
-                )}
-
-                {dados.faturamentoPorPagamento.length > 0 && (
-                  <div className="h-64">
-                    <Doughnut
-                      data={{
-                        labels: dados.faturamentoPorPagamento.map(
-                          (p) => FORMAS_PAGAMENTO_CONFIG[p.forma]?.nome || p.forma
-                        ),
-                        datasets: [
-                          {
-                            data: dados.faturamentoPorPagamento.map((p) => p.total),
-                            backgroundColor: dados.faturamentoPorPagamento.map(
-                              (p) => FORMAS_PAGAMENTO_CONFIG[p.forma]?.chartCor || 'rgba(100, 116, 139, 0.8)'
-                            ),
-                            borderWidth: 2,
-                            borderColor: '#fff',
-                          },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { position: 'right' },
-                          tooltip: {
-                            callbacks: {
-                              label: (context: { label?: string; parsed: number }) => {
-                                const label = context.label || ''
-                                const value = context.parsed || 0
-                                return `${label}: R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                              },
-                            },
-                          },
-                        },
-                      }}
-                    />
-                  </div>
-                )}
+                    <li className="flex items-center justify-between gap-3 px-4 py-3">
+                      <span className="text-sm text-muted-foreground">Média por dia no mês</span>
+                      <span className="text-sm font-medium tabular-nums text-foreground">
+                        {dados.entregasPorPeriodo.mes > 0
+                          ? (dados.entregasPorPeriodo.mes / new Date().getDate()).toFixed(1)
+                          : '0'}{' '}
+                        entregas
+                      </span>
+                    </li>
+                  </Lista>
+                </Secao>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className={cardClass}>
-                  <h2 className={tituloSecaoClass}>Top 10 produtos</h2>
-                  <div className="space-y-2">
-                    {dados.produtosMaisVendidos.map((produto, index) => (
-                      <div
-                        key={`${produto.nome}-${index}`}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-2 py-2"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold tabular-nums text-primary">
-                            {index + 1}
-                          </span>
-                          <span className="truncate text-sm font-medium text-foreground">{produto.nome}</span>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-sm font-semibold tabular-nums text-foreground">{produto.quantidade}x</p>
-                          <p className="text-xs tabular-nums text-muted-foreground">
-                            R$ {formatarMoeda(produto.receita)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className={cardClass}>
-                  <h2 className={tituloSecaoClass}>Vendas por categoria</h2>
-                  <div className="relative h-64">
-                    <Doughnut
-                      data={{
-                        labels: dados.vendasPorCategoria.map((c) => c.categoria),
-                        datasets: [
-                          {
-                            data: dados.vendasPorCategoria.map((c) => c.receita),
-                            backgroundColor: [
-                              'rgba(2, 150, 249, 0.85)',
-                              'rgba(59, 130, 246, 0.8)',
-                              'rgba(16, 185, 129, 0.8)',
-                              'rgba(244, 63, 94, 0.75)',
-                              'rgba(100, 116, 139, 0.75)',
-                            ],
-                            borderWidth: 2,
-                            borderColor: '#fff',
-                          },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            position: 'bottom',
-                          },
-                          tooltip: {
-                            callbacks: {
-                              label: (context: { label?: string; parsed: number }) => {
-                                const label = context.label || ''
-                                const value = context.parsed || 0
-                                return `${label}: R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <Secao titulo="Vendas por dia">
+                  <Cartao className="p-4 md:p-5">
+                    <div className="relative h-64">
+                      <Bar
+                        data={{
+                          labels: dados.vendasPorDia.map((v) => v.data),
+                          datasets: [
+                            {
+                              label: 'Receita (R$)',
+                              data: dados.vendasPorDia.map((v) => v.total),
+                              backgroundColor: 'rgba(2, 150, 249, 0.8)',
+                              borderColor: 'rgba(2, 150, 249, 1)',
+                              borderWidth: 2,
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                              callbacks: {
+                                label: (context: { parsed: { y: number | null } }) =>
+                                  `R$ ${(context.parsed.y || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                               },
                             },
                           },
-                        },
-                      }}
-                    />
+                          scales: {
+                            y: { beginAtZero: true },
+                          },
+                        }}
+                      />
+                    </div>
+                  </Cartao>
+                </Secao>
+
+                <Secao titulo="Horários de mais movimento">
+                  <Cartao className="p-4 md:p-5">
+                    <div className="relative h-64">
+                      <Line
+                        data={{
+                          labels: dados.horariosPico.map((h) => `${h.hora}h`),
+                          datasets: [
+                            {
+                              label: 'Pedidos',
+                              data: dados.horariosPico.map((h) => h.quantidade),
+                              borderColor: 'rgba(2, 150, 249, 1)',
+                              backgroundColor: 'rgba(2, 150, 249, 0.1)',
+                              fill: true,
+                              tension: 0.4,
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: false },
+                          },
+                          scales: {
+                            y: { beginAtZero: true },
+                          },
+                        }}
+                      />
+                    </div>
+                  </Cartao>
+                </Secao>
+              </div>
+
+              <Secao titulo="Vendas por forma de pagamento">
+                {dados.faturamentoPorPagamento.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+                    <Lista>
+                      {dados.faturamentoPorPagamento.map((item) => {
+                        const config = FORMAS_PAGAMENTO_CONFIG[item.forma] || {
+                          nome: item.forma,
+                          icone: CreditCard,
+                          cor: 'text-muted-foreground',
+                          bgCor: 'bg-muted/50',
+                          chartCor: 'rgba(100, 116, 139, 0.8)',
+                        }
+                        const Icone = config.icone
+                        const percentual =
+                          dados.estatisticas.receitaTotal > 0
+                            ? ((item.total / dados.estatisticas.receitaTotal) * 100).toFixed(1)
+                            : '0'
+
+                        return (
+                          <li key={item.forma} className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <Icone className={cn('size-4 shrink-0', config.cor)} aria-hidden />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-foreground">{config.nome}</p>
+                                <p className="text-[13px] text-muted-foreground">
+                                  {item.quantidade} {item.quantidade === 1 ? 'pagamento' : 'pagamentos'} · {percentual}%
+                                </p>
+                              </div>
+                              <p className="text-sm font-semibold tabular-nums text-foreground">
+                                R$ {formatarMoeda(item.total)}
+                              </p>
+                            </div>
+                            <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="h-full rounded-full transition-all duration-500 motion-reduce:transition-none"
+                                style={{
+                                  width: `${Math.min(100, Number(percentual))}%`,
+                                  backgroundColor: config.chartCor,
+                                }}
+                              />
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </Lista>
+                    <Cartao className="p-4">
+                      <div className="h-64">
+                        <Doughnut
+                          data={{
+                            labels: dados.faturamentoPorPagamento.map(
+                              (p) => FORMAS_PAGAMENTO_CONFIG[p.forma]?.nome || p.forma
+                            ),
+                            datasets: [
+                              {
+                                data: dados.faturamentoPorPagamento.map((p) => p.total),
+                                backgroundColor: dados.faturamentoPorPagamento.map(
+                                  (p) => FORMAS_PAGAMENTO_CONFIG[p.forma]?.chartCor || 'rgba(100, 116, 139, 0.8)'
+                                ),
+                                borderWidth: 0,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: { position: 'bottom' },
+                              tooltip: {
+                                callbacks: {
+                                  label: (context: { label?: string; parsed: number }) => {
+                                    const label = context.label || ''
+                                    const value = context.parsed || 0
+                                    return `${label}: R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                  },
+                                },
+                              },
+                            },
+                          }}
+                        />
+                      </div>
+                    </Cartao>
                   </div>
-                </div>
+                ) : (
+                  <ListaVazia icone={<CreditCard />} titulo="Nenhum pagamento no período" />
+                )}
+              </Secao>
+
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <Secao titulo="10 produtos mais vendidos">
+                  {dados.produtosMaisVendidos.length > 0 ? (
+                    <Lista>
+                      {dados.produtosMaisVendidos.map((produto, index) => (
+                        <li key={`${produto.nome}-${index}`} className="flex min-h-12 items-center gap-3 px-4 py-2.5">
+                          <span className="w-5 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                            {index + 1}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{produto.nome}</span>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-semibold tabular-nums text-foreground">{produto.quantidade}x</p>
+                            <p className="text-[13px] tabular-nums text-muted-foreground">
+                              R$ {formatarMoeda(produto.receita)}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </Lista>
+                  ) : (
+                    <ListaVazia icone={<Package />} titulo="Nenhum produto vendido no período" />
+                  )}
+                </Secao>
+
+                <Secao titulo="Vendas por categoria">
+                  <Cartao className="p-4 md:p-5">
+                    <div className="relative h-64">
+                      <Doughnut
+                        data={{
+                          labels: dados.vendasPorCategoria.map((c) => c.categoria),
+                          datasets: [
+                            {
+                              data: dados.vendasPorCategoria.map((c) => c.receita),
+                              backgroundColor: [
+                                'rgba(2, 150, 249, 0.85)',
+                                'rgba(59, 130, 246, 0.8)',
+                                'rgba(16, 185, 129, 0.8)',
+                                'rgba(244, 63, 94, 0.75)',
+                                'rgba(100, 116, 139, 0.75)',
+                              ],
+                              borderWidth: 0,
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              position: 'bottom',
+                            },
+                            tooltip: {
+                              callbacks: {
+                                label: (context: { label?: string; parsed: number }) => {
+                                  const label = context.label || ''
+                                  const value = context.parsed || 0
+                                  return `${label}: R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                },
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    </div>
+                  </Cartao>
+                </Secao>
               </div>
 
               {dados.entregasPorBairro && dados.entregasPorBairro.length > 0 && (
-                <div className={cardClass}>
-                  <h2 className={tituloSecaoClass}>
-                    <MapPin className="h-4 w-4 text-primary" aria-hidden />
-                    Entregas por bairro
-                  </h2>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Secao
+                  titulo="Entregas por bairro"
+                  descricao={`${dados.entregasPorBairro.reduce((acc, b) => acc + b.quantidade, 0)} entregas · R$ ${formatarMoeda(dados.entregasPorBairro.reduce((acc, b) => acc + b.taxaTotal, 0))} em taxas`}
+                >
+                  <Lista>
                     {dados.entregasPorBairro.map((item, index) => (
-                      <div
-                        key={item.bairro}
-                        className="rounded-lg border border-border/60 bg-muted/30 p-3"
-                      >
-                        <div className="mb-2 flex items-center gap-3">
-                          <div
-                            className={cn(
-                              'flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground',
-                              index < 3 ? 'bg-primary' : 'bg-muted-foreground'
-                            )}
-                          >
-                            {index + 1}
-                          </div>
-                          <p className="truncate text-sm font-medium text-foreground">{item.bairro}</p>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-muted-foreground">
-                            {item.quantidade} {item.quantidade === 1 ? 'entrega' : 'entregas'}
-                          </p>
-                          <p className="text-sm font-semibold tabular-nums text-foreground">
-                            R$ {formatarMoeda(item.taxaTotal)}
-                          </p>
-                        </div>
-                      </div>
+                      <li key={item.bairro} className="flex min-h-12 items-center gap-3 px-4 py-2.5">
+                        <span className="w-5 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{item.bairro}</span>
+                        <span className="shrink-0 text-[13px] tabular-nums text-muted-foreground">
+                          {item.quantidade} {item.quantidade === 1 ? 'entrega' : 'entregas'}
+                        </span>
+                        <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
+                          R$ {formatarMoeda(item.taxaTotal)}
+                        </span>
+                      </li>
                     ))}
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
-                    <p className="text-sm text-muted-foreground">
-                      Total de entregas:{' '}
-                      <span className="font-semibold tabular-nums text-foreground">
-                        {dados.entregasPorBairro.reduce((acc, b) => acc + b.quantidade, 0)}
-                      </span>
-                    </p>
-                    <p className="text-sm font-semibold tabular-nums text-foreground">
-                      Total em taxas: R${' '}
-                      {formatarMoeda(dados.entregasPorBairro.reduce((acc, b) => acc + b.taxaTotal, 0))}
-                    </p>
-                  </div>
-                </div>
+                  </Lista>
+                </Secao>
               )}
             </>
           )}
-        </div>
+        </Pagina>
       </AdminLayout>
     </ProtectedRoute>
   )

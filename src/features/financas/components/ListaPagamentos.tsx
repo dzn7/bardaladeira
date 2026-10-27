@@ -1,11 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, CheckCircle2, Wallet } from 'lucide-react'
+import { Wallet } from '@phosphor-icons/react'
 import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
-import { Badge } from '@/components/ui/badge'
+import { Selo } from '@/components/admin/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { cn } from '@/lib/utils'
 import type { PagamentoPedido, PedidoFinanceiro } from '../types'
 import { formatarData, formatarMoeda, rotularFormaPagamento } from '../lib/formatadores'
 import { PaginacaoFinancas } from './PaginacaoFinancas'
@@ -40,9 +39,9 @@ export function ListaPagamentos({ pagamentos, pedidos, carregando }: ListaPagame
 
   return (
     <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
-      <div className="flex items-center gap-3 border-b border-border/70 px-5 py-3.5">
+      <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3.5 md:px-5">
         <div>
-          <h3 className="text-base font-semibold tracking-tight text-foreground">Pagamentos recebidos</h3>
+          <h3 className="text-base font-semibold text-foreground">Pagamentos recebidos</h3>
           <p className="text-xs text-muted-foreground">{pagamentos.length} registros no período.</p>
         </div>
       </div>
@@ -52,56 +51,39 @@ export function ListaPagamentos({ pagamentos, pedidos, carregando }: ListaPagame
       ) : pagamentos.length === 0 ? (
         <ListaVazia
           className="border-0 bg-transparent py-10"
-          icone={<Wallet className="h-6 w-6" strokeWidth={1.6} />}
+          icone={<Wallet className="h-6 w-6" />}
           titulo="Nenhum pagamento neste período"
           descricao="Os pagamentos dos pedidos aparecerão aqui."
         />
       ) : (
         <>
-          <div className="flex flex-col gap-3 px-3 py-3 md:hidden">
+          <ul className="divide-y divide-border/70 md:hidden">
             {paginaItens.map((pg) => {
               const pedido = pedidosMap.get(pg.pedido_id)
               return (
-                <div
-                  key={pg.id}
-                  className={cn(
-                    'rounded-lg border border-[#F1F1F1] bg-[#f7f9fa] p-4 shadow-sm',
-                    'dark:border-[#2D2F2F] dark:bg-[#161717]',
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
-                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.6} aria-hidden />
-                      <span className="text-sm font-medium tabular-nums">{formatarData(pg.created_at)}</span>
-                    </div>
-                    <span className="text-base font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                      {formatarMoeda(Number(pg.valor))}
-                    </span>
+                <li key={pg.id} className="flex min-h-16 items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {pedido ? `#${pedido.numero_pedido}` : 'Pedido'} · {pedido?.nome_cliente ?? 'Sem nome'}
+                    </p>
+                    <p className="mt-0.5 truncate text-[13px] tabular-nums text-muted-foreground">
+                      {[formatarData(pg.created_at), rotularFormaPagamento(pg.forma_pagamento), pg.bandeira]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
                   </div>
-                  <p className="mt-3 truncate text-sm font-semibold text-foreground">
-                    {pedido ? `#${pedido.numero_pedido}` : 'Pedido'} · {pedido?.nome_cliente ?? '—'}
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-border/70 bg-background/50 font-medium text-foreground"
-                    >
-                      {rotularFormaPagamento(pg.forma_pagamento)}
-                    </Badge>
-                    {pg.bandeira ? (
-                      <span className="text-xs text-muted-foreground">{pg.bandeira}</span>
-                    ) : null}
-                  </div>
-                </div>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {formatarMoeda(Number(pg.valor))}
+                  </span>
+                </li>
               )
             })}
-          </div>
+          </ul>
 
           <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60 hover:bg-transparent">
-                  <TableHead className="w-10 text-xs font-medium text-muted-foreground" aria-label="Status" />
                   <TableHead className="text-xs font-medium text-muted-foreground">Data</TableHead>
                   <TableHead className="text-xs font-medium text-muted-foreground">Pedido</TableHead>
                   <TableHead className="text-xs font-medium text-muted-foreground">Cliente</TableHead>
@@ -115,13 +97,6 @@ export function ListaPagamentos({ pagamentos, pedidos, carregando }: ListaPagame
                   const pedido = pedidosMap.get(pg.pedido_id)
                   return (
                     <TableRow key={pg.id} className="border-border/60">
-                      <TableCell className="py-3 pl-3">
-                        <div className="flex h-10 items-center border-l-4 border-emerald-500">
-                          <span className="pl-3">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
-                          </span>
-                        </div>
-                      </TableCell>
                       <TableCell className="whitespace-nowrap py-3 text-xs tabular-nums text-muted-foreground">
                         {formatarData(pg.created_at)}
                       </TableCell>
@@ -134,12 +109,7 @@ export function ListaPagamentos({ pagamentos, pedidos, carregando }: ListaPagame
                         </span>
                       </TableCell>
                       <TableCell className="py-3">
-                        <Badge
-                          variant="outline"
-                          className="rounded-full border-border/70 bg-background/50 font-medium text-foreground"
-                        >
-                          {rotularFormaPagamento(pg.forma_pagamento)}
-                        </Badge>
+                        <Selo>{rotularFormaPagamento(pg.forma_pagamento)}</Selo>
                       </TableCell>
                       <TableCell className="py-3 text-sm text-muted-foreground">
                         {pg.bandeira ?? <span className="text-xs">—</span>}

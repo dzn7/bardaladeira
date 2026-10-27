@@ -1,27 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Lock } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
+import { AreaTexto, Botao, Campo, EntradaPreco, Gaveta, Selecao } from '@/components/admin/ui'
 import { cn } from '@/lib/utils'
 import { formatarMoedaCaixa, type ResumoFormasCaixa } from '@/lib/caixa-gaveta'
 import type { Caixa, EstatisticasCaixa, Funcionario } from '@/lib/tipos-caixa'
@@ -79,103 +60,89 @@ export default function ModalFecharCaixa({
   if (!caixa) return null
 
   return (
-    <Dialog open={aberto} onOpenChange={(open) => !open && !processando && onFechar()}>
-      <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
-        <DialogHeader className="border-b border-border/70 px-5 py-4">
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-primary" strokeWidth={1.6} />
+    <Gaveta
+      aberto={aberto}
+      aoFechar={onFechar}
+      bloqueada={processando}
+      titulo="Fechar caixa"
+      descricao="Conte o dinheiro da gaveta. PIX e cartão aparecem só para conferência."
+      rodape={
+        <>
+          <Botao variante="contorno" onClick={onFechar} disabled={processando}>
+            Cancelar
+          </Botao>
+          <Botao carregando={processando} onClick={() => void handleConfirmar()}>
             Fechar caixa
-          </DialogTitle>
-          <DialogDescription>
-            Confira o dinheiro da gaveta. PIX e cartão são só informativos.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <div className="grid grid-cols-2 gap-2 rounded-xl border border-border/70 bg-muted/30 p-3">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Esperado (dinheiro)</p>
-              <p className="mt-1 font-mono text-lg font-semibold tabular-nums">{formatarMoedaCaixa(esperado)}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Diferença</p>
-              <p
-                className={cn(
-                  'mt-1 font-mono text-lg font-semibold tabular-nums',
-                  diferenca === 0 ? 'text-foreground' : diferenca > 0 ? 'text-emerald-600' : 'text-destructive',
-                )}
-              >
-                {formatarMoedaCaixa(diferenca)}
-              </p>
-            </div>
+          </Botao>
+        </>
+      }
+    >
+      <form
+        className="space-y-5"
+        onSubmit={(evento) => {
+          evento.preventDefault()
+          void handleConfirmar()
+        }}
+      >
+        <div className="grid grid-cols-2 divide-x divide-border/70 rounded-xl border border-border/70">
+          <div className="p-3">
+            <p className="text-[13px] text-muted-foreground">Esperado em dinheiro</p>
+            <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-foreground">{formatarMoedaCaixa(esperado)}</p>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contado-dinheiro">Dinheiro contado na gaveta</Label>
-            <Input
-              id="contado-dinheiro"
-              inputMode="decimal"
-              value={contado}
-              onChange={(e) => setContado(e.target.value)}
-              className="h-11 font-mono tabular-nums"
-            />
-          </div>
-
-          <div className="space-y-2 rounded-lg border border-border/60 p-3">
-            <p className="text-xs font-medium text-muted-foreground">Resumo esperado por forma (não entra na gaveta)</p>
-            <div className="grid grid-cols-3 gap-2 text-sm">
-              <div>
-                <p className="text-[11px] text-muted-foreground">PIX</p>
-                <p className="font-mono tabular-nums">{formatarMoedaCaixa(resumoFormas.pix)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">Cartão</p>
-                <p className="font-mono tabular-nums">{formatarMoedaCaixa(resumoFormas.cartao)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">Outros</p>
-                <p className="font-mono tabular-nums">{formatarMoedaCaixa(resumoFormas.outros)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Responsável</Label>
-            <Select value={responsavel} onValueChange={setResponsavel}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                {ativos.map((f) => (
-                  <SelectItem key={f.id} value={f.nome}>
-                    {f.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="obs-fechamento">Observações</Label>
-            <Textarea
-              id="obs-fechamento"
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
-              rows={2}
-              placeholder="Opcional"
-            />
+          <div className="p-3">
+            <p className="text-[13px] text-muted-foreground">Diferença</p>
+            <p
+              className={cn(
+                'mt-1 font-mono text-lg font-semibold tabular-nums',
+                diferenca === 0 ? 'text-foreground' : diferenca > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive',
+              )}
+            >
+              {formatarMoedaCaixa(diferenca)}
+            </p>
           </div>
         </div>
 
-        <DialogFooter className="gap-2 border-t border-border/70 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-2">
-          <Button type="button" variant="outline" className="h-11 w-full sm:w-auto" onClick={onFechar} disabled={processando}>
-            Cancelar
-          </Button>
-          <Button type="button" className="h-11 w-full sm:w-auto" onClick={() => void handleConfirmar()} disabled={processando}>
-            {processando ? 'Fechando…' : 'Fechar caixa'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <Campo rotulo="Dinheiro contado na gaveta" htmlFor="contado-dinheiro">
+          <EntradaPreco id="contado-dinheiro" valor={contado} aoMudar={setContado} />
+        </Campo>
+
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-foreground">Outras formas (não entram na gaveta)</p>
+          <dl className="grid grid-cols-3 gap-2 text-sm">
+            {[
+              { rotulo: 'PIX', valor: resumoFormas.pix },
+              { rotulo: 'Cartão', valor: resumoFormas.cartao },
+              { rotulo: 'Outros', valor: resumoFormas.outros },
+            ].map((item) => (
+              <div key={item.rotulo} className="rounded-lg bg-muted/50 px-3 py-2">
+                <dt className="text-[13px] text-muted-foreground">{item.rotulo}</dt>
+                <dd className="font-mono tabular-nums text-foreground">{formatarMoedaCaixa(item.valor)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <Campo rotulo="Responsável" htmlFor="responsavel-fechamento">
+          <Selecao id="responsavel-fechamento" value={responsavel} onChange={(e) => setResponsavel(e.target.value)}>
+            {ativos.length === 0 && <option value="">Nenhum funcionário ativo</option>}
+            {ativos.map((f) => (
+              <option key={f.id} value={f.nome}>
+                {f.nome}
+              </option>
+            ))}
+          </Selecao>
+        </Campo>
+
+        <Campo rotulo="Observações" htmlFor="obs-fechamento" opcional>
+          <AreaTexto
+            id="obs-fechamento"
+            value={observacoes}
+            onChange={(e) => setObservacoes(e.target.value)}
+            rows={2}
+          />
+        </Campo>
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+      </form>
+    </Gaveta>
   )
 }

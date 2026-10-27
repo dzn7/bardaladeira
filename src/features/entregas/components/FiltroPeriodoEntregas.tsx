@@ -1,9 +1,6 @@
 'use client'
 
-import { CalendarDays } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
+import { Campo, Cartao, Chip, Entrada } from '@/components/admin/ui'
 import type { PeriodoEntrega } from '../types'
 
 type FiltroPeriodoEntregasProps = {
@@ -36,66 +33,43 @@ export default function FiltroPeriodoEntregas({
   onDataInicioChange,
   onDataFimChange,
 }: FiltroPeriodoEntregasProps) {
-  const valorToggle = periodo === 'personalizado' ? undefined : periodo
-
   return (
-    <section className="rounded-xl border border-border/70 bg-card p-4" aria-label="Filtro de período">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0">
-          <div className="mb-2 flex items-center gap-2">
-            <CalendarDays className="size-4 text-muted-foreground" strokeWidth={1.6} />
-            <h2 className="text-sm font-semibold">Período</h2>
-          </div>
-          <div className="w-full overflow-x-auto">
-            <ToggleGroup
-              type="single"
-              value={valorToggle}
-              onValueChange={(valor) => {
-                if (!valor || carregando) return
-                onPeriodoChange(valor as Exclude<PeriodoEntrega, 'personalizado'>)
-              }}
-              aria-label="Atalhos de período"
-              className="flex w-max items-center justify-start gap-2"
-            >
-              {ATALHOS.map((atalho) => (
-                <ToggleGroupItem
-                  key={atalho.valor}
-                  value={atalho.valor}
-                  disabled={carregando}
-                  className={CHIP_FILTRO_DEFAULT}
-                >
-                  {atalho.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Data inicial</span>
-            <Input
-              type="date"
-              value={dataInicio}
-              max={dataFim}
-              disabled={carregando}
-              onChange={(event) => onDataInicioChange(event.target.value)}
-              className="h-9 min-w-44 rounded-lg border-border/70 shadow-none"
-            />
-          </label>
-          <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Data final</span>
-            <Input
-              type="date"
-              value={dataFim}
-              min={dataInicio}
-              disabled={carregando}
-              onChange={(event) => onDataFimChange(event.target.value)}
-              className="h-9 min-w-44 rounded-lg border-border/70 shadow-none"
-            />
-          </label>
-        </div>
+    <Cartao className="space-y-4 p-4" aria-label="Filtro de período">
+      <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Atalhos de período">
+        {ATALHOS.map((atalho) => (
+          <Chip
+            key={atalho.valor}
+            ativo={periodo === atalho.valor}
+            disabled={carregando}
+            onClick={() => onPeriodoChange(atalho.valor)}
+            className="h-10"
+          >
+            {atalho.label}
+          </Chip>
+        ))}
       </div>
-    </section>
+      <div className="grid grid-cols-2 gap-3">
+        <Campo rotulo="De">
+          <Entrada
+            type="date"
+            value={dataInicio}
+            max={dataFim}
+            disabled={carregando}
+            aria-label="Data inicial"
+            onChange={(event) => onDataInicioChange(event.target.value)}
+          />
+        </Campo>
+        <Campo rotulo="Até">
+          <Entrada
+            type="date"
+            value={dataFim}
+            min={dataInicio}
+            disabled={carregando}
+            aria-label="Data final"
+            onChange={(event) => onDataFimChange(event.target.value)}
+          />
+        </Campo>
+      </div>
+    </Cartao>
   )
 }

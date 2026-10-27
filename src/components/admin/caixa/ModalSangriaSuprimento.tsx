@@ -1,27 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
+import { AreaTexto, Botao, Campo, EntradaPreco, Gaveta, Selecao } from '@/components/admin/ui'
 import type { Funcionario } from '@/lib/tipos-caixa'
 
 type TipoOperacao = 'sangria' | 'suprimento'
@@ -51,7 +32,6 @@ export default function ModalSangriaSuprimento({
   const [processando, setProcessando] = useState(false)
 
   const ehSangria = tipo === 'sangria'
-  const Icone = ehSangria ? ArrowDownCircle : ArrowUpCircle
 
   useEffect(() => {
     if (!aberto) return
@@ -73,75 +53,62 @@ export default function ModalSangriaSuprimento({
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={(open) => !open && !processando && onFechar()}>
-      <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
-        <DialogHeader className="border-b border-border/70 px-5 py-4">
-          <DialogTitle className="flex items-center gap-2">
-            <Icone className={ehSangria ? 'h-4 w-4 text-destructive' : 'h-4 w-4 text-emerald-600'} strokeWidth={1.6} />
-            {ehSangria ? 'Sangria' : 'Suprimento'}
-          </DialogTitle>
-          <DialogDescription>
-            {ehSangria
-              ? 'Retira dinheiro da gaveta (saída em dinheiro).'
-              : 'Coloca dinheiro na gaveta (entrada em dinheiro).'}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="valor-op">Valor</Label>
-            <Input
-              id="valor-op"
-              inputMode="decimal"
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
-              className="h-11 font-mono tabular-nums"
-              placeholder="0,00"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Funcionário (opcional)</Label>
-            <Select value={funcionarioId || '__none'} onValueChange={(v) => setFuncionarioId(v === '__none' ? '' : v)}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Nenhum" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">Nenhum</SelectItem>
-                {ativos.map((f) => (
-                  <SelectItem key={f.id} value={f.id}>
-                    {f.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="desc-op">Descrição</Label>
-            <Textarea
-              id="desc-op"
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              rows={2}
-              placeholder="Opcional"
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="gap-2 border-t border-border/70 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-2">
-          <Button type="button" variant="outline" className="h-11 w-full sm:w-auto" onClick={onFechar} disabled={processando}>
+    <Gaveta
+      aberto={aberto}
+      aoFechar={onFechar}
+      bloqueada={processando}
+      titulo={ehSangria ? 'Tirar dinheiro (sangria)' : 'Colocar dinheiro (suprimento)'}
+      descricao={
+        ehSangria
+          ? 'Registra dinheiro que saiu da gaveta.'
+          : 'Registra dinheiro que entrou na gaveta, como troco extra.'
+      }
+      rodape={
+        <>
+          <Botao variante="contorno" onClick={onFechar} disabled={processando}>
             Cancelar
-          </Button>
-          <Button
-            type="button"
-            variant={ehSangria ? 'destructive' : 'default'}
-            className="h-11 w-full sm:w-auto"
+          </Botao>
+          <Botao
+            variante={ehSangria ? 'perigo' : 'primario'}
+            carregando={processando}
             onClick={() => void handleConfirmar()}
-            disabled={processando}
           >
-            {processando ? 'Salvando…' : ehSangria ? 'Registrar sangria' : 'Registrar suprimento'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            {ehSangria ? 'Registrar sangria' : 'Registrar suprimento'}
+          </Botao>
+        </>
+      }
+    >
+      <form
+        className="space-y-5"
+        onSubmit={(evento) => {
+          evento.preventDefault()
+          void handleConfirmar()
+        }}
+      >
+        <Campo rotulo="Valor" htmlFor="valor-op">
+          <EntradaPreco id="valor-op" valor={valor} aoMudar={setValor} autoFocus />
+        </Campo>
+        <Campo rotulo="Funcionário" htmlFor="funcionario-op" opcional>
+          <Selecao id="funcionario-op" value={funcionarioId} onChange={(e) => setFuncionarioId(e.target.value)}>
+            <option value="">Nenhum</option>
+            {ativos.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.nome}
+              </option>
+            ))}
+          </Selecao>
+        </Campo>
+        <Campo rotulo="Motivo" htmlFor="desc-op" opcional>
+          <AreaTexto
+            id="desc-op"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            rows={2}
+            placeholder={ehSangria ? 'Ex.: pagamento de fornecedor' : 'Ex.: troco extra'}
+          />
+        </Campo>
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+      </form>
+    </Gaveta>
   )
 }

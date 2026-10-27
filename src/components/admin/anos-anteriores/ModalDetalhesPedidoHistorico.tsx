@@ -1,6 +1,7 @@
 'use client'
 
-import { X, ShoppingCart, MapPin, Phone, CreditCard, Clock, User } from 'lucide-react'
+import { MapPin, Phone, CreditCard, Clock, User } from '@phosphor-icons/react'
+import { Botao, Gaveta, Lista, Secao, Selo } from '@/components/admin/ui'
 import type { PedidoHistorico } from '@/lib/tipos-anos-anteriores'
 
 type ModalDetalhesPedidoHistoricoProps = {
@@ -27,221 +28,136 @@ const formatarDataHora = (data: string): string => {
   })
 }
 
-const getCorStatus = (status: string) => {
+type Tom = 'neutro' | 'primario' | 'sucesso' | 'alerta' | 'perigo'
+
+export const tomStatusPedidoHistorico = (status: string): Tom => {
   switch (status?.toLowerCase()) {
     case 'pendente':
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+      return 'alerta'
     case 'preparando':
     case 'em preparo':
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+      return 'primario'
     case 'pronto':
-      return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-    case 'entregue':
-      return 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800/20 dark:text-zinc-400'
+      return 'sucesso'
     case 'cancelado':
-      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+      return 'perigo'
     default:
-      return 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800/20 dark:text-zinc-400'
+      return 'neutro'
   }
 }
+
+export const rotuloTipoPedidoHistorico = (tipo: string) =>
+  tipo === 'entrega' ? 'Entrega' : tipo === 'local' ? 'No local' : 'Retirada'
 
 export default function ModalDetalhesPedidoHistorico({
   pedido,
   aberto,
   onFechar
 }: ModalDetalhesPedidoHistoricoProps) {
-  if (!aberto || !pedido) return null
-
   return (
-    <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/50 z-50"
-        onClick={onFechar}
-      />
-
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800">
-            <div>
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
-                Detalhes do Pedido
-              </h2>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                #{pedido.id.slice(0, 8).toUpperCase()} - Histórico 2025
-              </p>
-            </div>
-            <button
-              onClick={onFechar}
-              className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-zinc-500" />
-            </button>
+    <Gaveta
+      aberto={aberto && !!pedido}
+      aoFechar={onFechar}
+      largura="lg"
+      titulo={pedido ? pedido.nome_cliente : 'Pedido'}
+      descricao={pedido ? `Pedido #${pedido.id.slice(0, 8).toUpperCase()} · ${formatarDataHora(pedido.created_at)}` : undefined}
+      rodape={<Botao variante="contorno" onClick={onFechar}>Fechar</Botao>}
+    >
+      {pedido && (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Selo tom={tomStatusPedidoHistorico(pedido.status)} className="capitalize">{pedido.status}</Selo>
+            <Selo>{rotuloTipoPedidoHistorico(pedido.tipo_entrega)}</Selo>
+            {pedido.mesa && <Selo>Mesa {pedido.mesa}</Selo>}
+            {pedido.bairro && <Selo>{pedido.bairro}</Selo>}
           </div>
 
-          {/* Content */}
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-            {/* Informações do cliente */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                Informações do Cliente
-              </h3>
-              <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-zinc-400" />
-                  <span className="text-zinc-900 dark:text-white font-medium">{pedido.nome_cliente}</span>
-                  <span className={`ml-auto px-2 py-1 text-xs font-medium rounded-full ${getCorStatus(pedido.status)}`}>
-                    {pedido.status}
-                  </span>
-                </div>
-                {pedido.telefone && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-zinc-400" />
-                    <span className="text-zinc-700 dark:text-zinc-300">{pedido.telefone}</span>
-                  </div>
-                )}
-                {pedido.endereco && (
-                  <div className="flex items-start gap-3">
-                    <MapPin className="w-5 h-5 text-zinc-400 mt-0.5" />
-                    <span className="text-zinc-700 dark:text-zinc-300">{pedido.endereco}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-zinc-400" />
-                  <span className="text-zinc-700 dark:text-zinc-300">{formatarDataHora(pedido.created_at)}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CreditCard className="w-5 h-5 text-zinc-400" />
-                  <span className="text-zinc-700 dark:text-zinc-300">{pedido.forma_pagamento || 'Não informado'}</span>
-                </div>
-              </div>
-            </div>
+          <Secao titulo="Cliente">
+            <Lista>
+              <li className="flex items-center gap-3 px-4 py-3 text-sm">
+                <User className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="font-medium text-foreground">{pedido.nome_cliente}</span>
+              </li>
+              {pedido.telefone && (
+                <li className="flex items-center gap-3 px-4 py-3 text-sm">
+                  <Phone className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="text-foreground">{pedido.telefone}</span>
+                </li>
+              )}
+              {pedido.endereco && (
+                <li className="flex items-start gap-3 px-4 py-3 text-sm">
+                  <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="text-foreground">{pedido.endereco}</span>
+                </li>
+              )}
+              <li className="flex items-center gap-3 px-4 py-3 text-sm">
+                <Clock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="text-foreground">{formatarDataHora(pedido.created_at)}</span>
+              </li>
+              <li className="flex items-center gap-3 px-4 py-3 text-sm">
+                <CreditCard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="text-foreground">{pedido.forma_pagamento || 'Não informado'}</span>
+              </li>
+            </Lista>
+          </Secao>
 
-            {/* Tipo de pedido */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                Tipo de Pedido
-              </h3>
-              <div className="flex items-center gap-2">
-                <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-                  pedido.tipo_entrega === 'entrega'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                    : pedido.tipo_entrega === 'local'
-                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                }`}>
-                  {pedido.tipo_entrega === 'entrega' ? 'Entrega' :
-                   pedido.tipo_entrega === 'local' ? 'No Local' : 'Retirada'}
-                </span>
-                {pedido.mesa && (
-                  <span className="px-3 py-1.5 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 rounded-full text-sm font-medium">
-                    Mesa {pedido.mesa}
-                  </span>
-                )}
-                {pedido.bairro && (
-                  <span className="px-3 py-1.5 bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 rounded-full text-sm font-medium">
-                    {pedido.bairro}
-                  </span>
-                )}
-              </div>
-            </div>
+          <Secao titulo="Itens">
+            {pedido.itens && pedido.itens.length > 0 ? (
+              <Lista>
+                {pedido.itens.map((item, index) => (
+                  <li key={item.id || index} className="flex items-start gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {item.quantidade}x {item.nome_item || 'Produto'}
+                      </p>
+                      {item.adicionais && item.adicionais.length > 0 && (
+                        <p className="mt-0.5 text-[13px] text-muted-foreground">
+                          {item.adicionais.map((adicional) => `+ ${adicional.nome_adicional}`).join(' · ')}
+                        </p>
+                      )}
+                      {item.observacoes && (
+                        <p className="mt-0.5 text-[13px] text-muted-foreground">Obs.: {item.observacoes}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-sm font-medium tabular-nums text-foreground">
+                      R$ {formatarMoeda(item.subtotal)}
+                    </span>
+                  </li>
+                ))}
+              </Lista>
+            ) : (
+              <p className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-sm text-muted-foreground">
+                Os itens deste pedido não foram carregados.
+              </p>
+            )}
+          </Secao>
 
-            {/* Itens do pedido */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4" />
-                Itens do Pedido
-              </h3>
-              <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl overflow-hidden">
-                {pedido.itens && pedido.itens.length > 0 ? (
-                  <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
-                    {pedido.itens.map((item, index) => (
-                      <div key={item.id || index} className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-zinc-900 dark:text-white">
-                              {item.quantidade}x {item.nome_item || 'Produto'}
-                            </p>
-                            {item.observacoes && (
-                              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                                Obs: {item.observacoes}
-                              </p>
-                            )}
-                            {item.adicionais && item.adicionais.length > 0 && (
-                              <div className="mt-1 flex flex-wrap gap-1">
-                                {item.adicionais.map((adicional, idx) => (
-                                  <span key={idx} className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
-                                    + {adicional.nome_adicional}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-amber-600 dark:text-amber-400 font-medium">
-                            R$ {formatarMoeda(item.subtotal)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 text-center text-zinc-500 dark:text-zinc-400">
-                    Itens não carregados para este pedido
-                  </div>
-                )}
-              </div>
-            </div>
+          {pedido.observacoes && (
+            <Secao titulo="Observações">
+              <p className="rounded-xl border border-border/70 bg-muted/40 px-4 py-3 text-sm text-foreground">
+                {pedido.observacoes}
+              </p>
+            </Secao>
+          )}
 
-            {/* Observações */}
-            {pedido.observacoes && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                  Observações
-                </h3>
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-4">
-                  <p className="text-zinc-700 dark:text-zinc-300">{pedido.observacoes}</p>
-                </div>
+          <dl className="space-y-2 rounded-xl border border-border/70 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Subtotal</dt>
+              <dd className="tabular-nums text-foreground">R$ {formatarMoeda(pedido.subtotal)}</dd>
+            </div>
+            {pedido.taxa_entrega > 0 && (
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Taxa de entrega</dt>
+                <dd className="tabular-nums text-foreground">R$ {formatarMoeda(pedido.taxa_entrega)}</dd>
               </div>
             )}
-
-            {/* Totais */}
-            <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-600 dark:text-zinc-400">Subtotal</span>
-                  <span className="text-zinc-900 dark:text-white">R$ {formatarMoeda(pedido.subtotal)}</span>
-                </div>
-                {pedido.taxa_entrega > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-600 dark:text-zinc-400">Taxa de Entrega</span>
-                    <span className="text-zinc-900 dark:text-white">R$ {formatarMoeda(pedido.taxa_entrega)}</span>
-                  </div>
-                )}
-                <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                  <span className="text-lg font-bold text-zinc-900 dark:text-white">Total</span>
-                  <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                    R$ {formatarMoeda(pedido.total)}
-                  </span>
-                </div>
-              </div>
+            <div className="flex items-center justify-between border-t border-border/70 pt-2">
+              <dt className="font-medium text-foreground">Total</dt>
+              <dd className="text-lg font-semibold tabular-nums text-foreground">R$ {formatarMoeda(pedido.total)}</dd>
             </div>
-          </div>
-
-          {/* Footer */}
-          <div className="p-6 border-t border-zinc-200 dark:border-zinc-800">
-            <button
-              onClick={onFechar}
-              className="w-full px-4 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 
-                       dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 
-                       rounded-xl font-medium transition-colors"
-            >
-              Fechar
-            </button>
-          </div>
+          </dl>
         </div>
-      </div>
-    </>
+      )}
+    </Gaveta>
   )
 }

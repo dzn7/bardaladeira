@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { CaretDown as ChevronDown } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
 type SecaoRelatorioProps = {
@@ -26,31 +26,31 @@ export const SecaoRelatorio = ({
   const handleToggle = () => onToggle(id)
 
   return (
-    <div className={cn('overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm', className)}>
+    <section className={cn('overflow-hidden rounded-xl border border-border/70 bg-card', className)}>
       <button
         type="button"
         onClick={handleToggle}
-        className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-muted/30 md:px-5"
+        className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:px-5"
         aria-expanded={aberto}
         aria-controls={`painel-${id}`}
       >
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">{titulo}</h2>
-          {descricao ? <p className="mt-0.5 text-xs text-muted-foreground">{descricao}</p> : null}
+          {descricao ? <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">{descricao}</p> : null}
         </div>
         <ChevronDown
           className={cn(
-            'mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+            'size-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none',
             aberto && 'rotate-180',
           )}
-          strokeWidth={1.6}
+          aria-hidden
         />
       </button>
       {aberto ? (
-        <div id={`painel-${id}`} className="border-t border-border/60 px-4 pb-4 pt-3 md:px-5 md:pb-5">
+        <div id={`painel-${id}`} className="border-t border-border/70 px-4 pb-4 pt-3 md:px-5 md:pb-5">
           {children}
         </div>
       ) : null}
-    </div>
+    </section>
   )
 }

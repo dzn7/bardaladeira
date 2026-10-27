@@ -1,8 +1,9 @@
 'use client'
 
-import { ShoppingCart, Trash2, X, Minus, Plus, Pencil } from 'lucide-react'
+import { ShoppingCart, Trash as Trash2, X, Minus, Plus, PencilSimple as Pencil } from '@phosphor-icons/react'
 import { AdicionalPedidoNovo, ProdutoSelecionadoPedidoNovo } from './tipos'
 import { cn } from '@/lib/utils'
+import { AreaTexto, Botao, Entrada, EntradaPreco, LinhaInterruptor, ListaVazia, Selo } from '@/components/admin/ui'
 
 type PainelTicketPedidoProps = {
   produtosSelecionados: ProdutoSelecionadoPedidoNovo[]
@@ -84,20 +85,20 @@ export default function PainelTicketPedido({
       <div className="rounded-xl border border-border/70 bg-card p-5">
         <div className="mb-4 flex items-center justify-between gap-2">
           <h3 className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <ShoppingCart strokeWidth={1.6} className="size-4 text-muted-foreground" />
+            <ShoppingCart className="size-4 text-muted-foreground" />
             Pedido
           </h3>
-          <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+          <Selo>
             {totalItensPedido} {totalItensPedido === 1 ? 'item' : 'itens'}
-          </span>
+          </Selo>
         </div>
 
         {produtosSelecionados.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border/70 p-8 text-center">
-            <ShoppingCart strokeWidth={1.6} className="mx-auto mb-2 size-8 text-muted-foreground/60" />
-            <p className="text-sm font-medium text-foreground">Nenhum item selecionado</p>
-            <p className="mt-1 text-xs text-muted-foreground">Escolha itens no catálogo ao lado.</p>
-          </div>
+          <ListaVazia
+            icone={<ShoppingCart />}
+            titulo="Nenhum item ainda"
+            descricao="Toque num produto do cardápio para adicionar."
+          />
         ) : (
           <div className="space-y-2">
             {produtosSelecionados.map((produto) => {
@@ -130,7 +131,7 @@ export default function PainelTicketPedido({
                       <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
                         <span className="truncate group-hover:underline group-hover:underline-offset-4">{produto.nome}</span>
                         {onAbrirEditorItem && (
-                          <Pencil strokeWidth={1.6} className="size-3 shrink-0 text-muted-foreground/70 transition-opacity group-hover:text-foreground" />
+                          <Pencil className="size-3 shrink-0 text-muted-foreground/70 transition-opacity group-hover:text-foreground" />
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -147,15 +148,15 @@ export default function PainelTicketPedido({
                   </button>
 
                   <div className="mb-2 flex items-center justify-between">
-                    <div className="inline-flex items-center rounded-md border border-border/70 bg-card p-0.5">
+                    <div className="inline-flex items-center rounded-lg border border-border/70 bg-card">
                       <button
                         type="button"
                         onClick={() => onAtualizarQuantidade(produto.id, produto.quantidade - 1)}
                         disabled={produto.quantidade <= 1}
-                        className="flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+                        className="flex size-11 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40 md:size-9"
                         aria-label="Diminuir"
                       >
-                        <Minus strokeWidth={1.6} className="size-3.5" />
+                        <Minus className="size-4" />
                       </button>
                       <span className="min-w-8 text-center font-mono text-sm font-medium tabular-nums text-foreground">
                         {produto.quantidade}
@@ -163,38 +164,31 @@ export default function PainelTicketPedido({
                       <button
                         type="button"
                         onClick={() => onAtualizarQuantidade(produto.id, produto.quantidade + 1)}
-                        className="flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        className="flex size-11 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-9"
                         aria-label="Aumentar"
                       >
-                        <Plus strokeWidth={1.6} className="size-3.5" />
+                        <Plus className="size-4" />
                       </button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => onRemoverProduto(produto.id)}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
-                    >
-                      <Trash2 strokeWidth={1.6} className="size-3.5" />
+                    <Botao variante="perigoSuave" tamanho="sm" className="h-11 md:h-9" onClick={() => onRemoverProduto(produto.id)}>
+                      <Trash2 />
                       Remover
-                    </button>
+                    </Botao>
                   </div>
 
                   <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
                     <div>
-                      <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                        Desconto do item (R$)
+                      <label className="mb-1 block text-[13px] font-medium text-muted-foreground" htmlFor={`desconto-item-${produto.id}`}>
+                        Desconto do item
                       </label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={produto.descontoManualInput}
-                        onChange={(e) => onAtualizarDescontoItem(produto.id, e.target.value)}
-                        placeholder="0,00"
-                        className="h-8 w-full rounded-md border border-input bg-card px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+                      <EntradaPreco
+                        id={`desconto-item-${produto.id}`}
+                        valor={produto.descontoManualInput}
+                        aoMudar={(valor) => onAtualizarDescontoItem(produto.id, valor)}
                       />
                     </div>
-                    <div className="rounded-md border border-border/70 bg-card px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                    <div className="rounded-lg border border-border/70 bg-card px-2.5 py-1.5 text-[13px] text-muted-foreground">
                       <p>
                         Bruto:{' '}
                         <span className="font-mono font-medium tabular-nums text-foreground">
@@ -215,16 +209,16 @@ export default function PainelTicketPedido({
                       {produto.adicionais.map((adicional) => (
                         <span
                           key={adicional.id}
-                          className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-card px-2 py-0.5 text-[11px] text-foreground"
+                          className="inline-flex h-8 items-center gap-1 rounded-full border border-border/70 bg-card pl-3 pr-1 text-[13px] text-foreground"
                         >
                           {adicional.nome}
                           <button
                             type="button"
                             onClick={() => onRemoverAdicional(produto.id, adicional.id)}
-                            className="rounded-sm text-muted-foreground hover:text-destructive"
+                            className="relative flex size-6 items-center justify-center rounded-full text-muted-foreground before:absolute before:-inset-2 before:content-[''] hover:bg-accent hover:text-destructive"
                             aria-label={`Remover ${adicional.nome}`}
                           >
-                            <X strokeWidth={1.6} className="size-3" />
+                            <X className="size-3.5" />
                           </button>
                         </span>
                       ))}
@@ -239,7 +233,7 @@ export default function PainelTicketPedido({
                           produtoSelecionadoParaAdicional === produto.id ? null : produto.id,
                         )
                       }
-                      className="mb-2 w-full rounded-md border border-border/70 bg-card px-2.5 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                      className="mb-2 flex min-h-11 w-full items-center rounded-lg border border-border/70 bg-card px-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent md:min-h-9"
                     >
                       {produtoSelecionadoParaAdicional === produto.id
                         ? 'Ocultar complementos'
@@ -257,7 +251,7 @@ export default function PainelTicketPedido({
                             type="button"
                             onClick={() => onAdicionarAdicional(produto.id, adicional)}
                             disabled={jaAdicionado}
-                            className="flex items-center justify-between rounded-md border border-border/70 bg-card px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex min-h-11 items-center justify-between rounded-lg border border-border/70 bg-card px-3 text-sm text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 md:min-h-9"
                           >
                             <span>{adicional.nome}</span>
                             <span className="font-mono font-medium tabular-nums">
@@ -269,12 +263,12 @@ export default function PainelTicketPedido({
                     </div>
                   )}
 
-                  <input
+                  <Entrada
                     type="text"
                     value={produto.observacoes}
                     onChange={(e) => onAtualizarObservacoes(produto.id, e.target.value)}
                     placeholder="Observação do item"
-                    className="h-8 w-full rounded-md border border-input bg-card px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+                    aria-label={`Observação de ${produto.nome}`}
                   />
                 </article>
               )
@@ -292,31 +286,23 @@ export default function PainelTicketPedido({
         <h4 className="mb-3 text-sm font-medium text-foreground">Resumo</h4>
 
         <div className="mb-4 space-y-1.5">
-          <label className="block text-[11px] font-medium text-muted-foreground">
-            Desconto geral do pedido (R$)
+          <label className="block text-[13px] font-medium text-muted-foreground" htmlFor="desconto-pedido-geral">
+            Desconto geral do pedido
           </label>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={descontoPedidoInput}
-            onChange={(e) => onAlterarDescontoPedido(e.target.value)}
-            placeholder="0,00"
-            className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
-          />
+          <EntradaPreco id="desconto-pedido-geral" valor={descontoPedidoInput} aoMudar={onAlterarDescontoPedido} />
         </div>
 
         {onAlterarObservacoesPedido && (
           <div className="mb-4 space-y-1.5">
-            <label className="block text-[11px] font-medium text-muted-foreground" htmlFor="obs-pedido-geral">
+            <label className="block text-[13px] font-medium text-muted-foreground" htmlFor="obs-pedido-geral">
               Observação geral do pedido
             </label>
-            <textarea
+            <AreaTexto
               id="obs-pedido-geral"
               value={observacoesPedido}
               onChange={(e) => onAlterarObservacoesPedido(e.target.value)}
               placeholder="Ex.: entregar até 20h, cliente busca de moto…"
               rows={2}
-              className="w-full resize-none rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
             />
           </div>
         )}
@@ -372,28 +358,13 @@ export default function PainelTicketPedido({
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/30 p-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Enviar para impressão</p>
-            <p className="text-xs text-muted-foreground">Dispara impressão automática ao confirmar.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onAlterarEnviarParaImpressao(!enviarParaImpressao)}
-            role="switch"
-            aria-checked={enviarParaImpressao}
-            className={cn(
-              'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-              enviarParaImpressao ? 'bg-foreground' : 'bg-muted-foreground/30',
-            )}
-          >
-            <span
-              className={cn(
-                'inline-block size-4 transform rounded-full bg-background transition-transform',
-                enviarParaImpressao ? 'translate-x-[18px]' : 'translate-x-0.5',
-              )}
-            />
-          </button>
+        <div className="mt-4">
+          <LinhaInterruptor
+            titulo="Enviar para impressão"
+            descricao="Imprime sozinho ao confirmar."
+            marcado={enviarParaImpressao}
+            aoMudar={onAlterarEnviarParaImpressao}
+          />
         </div>
       </div>
     </div>

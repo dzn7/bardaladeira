@@ -15,12 +15,12 @@ export const RelatorioFiado = ({ fiado }: RelatorioFiadoProps) => {
   return (
     <div className="flex flex-wrap gap-x-8 gap-y-3">
       <div>
-        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Valor fiado</p>
-        <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{formatarMoeda(fiado.valor)}</p>
+        <p className="text-[13px] text-muted-foreground">Valor fiado</p>
+        <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">{formatarMoeda(fiado.valor)}</p>
       </div>
       <div>
-        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Pedidos no fiado</p>
-        <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{fiado.quantidadePedidos}</p>
+        <p className="text-[13px] text-muted-foreground">Pedidos no fiado</p>
+        <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">{fiado.quantidadePedidos}</p>
       </div>
     </div>
   )

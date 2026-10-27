@@ -2,17 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Truck, Store, MapPin, Hash } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
+import { Plus, Truck, Storefront as Store, MapPin } from '@phosphor-icons/react'
+import { Botao, Gaveta } from '@/components/admin/ui'
 import { cn } from '@/lib/utils'
 
 type TipoPontoSalao = 'mesa' | 'comanda' | 'local_externo'
@@ -82,129 +73,89 @@ export default function DialogNovoPedidoSalao({
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
+  const classeAtalho =
+    'flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-card p-3 text-center transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60'
+
+  const atalhos = [
+    { rotulo: 'Sem mesa', detalhe: 'Escolher depois', Icone: MapPin },
+    { rotulo: 'Entrega', detalhe: 'Com endereço', Icone: Truck },
+    { rotulo: 'Retirada', detalhe: 'No balcão', Icone: Store },
+  ]
+
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
-      <DialogTrigger asChild>
-        <Button type="button" size="sm" className={cn('gap-2', className)}>
-          <Plus strokeWidth={1.6} className="size-4" />
-          Novo pedido
-          <kbd className="ml-1 hidden rounded border border-background/20 bg-background/10 px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums sm:inline-block">
-            N
-          </kbd>
-        </Button>
-      </DialogTrigger>
+    <>
+      <Botao onClick={() => setAberto(true)} className={cn('h-11 md:h-10', className)}>
+        <Plus />
+        Novo pedido
+        <kbd className="ml-1 hidden rounded border border-background/20 bg-background/10 px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums sm:inline-block">
+          N
+        </kbd>
+      </Botao>
 
-      <DialogContent className="max-h-[85vh] overflow-y-auto rounded-xl border-border/70 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)] sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-base font-semibold tracking-tight">
-            Novo pedido
-          </DialogTitle>
-          <DialogDescription>
-            Escolha onde o pedido será atendido. Você é levado direto para o lançamento.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-5">
-          {/* Atalhos rápidos */}
+      <Gaveta
+        aberto={aberto}
+        aoFechar={() => setAberto(false)}
+        titulo="Novo pedido"
+        descricao="Escolha onde o pedido será atendido."
+      >
+        <div className="space-y-6">
           <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => irParaNovoPedido()}
-              className="flex flex-col items-center gap-1.5 rounded-lg border border-border/70 bg-background p-3 text-center transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-            >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                <MapPin strokeWidth={1.6} className="size-4" />
-              </span>
-              <span className="text-xs font-medium text-foreground">Sem mesa</span>
-              <span className="text-[10px] leading-tight text-muted-foreground">Escolher depois</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => irParaNovoPedido()}
-              className="flex flex-col items-center gap-1.5 rounded-lg border border-border/70 bg-background p-3 text-center transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-            >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                <Truck strokeWidth={1.6} className="size-4" />
-              </span>
-              <span className="text-xs font-medium text-foreground">Entrega</span>
-              <span className="text-[10px] leading-tight text-muted-foreground">Com endereço</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => irParaNovoPedido()}
-              className="flex flex-col items-center gap-1.5 rounded-lg border border-border/70 bg-background p-3 text-center transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-            >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                <Store strokeWidth={1.6} className="size-4" />
-              </span>
-              <span className="text-xs font-medium text-foreground">Retirada</span>
-              <span className="text-[10px] leading-tight text-muted-foreground">Balcão</span>
-            </button>
+            {atalhos.map(({ rotulo, detalhe, Icone }) => (
+              <button key={rotulo} type="button" onClick={() => irParaNovoPedido()} className={classeAtalho}>
+                <Icone className="size-5 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">{rotulo}</span>
+                <span className="text-xs leading-tight text-muted-foreground">{detalhe}</span>
+              </button>
+            ))}
           </div>
 
-          <Separator />
-
-          {/* Mesas livres */}
           <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                Mesas livres
-              </h4>
-              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                {mesasLivres.length}
-              </span>
+            <div className="flex items-baseline justify-between">
+              <h3 className="text-sm font-medium text-foreground">Mesas livres</h3>
+              <span className="text-sm tabular-nums text-muted-foreground">{mesasLivres.length}</span>
             </div>
             {carregando ? (
-              <div className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-center text-xs text-muted-foreground">
-                Carregando mesas
-              </div>
+              <p className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-center text-sm text-muted-foreground">
+                Carregando mesas…
+              </p>
             ) : mesasLivres.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-center text-xs text-muted-foreground">
-                Todas as mesas estão ocupadas
-              </div>
+              <p className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-center text-sm text-muted-foreground">
+                Todas as mesas estão ocupadas.
+              </p>
             ) : (
-              <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6">
+              <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
                 {mesasLivres.map((mesa) => (
                   <button
                     key={mesa.id}
                     type="button"
                     onClick={() => irParaNovoPedido(`mesa=${mesa.numero}`)}
-                    className="flex flex-col items-center justify-center rounded-lg border border-border/70 bg-background px-1 py-2 text-center transition-colors hover:border-foreground/15 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                    className="flex h-12 items-center justify-center rounded-lg border border-border/70 bg-card font-mono text-base font-semibold tabular-nums text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
                     aria-label={`Abrir pedido na ${mesa.identificador || `Mesa ${mesa.numero}`}`}
                   >
-                    <Hash strokeWidth={1.6} className="size-3 text-muted-foreground" />
-                    <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
-                      {mesa.numero}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground">Livre</span>
+                    {mesa.numero}
                   </button>
                 ))}
               </div>
             )}
           </section>
 
-          {/* Locais parceiros */}
           {locaisLivres.length > 0 && (
             <section className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                  Locais parceiros livres
-                </h4>
-                <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                  {locaisLivres.length}
-                </span>
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-sm font-medium text-foreground">Locais parceiros</h3>
+                <span className="text-sm tabular-nums text-muted-foreground">{locaisLivres.length}</span>
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {locaisLivres.map((local) => (
                   <button
                     key={local.id}
                     type="button"
                     onClick={() => irParaNovoPedido(`mesa=${local.numero}&local=1`)}
-                    className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-left transition-colors hover:border-foreground/15 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                    className="flex min-h-11 items-center gap-2 rounded-lg border border-border/70 bg-card px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
                     aria-label={`Abrir pedido em ${local.identificador || `Local ${local.numero}`}`}
                   >
-                    <MapPin strokeWidth={1.6} className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="line-clamp-1 text-xs font-medium text-foreground">
+                    <MapPin className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="line-clamp-1 text-sm font-medium text-foreground">
                       {local.identificador || `Local ${local.numero}`}
                     </span>
                   </button>
@@ -213,7 +164,7 @@ export default function DialogNovoPedidoSalao({
             </section>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </Gaveta>
+    </>
   )
 }

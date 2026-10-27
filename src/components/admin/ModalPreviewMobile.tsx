@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, RefreshCw, Monitor, Smartphone } from 'lucide-react'
-
+import { X, ArrowsClockwise as RefreshCw, Monitor, DeviceMobile as Smartphone } from '@phosphor-icons/react'
 type ModalPreviewMobileProps = {
     onFechar: () => void
 }

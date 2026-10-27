@@ -1,20 +1,8 @@
 'use client'
 
 import { memo, useCallback, useMemo } from 'react'
-import type { LucideIcon } from 'lucide-react'
-import {
-  ArrowRight,
-  BadgeCheck,
-  Clock,
-  Edit2,
-  GripVertical,
-  Loader2,
-  Printer,
-  Store,
-  Trash2,
-  Truck,
-  UtensilsCrossed,
-} from 'lucide-react'
+import { type Icon } from '@phosphor-icons/react'
+import { ArrowRight, SealCheck as BadgeCheck, Clock, PencilSimple as Edit2, DotsSixVertical as GripVertical, CircleNotch as Loader2, Printer, Storefront as Store, Trash as Trash2, Truck, ForkKnife as UtensilsCrossed } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { obterNumeroPedidoExibicao } from '@/lib/pedidos/numero-diario'
@@ -83,7 +71,7 @@ type MetaDestino = {
   badge: string
   titulo: string
   contexto: string
-  icone: LucideIcon
+  icone: Icon
   borda: string
 }
 
@@ -352,7 +340,7 @@ function CardPedidoKanbanComponent({
         }
       }}
       className={cn(
-        'group relative flex flex-col gap-2 rounded-lg border border-border/70 border-l-[3px] bg-card p-2.5 text-left shadow-sm transition-shadow dark:bg-[#161717] md:gap-2.5 md:p-3',
+        'group relative flex flex-col gap-2 rounded-lg border border-border/70 border-l-[3px] bg-card p-2.5 text-left shadow-sm transition-shadow md:gap-2.5 md:p-3',
         metaDestino.borda,
         isDragging
           ? 'opacity-60 shadow-md'
@@ -368,10 +356,10 @@ function CardPedidoKanbanComponent({
           onClick={(event) => event.stopPropagation()}
           onDragStart={handleNativeDragStart}
           onTouchStart={handleTouchStartLocal}
-          className="mt-0.5 flex size-7 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground/45 transition-colors hover:bg-accent hover:text-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:opacity-0 md:group-hover:opacity-100"
+          className="-ml-1 flex size-10 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground/45 transition-colors hover:bg-accent hover:text-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:opacity-0 md:group-hover:opacity-100"
           aria-label="Arrastar pedido"
         >
-          <GripVertical strokeWidth={1.6} className="size-3.5" />
+          <GripVertical strokeWidth={1.6} className="size-4" />
         </button>
 
         <div className="min-w-0 flex-1">
@@ -402,7 +390,7 @@ function CardPedidoKanbanComponent({
 
         <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
           <span data-onboarding={ehPedidoDemo ? 'painel-menu' : undefined}>
-            <MenuAcoes items={itensMenu} ariaLabel="Ações do pedido" triggerClassName="h-7 w-7" />
+            <MenuAcoes items={itensMenu} ariaLabel="Ações do pedido" triggerClassName="size-10 md:size-8" />
           </span>
         </div>
       </div>
@@ -454,7 +442,7 @@ function CardPedidoKanbanComponent({
           type="button"
           disabled={atualizandoStatus}
           data-onboarding={ehPedidoDemo ? 'painel-avancar' : undefined}
-          className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border/70 bg-muted/60 text-xs font-semibold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-70 md:h-10 md:text-[13px]"
+          className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-md border border-border/70 bg-muted/60 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-70 md:h-10"
           onClick={(event) => {
             event.stopPropagation()
             onAvancarStatus(pedido)

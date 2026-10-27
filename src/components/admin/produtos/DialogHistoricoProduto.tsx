@@ -3,31 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import {
-  Activity,
-  ArrowDown,
-  BarChart3,
-  CalendarDays,
-  Eye,
-  EyeOff,
-  History,
-  PackageCheck,
-  PackageMinus,
-  PackagePlus,
-  Tag,
-  TrendingDown,
-  TrendingUp,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Pulse as Activity, ArrowDown, ChartBar as BarChart3, CalendarDots as CalendarDays, Eye, EyeSlash as EyeOff, ClockCounterClockwise as History, Package as PackageCheck, BoxArrowUp as PackageMinus, BoxArrowDown as PackagePlus, Tag, TrendDown as TrendingDown, TrendUp as TrendingUp } from '@phosphor-icons/react'
+import { type Icon } from '@phosphor-icons/react'
 import { CategoryScale, Chart as ChartJS, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip as ChartTooltip } from 'chart.js'
 import { Line } from 'react-chartjs-2'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Botao, Chip, Entrada, Esqueleto, Gaveta, Segmentos, Selo } from '@/components/admin/ui'
 import { supabase } from '@/lib/supabase'
 
 ChartJS.register(CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, ChartTooltip)
@@ -177,7 +157,7 @@ const tituloEvento: Record<string, string> = {
   controle_estoque_alterado: 'Controle de estoque alterado',
 }
 
-const iconeEvento = (tipo: string): LucideIcon => {
+const iconeEvento = (tipo: string): Icon => {
   if (tipo.startsWith('promocao')) return Tag
   if (tipo.includes('ocultado')) return EyeOff
   if (tipo.includes('publicado')) return Eye
@@ -288,29 +268,29 @@ function ConteudoTimeline({
   }, {}), [eventos])
 
   if (carregando) {
-    return <div className="space-y-4 p-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>
+    return <div className="space-y-4"><Esqueleto className="h-24 w-full rounded-xl" /><Esqueleto className="h-24 w-full rounded-xl" /><Esqueleto className="h-24 w-full rounded-xl" /></div>
   }
-  if (erro) return <p className="p-4 text-sm text-destructive">{erro}</p>
+  if (erro) return <p className="text-sm text-destructive" role="alert">{erro}</p>
   if (eventos.length === 0) {
     return (
-      <div className="m-4 rounded-xl border border-dashed border-border bg-muted/30 p-5 text-sm text-muted-foreground">
-        Histórico de alterações disponível a partir de 22/08/2026. Não há ocorrências nesta seleção.
+      <div className="rounded-xl border border-dashed border-border/70 p-5 text-sm text-muted-foreground">
+        Nada registrado nesta seleção. O histórico começa em 22/08/2026.
       </div>
     )
   }
 
   return (
-    <div className="space-y-5 p-4">
+    <div className="space-y-5">
       {Object.entries(grupos).map(([data, eventosDoDia]) => (
         <section key={data}>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{data}</h3>
+          <h3 className="mb-2 text-sm font-medium text-muted-foreground">{data}</h3>
           <ol className="space-y-3 border-l border-border/80 pl-4">
             {eventosDoDia.map((evento) => {
               const Icone = iconeEvento(evento.tipo)
               const alteracoes = alteracoesDoEvento(evento)
               const delta = numero(evento.metadados?.delta_estoque)
               return (
-                <li key={evento.id} className="relative rounded-xl border border-border/70 bg-card p-3 shadow-sm">
+                <li key={evento.id} className="relative rounded-xl border border-border/70 bg-card p-3">
                   <span className="absolute -left-[1.65rem] top-4 flex size-5 items-center justify-center rounded-full border border-border bg-background">
                     <Icone className="size-3 text-primary" aria-hidden="true" />
                   </span>
@@ -322,13 +302,13 @@ function ConteudoTimeline({
                       </p>
                     </div>
                     {evento.categoria === 'estoque' && delta !== 0 ? (
-                      <Badge variant={delta > 0 ? 'success' : 'secondary'} className="font-mono tabular-nums">
+                      <Selo tom={delta > 0 ? 'sucesso' : 'neutro'} className="shrink-0 tabular-nums">
                         {delta > 0 ? '+' : ''}{delta} un.
-                      </Badge>
+                      </Selo>
                     ) : null}
                   </div>
                   {evento.pedido_id ? (
-                    <Link href={`/admin/pedidos?pedido=${evento.pedido_id}`} className="mt-2 inline-flex text-xs font-medium text-primary hover:underline">
+                    <Link href={`/admin/pedidos?pedido=${evento.pedido_id}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-primary hover:underline md:min-h-0 md:pt-1">
                       Pedido #{evento.pedido_numero || evento.pedido_id.slice(0, 8)}
                     </Link>
                   ) : null}
@@ -350,9 +330,9 @@ function ConteudoTimeline({
         </section>
       ))}
       {cursorProximo ? (
-        <Button type="button" variant="outline" className="w-full" onClick={aoCarregarMais} disabled={carregandoMais}>
-          {carregandoMais ? 'Carregando…' : 'Carregar mais'}
-        </Button>
+        <Botao variante="contorno" className="h-11 w-full" onClick={aoCarregarMais} carregando={carregandoMais}>
+          Carregar mais
+        </Botao>
       ) : null}
     </div>
   )
@@ -365,9 +345,9 @@ function ConteudoInteligencia({ carregando, erro, inteligencia, periodo }: {
   periodo: string
 }) {
   if (carregando) {
-    return <div className="space-y-3 p-4"><Skeleton className="h-28 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-24 w-full" /></div>
+    return <div className="space-y-3"><Esqueleto className="rounded-xl h-28 w-full" /><Esqueleto className="rounded-xl h-40 w-full" /><Esqueleto className="rounded-xl h-24 w-full" /></div>
   }
-  if (erro) return <p className="p-4 text-sm text-destructive">{erro}</p>
+  if (erro) return <p className="text-sm text-destructive" role="alert">{erro}</p>
   const dados = inteligencia || {}
   const precos = dados.precos || []
   const dadosGrafico = {
@@ -398,9 +378,9 @@ function ConteudoInteligencia({ carregando, erro, inteligencia, periodo }: {
   ]
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4">
       <section>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Desempenho · {periodo}</p>
+        <p className="mb-2 text-sm font-medium text-muted-foreground">{periodo}</p>
         <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-border/70">
           {metricas.map(([rotulo, valor]) => <div key={rotulo} className="border-b border-r border-border/70 p-3 odd:border-r-0 sm:odd:border-r">
             <dt className="text-[11px] text-muted-foreground">{rotulo}</dt><dd className="mt-1 font-mono text-sm font-semibold tabular-nums">{valor}</dd>
@@ -423,7 +403,7 @@ function ConteudoInteligencia({ carregando, erro, inteligencia, periodo }: {
       <section>
         <div className="mb-2 flex items-center gap-2"><Tag className="size-4 text-primary" /><h3 className="text-sm font-semibold">Promoções</h3></div>
         {(dados.promocoes || []).length > 0 ? <div className="space-y-2">{dados.promocoes?.map((promocao) => <article key={promocao.id} className="rounded-xl border border-border/70 p-3 text-sm">
-          <div className="flex items-start justify-between gap-2"><p className="font-semibold">{new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(promocao.iniciada_em))} — {promocao.encerrada_em ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(promocao.encerrada_em)) : 'ativa'}</p><Badge variant="warning">-{numero(promocao.desconto_percentual).toFixed(0)}%</Badge></div>
+          <div className="flex items-start justify-between gap-2"><p className="font-semibold">{new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(promocao.iniciada_em))} — {promocao.encerrada_em ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(promocao.encerrada_em)) : 'ativa'}</p><Selo tom="alerta" className="shrink-0">-{numero(promocao.desconto_percentual).toFixed(0)}%</Selo></div>
           <p className="mt-1 text-muted-foreground">De {formatarDinheiro(promocao.preco_normal)} por {formatarDinheiro(promocao.preco_promocional)}</p>
           <p className="mt-2 text-xs text-muted-foreground">{numero(promocao.pedidos)} pedidos · {numero(promocao.unidades)} unidades · {formatarDinheiro(promocao.faturamento)} faturados</p>
         </article>)}</div> : <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">Nenhuma promoção auditada neste período.</p>}
@@ -553,43 +533,95 @@ export function DialogHistoricoProduto({ aberto, onAbertoChange, produto }: Prop
     '7d': 'Últimos 7 dias', '30d': 'Últimos 30 dias', '90d': 'Últimos 90 dias', mes: 'Este mês', personalizado: 'Período selecionado',
   }[periodo]
 
-  return (
-    <Dialog open={aberto} onOpenChange={onAbertoChange}>
-      <DialogContent className="flex h-[min(92dvh,54rem)] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl" aria-describedby="historico-produto-descricao">
-        {produto ? <>
-          <DialogHeader className="shrink-0 border-b border-border/70 px-5 pb-4 pt-5 pr-12 text-left sm:px-6">
-            <DialogTitle className="sr-only">Histórico do produto</DialogTitle>
-            <DialogDescription id="historico-produto-descricao" className="sr-only">Linha do tempo e inteligência comercial do produto.</DialogDescription>
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
-                {produto.imagem_url ? <Image src={produto.imagem_url} alt="" fill className="object-cover" /> : <PackageCheck className="m-3 size-6 text-muted-foreground" aria-hidden="true" />}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Histórico do produto</p>
-                <h2 className="truncate text-lg font-semibold tracking-tight">{produto.nome}</h2>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                  <span>{produto.categoria}</span><span>·</span><span className="font-mono font-semibold text-foreground">{formatarDinheiro(produto.preco)}</span><span>·</span><span>Estoque: {produto.estoque_quantidade ?? 0}</span>
-                  <Badge variant={produto.disponivel ? 'success' : 'secondary'} className="h-5">{produto.disponivel ? 'Disponível' : 'Oculto'}</Badge>
-                  {produto.preco_original && produto.preco_original > produto.preco ? <Badge variant="warning" className="h-5">Em promoção</Badge> : null}
-                </div>
-              </div>
-            </div>
-          </DialogHeader>
+  const [aba, setAba] = useState<'timeline' | 'relatorios'>('timeline')
 
-          <Tabs defaultValue="timeline" className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 border-b border-border/70 px-4 py-2 sm:hidden"><TabsList className="grid w-full grid-cols-2"><TabsTrigger value="timeline">Timeline</TabsTrigger><TabsTrigger value="relatorios">Relatórios</TabsTrigger></TabsList></div>
-            <div className="hidden min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
-              <section className="flex min-h-0 flex-col border-r border-border/70">
-                <div className="shrink-0 border-b border-border/70 px-4 py-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Timeline</h3><ToggleGroup type="single" value={categoria} onValueChange={(valor) => valor && setCategoria(valor as CategoriaTimeline)} size="sm" className="justify-start overflow-x-auto"><ToggleGroupItem value="tudo">Tudo</ToggleGroupItem><ToggleGroupItem value="alteracao">Alterações</ToggleGroupItem><ToggleGroupItem value="estoque">Estoque</ToggleGroupItem><ToggleGroupItem value="comercial">Vendas</ToggleGroupItem><ToggleGroupItem value="promocao">Promoções</ToggleGroupItem><ToggleGroupItem value="visibilidade">Visibilidade</ToggleGroupItem></ToggleGroup></div></div>
-                <div className="min-h-0 flex-1 overflow-y-auto"><ConteudoTimeline carregando={carregando} erro={erroTimeline} eventos={eventos} cursorProximo={cursorProximo} aoCarregarMais={carregarMais} carregandoMais={carregandoMais} /></div>
-              </section>
-              <section className="flex min-h-0 flex-col"><div className="shrink-0 border-b border-border/70 px-4 py-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Desempenho</h3><ToggleGroup type="single" value={periodo} onValueChange={(valor) => valor && setPeriodo(valor as Periodo)} size="sm"><ToggleGroupItem value="7d">7d</ToggleGroupItem><ToggleGroupItem value="30d">30d</ToggleGroupItem><ToggleGroupItem value="90d">90d</ToggleGroupItem><ToggleGroupItem value="mes">Mês</ToggleGroupItem><ToggleGroupItem value="personalizado" aria-label="Período personalizado"><CalendarDays className="size-3.5" /></ToggleGroupItem></ToggleGroup></div>{periodo === 'personalizado' ? <div className="mt-2 grid grid-cols-2 gap-2"><Input type="date" value={inicioPersonalizado} onChange={(evento) => setInicioPersonalizado(evento.target.value)} aria-label="Início do período" /><Input type="date" value={fimPersonalizado} onChange={(evento) => setFimPersonalizado(evento.target.value)} aria-label="Fim do período" /></div> : null}</div><div className="min-h-0 flex-1 overflow-y-auto"><ConteudoInteligencia carregando={carregandoInteligencia} erro={erroInteligencia} inteligencia={inteligencia} periodo={legendaPeriodo} /></div></section>
+  return (
+    <Gaveta
+      aberto={aberto}
+      aoFechar={() => onAbertoChange(false)}
+      largura="xl"
+      titulo={produto ? produto.nome : 'Histórico do produto'}
+      descricao={
+        <span id="historico-produto-descricao">
+          Histórico do produto
+          {produto ? ` · ${produto.categoria} · ${formatarDinheiro(produto.preco)} · ${produto.estoque_quantidade ?? 0} em estoque` : ''}
+        </span>
+      }
+      cabecalho={
+        produto ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {produto.imagem_url ? (
+                <span className="relative mr-1 size-8 shrink-0 overflow-hidden rounded-md bg-muted">
+                  <Image src={produto.imagem_url} alt="" fill sizes="32px" className="object-cover" />
+                </span>
+              ) : null}
+              <Selo tom={produto.disponivel ? 'sucesso' : 'neutro'}>{produto.disponivel ? 'No cardápio' : 'Fora do cardápio'}</Selo>
+              {produto.preco_original && produto.preco_original > produto.preco ? <Selo tom="alerta">Em promoção</Selo> : null}
             </div>
-            <TabsContent value="timeline" className="min-h-0 flex-1 overflow-y-auto lg:hidden"><div className="border-b border-border/70 px-4 py-3"><ToggleGroup type="single" value={categoria} onValueChange={(valor) => valor && setCategoria(valor as CategoriaTimeline)} size="sm" className="justify-start overflow-x-auto"><ToggleGroupItem value="tudo">Tudo</ToggleGroupItem><ToggleGroupItem value="alteracao">Alterações</ToggleGroupItem><ToggleGroupItem value="estoque">Estoque</ToggleGroupItem><ToggleGroupItem value="comercial">Vendas</ToggleGroupItem><ToggleGroupItem value="promocao">Promoções</ToggleGroupItem><ToggleGroupItem value="visibilidade">Visibilidade</ToggleGroupItem></ToggleGroup></div><ConteudoTimeline carregando={carregando} erro={erroTimeline} eventos={eventos} cursorProximo={cursorProximo} aoCarregarMais={carregarMais} carregandoMais={carregandoMais} /></TabsContent>
-            <TabsContent value="relatorios" className="min-h-0 flex-1 overflow-y-auto lg:hidden"><div className="border-b border-border/70 px-4 py-3"><ToggleGroup type="single" value={periodo} onValueChange={(valor) => valor && setPeriodo(valor as Periodo)} size="sm"><ToggleGroupItem value="7d">7d</ToggleGroupItem><ToggleGroupItem value="30d">30d</ToggleGroupItem><ToggleGroupItem value="90d">90d</ToggleGroupItem><ToggleGroupItem value="mes">Mês</ToggleGroupItem><ToggleGroupItem value="personalizado"><CalendarDays className="size-3.5" /></ToggleGroupItem></ToggleGroup>{periodo === 'personalizado' ? <div className="mt-2 grid grid-cols-2 gap-2"><Input type="date" value={inicioPersonalizado} onChange={(evento) => setInicioPersonalizado(evento.target.value)} aria-label="Início do período" /><Input type="date" value={fimPersonalizado} onChange={(evento) => setFimPersonalizado(evento.target.value)} aria-label="Fim do período" /></div> : null}</div><ConteudoInteligencia carregando={carregandoInteligencia} erro={erroInteligencia} inteligencia={inteligencia} periodo={legendaPeriodo} /></TabsContent>
-          </Tabs>
-        </> : null}
-      </DialogContent>
-    </Dialog>
+            <Segmentos
+              rotuloAcessivel="O que ver"
+              valor={aba}
+              aoMudar={setAba}
+              opcoes={[
+                { valor: 'timeline', rotulo: 'O que mudou' },
+                { valor: 'relatorios', rotulo: 'Vendas e estoque' },
+              ]}
+            />
+            {aba === 'timeline' ? (
+              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 scrollbar-hide md:-mx-6 md:px-6" role="group" aria-label="Filtrar por tipo">
+                {OPCOES_CATEGORIA.map((opcao) => (
+                  <Chip key={opcao.valor} ativo={categoria === opcao.valor} onClick={() => setCategoria(opcao.valor)}>
+                    {opcao.rotulo}
+                  </Chip>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="-mx-4 flex gap-2 overflow-x-auto px-4 scrollbar-hide md:-mx-6 md:px-6" role="group" aria-label="Período">
+                  {OPCOES_PERIODO.map((opcao) => (
+                    <Chip key={opcao.valor} ativo={periodo === opcao.valor} onClick={() => setPeriodo(opcao.valor)}>
+                      {opcao.valor === 'personalizado' ? <CalendarDays className="size-4" /> : null}
+                      {opcao.rotulo}
+                    </Chip>
+                  ))}
+                </div>
+                {periodo === 'personalizado' ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Entrada type="date" value={inicioPersonalizado} onChange={(evento) => setInicioPersonalizado(evento.target.value)} aria-label="Início do período" />
+                    <Entrada type="date" value={fimPersonalizado} onChange={(evento) => setFimPersonalizado(evento.target.value)} aria-label="Fim do período" />
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        ) : undefined
+      }
+    >
+      {produto ? (
+        aba === 'timeline' ? (
+          <ConteudoTimeline carregando={carregando} erro={erroTimeline} eventos={eventos} cursorProximo={cursorProximo} aoCarregarMais={carregarMais} carregandoMais={carregandoMais} />
+        ) : (
+          <ConteudoInteligencia carregando={carregandoInteligencia} erro={erroInteligencia} inteligencia={inteligencia} periodo={legendaPeriodo} />
+        )
+      ) : null}
+    </Gaveta>
   )
 }
+
+const OPCOES_CATEGORIA: { valor: CategoriaTimeline; rotulo: string }[] = [
+  { valor: 'tudo', rotulo: 'Tudo' },
+  { valor: 'alteracao', rotulo: 'Alterações' },
+  { valor: 'estoque', rotulo: 'Estoque' },
+  { valor: 'comercial', rotulo: 'Vendas' },
+  { valor: 'promocao', rotulo: 'Promoções' },
+  { valor: 'visibilidade', rotulo: 'Visibilidade' },
+]
+
+const OPCOES_PERIODO: { valor: Periodo; rotulo: string }[] = [
+  { valor: '7d', rotulo: '7 dias' },
+  { valor: '30d', rotulo: '30 dias' },
+  { valor: '90d', rotulo: '90 dias' },
+  { valor: 'mes', rotulo: 'Este mês' },
+  { valor: 'personalizado', rotulo: 'Escolher datas' },
+]

@@ -99,7 +99,7 @@ export function BarraPagamentoParcial({
         )}
       </div>
       {!quitado && (
-        <p className={cn('text-[10px] font-medium uppercase tracking-wide', corPrincipal.textoSecundario)}>
+        <p className={cn('text-[11px] font-medium', corPrincipal.textoSecundario)}>
           Saldo devedor · {formatarMoeda(saldoDevedor)}
           {temCrediario && ` · ${formatarMoeda(crediarioEfetivo)} em fiado`}
         </p>

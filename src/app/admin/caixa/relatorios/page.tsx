@@ -1,13 +1,8 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { motion } from 'framer-motion'
-import { 
-  BarChart3, TrendingUp, TrendingDown, Calendar, Users, DollarSign,
-  ArrowLeft, Download, Filter, RefreshCw, Wallet, ShoppingCart
-} from 'lucide-react'
-import { format, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, 
-  eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, subMonths, isWithinInterval } from 'date-fns'
+import { ChartBar, Users, ArrowLeft } from '@phosphor-icons/react'
+import { format, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 import {
@@ -26,7 +21,19 @@ import {
 import { Bar, Line, Doughnut } from 'react-chartjs-2'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
-import { Input } from '@/components/ui/input'
+import {
+  CabecalhoPagina,
+  Campo,
+  Cartao,
+  Entrada,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Secao,
+  Segmentos,
+} from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { MovimentacaoCaixa, Funcionario, CategoriaCaixa } from '@/lib/tipos-caixa'
 
@@ -281,222 +288,193 @@ export default function RelatoriosCaixaPage() {
     }
   }
 
-  if (carregando) {
-    return (
-      <ProtectedRoute><AdminLayout>
-        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-          <RefreshCw className="w-10 h-10 text-purple-600 animate-spin" />
-          <p className="text-zinc-600 dark:text-zinc-400">Carregando relatórios...</p>
-        </div>
-      </AdminLayout></ProtectedRoute>
-    )
-  }
+  const moeda = (valor: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)
+
+  const resumoCards = [
+    {
+      rotulo: 'Entradas',
+      valor: moeda(estatisticas.totalEntradas),
+      detalhe: `${estatisticas.quantidadeEntradas} movimentações`,
+      classe: 'text-emerald-700 dark:text-emerald-400',
+    },
+    {
+      rotulo: 'Saídas',
+      valor: moeda(estatisticas.totalSaidas),
+      detalhe: `${estatisticas.quantidadeSaidas} movimentações`,
+      classe: 'text-destructive',
+    },
+    {
+      rotulo: 'Saldo do período',
+      valor: moeda(estatisticas.saldoPeriodo),
+      detalhe: 'Entradas menos saídas',
+      classe: estatisticas.saldoPeriodo >= 0 ? 'text-foreground' : 'text-destructive',
+    },
+    {
+      rotulo: 'Funcionários',
+      valor: String(gastosPorFuncionario.length),
+      detalhe: 'Com gastos no período',
+      classe: 'text-foreground',
+    },
+  ]
 
   return (
     <ProtectedRoute><AdminLayout>
-      <div className="space-y-4 min-w-0">
-        {/* Cabeçalho */}
-        <div className="flex items-center gap-3">
-          <Link href="/admin/caixa" className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0">
-            <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+      <Pagina className="min-w-0">
+        <div className="flex items-start gap-2">
+          <Link
+            href="/admin/caixa"
+            aria-label="Voltar para o caixa"
+            className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <ArrowLeft className="size-5" />
           </Link>
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-              <BarChart3 className="w-6 h-6 text-purple-600 flex-shrink-0" />
-              Relatórios
-            </h1>
-            <p className="text-zinc-600 dark:text-zinc-400 text-sm truncate">
-              Análise de movimentações
-            </p>
+          <div className="min-w-0 flex-1">
+            <CabecalhoPagina
+              titulo="Relatórios do caixa"
+              descricao={`${format(new Date(dataInicio), 'dd/MM/yyyy', { locale: ptBR })} até ${format(new Date(dataFim), 'dd/MM/yyyy', { locale: ptBR })}`}
+            />
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 sm:p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4 text-zinc-500" />
-            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Período:</span>
-          </div>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {[
-              { valor: '7dias', label: '7 dias' },
-              { valor: '30dias', label: '30 dias' },
-              { valor: 'semana', label: 'Semana' },
-              { valor: 'mes', label: 'Mês' },
-              { valor: 'personalizado', label: 'Custom' }
-            ].map(p => (
-              <button
-                key={p.valor}
-                onClick={() => setPeriodo(p.valor as Periodo)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                  periodo === p.valor
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          {periodo === 'personalizado' && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-3">
-              <Input
-                type="date"
-                value={dataInicio}
-                onChange={(e) => setDataInicio(e.target.value)}
-                className="h-9 w-full sm:w-auto"
-              />
-              <span className="text-zinc-500 text-sm">até</span>
-              <Input
-                type="date"
-                value={dataFim}
-                onChange={(e) => setDataFim(e.target.value)}
-                className="h-9 w-full sm:w-auto"
-              />
-            </div>
-          )}
-          <p className="text-xs text-zinc-500">
-            {format(new Date(dataInicio), "dd/MM/yyyy", { locale: ptBR })} até {format(new Date(dataFim), "dd/MM/yyyy", { locale: ptBR })}
-          </p>
-        </div>
-
-        {/* Cards de Resumo */}
-        <div className="grid grid-cols-2 gap-3">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="text-xs text-zinc-500">Entradas</span>
-            </div>
-            <p className="text-base sm:text-lg font-bold text-green-600">R$ {estatisticas.totalEntradas.toFixed(2)}</p>
-            <p className="text-xs text-zinc-500">{estatisticas.quantidadeEntradas} mov.</p>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingDown className="w-4 h-4 text-red-600" />
-              <span className="text-xs text-zinc-500">Saídas</span>
-            </div>
-            <p className="text-base sm:text-lg font-bold text-red-600">R$ {estatisticas.totalSaidas.toFixed(2)}</p>
-            <p className="text-xs text-zinc-500">{estatisticas.quantidadeSaidas} mov.</p>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className="w-4 h-4 text-amber-600" />
-              <span className="text-xs text-zinc-500">Saldo</span>
-            </div>
-            <p className={`text-base sm:text-lg font-bold ${estatisticas.saldoPeriodo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              R$ {estatisticas.saldoPeriodo.toFixed(2)}
-            </p>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-blue-600" />
-              <span className="text-xs text-zinc-500">Funcionários</span>
-            </div>
-            <p className="text-base sm:text-lg font-bold text-blue-600">{gastosPorFuncionario.length}</p>
-          </motion.div>
-        </div>
-
-        {/* Gráficos */}
         <div className="space-y-3">
-          {/* Evolução Diária */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">Evolução Diária</h3>
-            <div className="h-40 sm:h-56">
-              <Line data={dadosEvolucaoDiaria} options={opcoesLinha} />
-            </div>
-          </motion.div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {/* Gastos por Categoria */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">Categoria</h3>
-              <div className="h-40 sm:h-48">
-                <Bar data={dadosCategoriasSaida} options={opcoesGrafico} />
-              </div>
-            </motion.div>
-
-            {/* Gastos por Funcionário */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">Funcionário</h3>
-              <div className="h-40 sm:h-48">
-                {gastosPorFuncionario.length > 0 ? (
-                  <Bar data={dadosGastosFuncionario} options={opcoesGrafico} />
-                ) : (
-                  <div className="h-full flex items-center justify-center text-zinc-500 text-xs">
-                    Sem dados
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        </div>
-
-        {/* Tabela Detalhada por Funcionário */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-white">Por Funcionário</h3>
-          </div>
-          {gastosPorFuncionario.length > 0 ? (
-            <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {gastosPorFuncionario.map((func, i) => {
-                const funcionarioInfo = funcionarios.find(f => f.nome === func.nome)
-                return (
-                  <div key={i} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                        <Users className="w-4 h-4 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-zinc-900 dark:text-white text-sm">{func.nome}</p>
-                        <p className="text-xs text-zinc-500">{funcionarioInfo?.cargo || '-'} • {func.quantidade} mov.</p>
-                      </div>
-                    </div>
-                    <p className="font-bold text-red-600">R$ {func.total.toFixed(2)}</p>
-                  </div>
-                )
-              })}
-              <div className="p-4 bg-zinc-50 dark:bg-zinc-800 flex justify-between">
-                <span className="font-semibold text-zinc-700 dark:text-zinc-300">Total:</span>
-                <span className="font-bold text-red-600">R$ {gastosPorFuncionario.reduce((acc, f) => acc + f.total, 0).toFixed(2)}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="p-8 text-center text-zinc-500 text-sm">
-              Nenhum gasto com funcionário no período
+          <Segmentos
+            rotuloAcessivel="Período"
+            valor={periodo}
+            aoMudar={setPeriodo}
+            opcoes={[
+              { valor: '7dias', rotulo: '7 dias' },
+              { valor: '30dias', rotulo: '30 dias' },
+              { valor: 'semana', rotulo: 'Esta semana' },
+              { valor: 'mes', rotulo: 'Este mês' },
+              { valor: 'personalizado', rotulo: 'Escolher datas' },
+            ]}
+          />
+          {periodo === 'personalizado' && (
+            <div className="grid grid-cols-2 gap-2 sm:max-w-md">
+              <Campo rotulo="De" htmlFor="relatorio-inicio">
+                <Entrada id="relatorio-inicio" type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+              </Campo>
+              <Campo rotulo="Até" htmlFor="relatorio-fim">
+                <Entrada id="relatorio-fim" type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+              </Campo>
             </div>
           )}
-        </motion.div>
+        </div>
 
-        {/* Tabela Detalhada por Categoria */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-white">Por Categoria</h3>
-          </div>
-          <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            {movimentacoesPorCategoria.map((cat, i) => {
-              const totalGeral = cat.tipo === 'entrada' ? estatisticas.totalEntradas : estatisticas.totalSaidas
-              const percentual = totalGeral > 0 ? (cat.total / totalGeral) * 100 : 0
-              return (
-                <div key={i} className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.cor }} />
-                    <div>
-                      <p className="font-medium text-zinc-900 dark:text-white text-sm">{cat.nome}</p>
-                      <p className="text-xs text-zinc-500">{percentual.toFixed(1)}% do total</p>
-                    </div>
-                  </div>
-                  <p className={`font-bold ${cat.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
-                    R$ {cat.total.toFixed(2)}
-                  </p>
+        {carregando ? (
+          <ListaCarregando linhas={4} />
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              {resumoCards.map((card) => (
+                <Cartao key={card.rotulo} className="p-3">
+                  <p className="truncate text-[13px] text-muted-foreground">{card.rotulo}</p>
+                  <p className={cn('mt-0.5 truncate text-lg font-semibold tabular-nums', card.classe)}>{card.valor}</p>
+                  <p className="truncate text-[13px] text-muted-foreground">{card.detalhe}</p>
+                </Cartao>
+              ))}
+            </div>
+
+            <Secao titulo="Entradas e saídas por dia">
+              <Cartao className="p-3">
+                <div className="h-48 sm:h-60">
+                  <Line data={dadosEvolucaoDiaria} options={opcoesLinha} />
                 </div>
-              )
-            })}
-          </div>
-        </motion.div>
-      </div>
+              </Cartao>
+            </Secao>
+
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-3">
+              <Secao titulo="Gastos por categoria">
+                <Cartao className="p-3">
+                  <div className="h-44 sm:h-48">
+                    <Bar data={dadosCategoriasSaida} options={opcoesGrafico} />
+                  </div>
+                </Cartao>
+              </Secao>
+              <Secao titulo="Gastos por funcionário">
+                <Cartao className="p-3">
+                  <div className="h-44 sm:h-48">
+                    {gastosPorFuncionario.length > 0 ? (
+                      <Bar data={dadosGastosFuncionario} options={opcoesGrafico} />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        Sem gastos com funcionários
+                      </div>
+                    )}
+                  </div>
+                </Cartao>
+              </Secao>
+            </div>
+
+            <Secao
+              titulo="Por funcionário"
+              acao={
+                gastosPorFuncionario.length > 0 ? (
+                  <span className="text-sm font-semibold tabular-nums text-destructive">
+                    {moeda(gastosPorFuncionario.reduce((acc, f) => acc + f.total, 0))}
+                  </span>
+                ) : null
+              }
+            >
+              {gastosPorFuncionario.length > 0 ? (
+                <Lista>
+                  {gastosPorFuncionario.map((func, i) => {
+                    const funcionarioInfo = funcionarios.find(f => f.nome === func.nome)
+                    return (
+                      <li key={i} className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-foreground">{func.nome}</p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {funcionarioInfo?.cargo || 'Sem cargo'} · {func.quantidade} {func.quantidade === 1 ? 'movimentação' : 'movimentações'}
+                          </p>
+                        </div>
+                        <p className="shrink-0 font-semibold tabular-nums text-destructive">{moeda(func.total)}</p>
+                      </li>
+                    )
+                  })}
+                </Lista>
+              ) : (
+                <ListaVazia icone={<Users />} titulo="Nenhum gasto com funcionário no período" />
+              )}
+            </Secao>
+
+            <Secao titulo="Por categoria">
+              {movimentacoesPorCategoria.length > 0 ? (
+                <Lista>
+                  {movimentacoesPorCategoria.map((cat, i) => {
+                    const totalGeral = cat.tipo === 'entrada' ? estatisticas.totalEntradas : estatisticas.totalSaidas
+                    const percentual = totalGeral > 0 ? (cat.total / totalGeral) * 100 : 0
+                    return (
+                      <li key={i} className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: cat.cor }} aria-hidden />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-foreground">{cat.nome}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {percentual.toFixed(1)}% das {cat.tipo === 'entrada' ? 'entradas' : 'saídas'}
+                            </p>
+                          </div>
+                        </div>
+                        <p
+                          className={cn(
+                            'shrink-0 font-semibold tabular-nums',
+                            cat.tipo === 'entrada' ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive',
+                          )}
+                        >
+                          {moeda(cat.total)}
+                        </p>
+                      </li>
+                    )
+                  })}
+                </Lista>
+              ) : (
+                <ListaVazia icone={<ChartBar />} titulo="Nenhuma movimentação no período" descricao="Escolha outro período acima." />
+              )}
+            </Secao>
+          </>
+        )}
+      </Pagina>
     </AdminLayout></ProtectedRoute>
   )
 }

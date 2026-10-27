@@ -1,7 +1,7 @@
 'use client'
 
-import { Banknote, CreditCard, Minus, Plus, QrCode, Wallet, X } from 'lucide-react'
-import { ModalSheet } from '@/components/ui/modal-sheet'
+import { Money as Banknote, CreditCard, Minus, Plus, QrCode, Wallet } from '@phosphor-icons/react'
+import { Botao, Gaveta } from '@/components/admin/ui'
 import { cn } from '@/lib/utils'
 import {
   construirSnapshotItensPagos,
@@ -58,102 +58,92 @@ export function ModalFormaPagamentoItens({
   const itemUnico = itens.length === 1 ? itens[0] : null
 
   return (
-    <ModalSheet
-      open={aberto}
-      onOpenChange={(open) => {
-        if (!open) onFechar()
-      }}
-      title="Forma de pagamento"
-      showCloseButton={false}
-      className="sm:max-w-sm"
+    <Gaveta
+      aberto={aberto}
+      aoFechar={onFechar}
+      titulo="Forma de pagamento"
+      descricao={
+        <span className="block truncate">
+          {itemUnico
+            ? `${totalUnidadesSelecionadas}/${itensQuantidadeModal[0]?.maxQtd || 0} ${itemUnico.nome}`
+            : `${itens.length} ${itens.length === 1 ? 'item' : 'itens'} · ${totalUnidadesSelecionadas} ${
+                totalUnidadesSelecionadas === 1 ? 'unidade' : 'unidades'
+              }`}{' '}
+          · <span className="font-mono tabular-nums">R$ {totalDescricao.toFixed(2)}</span>
+        </span>
+      }
+      bloqueada={processando}
     >
-      <div className="p-5">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-base font-semibold text-foreground">Forma de pagamento</h3>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {itemUnico
-                ? `${totalUnidadesSelecionadas}/${itensQuantidadeModal[0]?.maxQtd || 0} ${itemUnico.nome}`
-                : `${itens.length} ${itens.length === 1 ? 'item' : 'itens'} · ${totalUnidadesSelecionadas} ${
-                    totalUnidadesSelecionadas === 1 ? 'unidade' : 'unidades'
-                  }`}{' '}
-              · R$ {totalDescricao.toFixed(2)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onFechar}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <X strokeWidth={1.6} className="size-4" />
-          </button>
-        </div>
-
-        <div className="mb-4 max-h-[42vh] space-y-2 overflow-y-auto pr-1">
+      <div className="space-y-5">
+        <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70 bg-card">
           {itensQuantidadeModal.map(({ item, maxQtd, qtdEscolhida, valor }) => (
-            <div key={`pagamento-qtd-${item.id}`} className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="block truncate text-xs font-semibold text-foreground">{item.nome}</span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
-                    {maxQtd} {maxQtd === 1 ? 'unidade restante' : 'unidades restantes'} · R$ {valor.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onQuantidadeChange(item.id, qtdEscolhida - 1)}
-                    disabled={qtdEscolhida <= 1 || maxQtd <= 1 || processando}
-                    aria-label={`Diminuir quantidade de ${item.nome}`}
-                    className="flex size-9 items-center justify-center rounded-md border border-border/70 bg-card text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <Minus strokeWidth={1.8} className="size-4" />
-                  </button>
-                  <span className="min-w-[2.5ch] text-center font-mono text-lg font-semibold tabular-nums text-foreground">{qtdEscolhida}</span>
-                  <button
-                    type="button"
-                    onClick={() => onQuantidadeChange(item.id, qtdEscolhida + 1)}
-                    disabled={qtdEscolhida >= maxQtd || processando}
-                    aria-label={`Aumentar quantidade de ${item.nome}`}
-                    className="flex size-9 items-center justify-center rounded-md border border-border/70 bg-card text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <Plus strokeWidth={1.8} className="size-4" />
-                  </button>
-                </div>
+            <li key={`pagamento-qtd-${item.id}`} className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <div className="min-w-0">
+                <span className="block truncate text-sm font-medium text-foreground">{item.nome}</span>
+                <span className="block truncate text-[13px] text-muted-foreground">
+                  {maxQtd} {maxQtd === 1 ? 'unidade restante' : 'unidades restantes'} ·{' '}
+                  <span className="font-mono tabular-nums">R$ {valor.toFixed(2)}</span>
+                </span>
               </div>
-            </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Botao
+                  variante="contorno"
+                  tamanho="icone"
+                  className="size-11"
+                  onClick={() => onQuantidadeChange(item.id, qtdEscolhida - 1)}
+                  disabled={qtdEscolhida <= 1 || maxQtd <= 1 || processando}
+                  aria-label={`Diminuir quantidade de ${item.nome}`}
+                >
+                  <Minus />
+                </Botao>
+                <span className="min-w-[2.5ch] text-center font-mono text-lg font-semibold tabular-nums text-foreground">{qtdEscolhida}</span>
+                <Botao
+                  variante="contorno"
+                  tamanho="icone"
+                  className="size-11"
+                  onClick={() => onQuantidadeChange(item.id, qtdEscolhida + 1)}
+                  disabled={qtdEscolhida >= maxQtd || processando}
+                  aria-label={`Aumentar quantidade de ${item.nome}`}
+                >
+                  <Plus />
+                </Botao>
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
 
-        <div className="grid grid-cols-2 gap-2">
-          {OPCOES_FORMA.filter((opcao) => formasDisponiveis.includes(opcao.id)).map((opcao) => {
-            const IconeForma = opcao.icone
-            const isCrediario = opcao.cor === 'red'
-            return (
-              <button
-                key={opcao.id}
-                type="button"
-                disabled={processando || totalUnidadesSelecionadas <= 0}
-                onClick={() =>
-                  onSelecionarForma(
-                    opcao.id,
-                    construirSnapshotItensPagos(itens, quantidadesPorItem, quantidadesDisponiveis),
-                  )
-                }
-                className={cn(
-                  'flex min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-card p-3 text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50',
-                  isCrediario
-                    ? 'hover:border-red-400/70 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 dark:hover:text-red-300'
-                    : 'hover:border-emerald-400/70 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300',
-                )}
-              >
-                <IconeForma strokeWidth={1.6} className="size-5" />
-                <span className="text-xs font-medium">{opcao.label}</span>
-              </button>
-            )
-          })}
+        <div>
+          <p className="mb-2 text-sm font-medium text-foreground">Como vai pagar?</p>
+          <div className="grid grid-cols-2 gap-2">
+            {OPCOES_FORMA.filter((opcao) => formasDisponiveis.includes(opcao.id)).map((opcao) => {
+              const IconeForma = opcao.icone
+              const isCrediario = opcao.cor === 'red'
+              return (
+                <button
+                  key={opcao.id}
+                  type="button"
+                  disabled={processando || totalUnidadesSelecionadas <= 0}
+                  onClick={() =>
+                    onSelecionarForma(
+                      opcao.id,
+                      construirSnapshotItensPagos(itens, quantidadesPorItem, quantidadesDisponiveis),
+                    )
+                  }
+                  className={cn(
+                    'flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl border border-border/70 bg-card p-3 text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50',
+                    isCrediario
+                      ? 'hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive'
+                      : 'hover:border-primary/50 hover:bg-primary/10 hover:text-primary',
+                  )}
+                >
+                  <IconeForma className="size-5" />
+                  <span className="text-sm font-medium">{opcao.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
-    </ModalSheet>
+    </Gaveta>
   )
 }

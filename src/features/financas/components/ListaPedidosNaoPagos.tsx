@@ -1,11 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, Receipt } from 'lucide-react'
+import { Receipt } from '@phosphor-icons/react'
 import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
-import { Badge } from '@/components/ui/badge'
+import { Selo } from '@/components/admin/ui'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { cn } from '@/lib/utils'
 import type { PedidoFinanceiro } from '../types'
 import { formatarData, formatarMoeda } from '../lib/formatadores'
 import { PaginacaoFinancas } from './PaginacaoFinancas'
@@ -49,18 +48,18 @@ export function ListaPedidosNaoPagos({ pedidos, total, carregando }: ListaPedido
 
   return (
     <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
-      <div className="flex flex-col gap-1 border-b border-border/70 px-5 py-3.5 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-1 border-b border-border/70 px-4 py-3.5 sm:flex-row sm:items-start md:px-5 sm:justify-between">
         <div>
-          <h3 className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
-            <Receipt strokeWidth={1.6} className="h-4 w-4 text-muted-foreground" />
+          <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <Receipt className="h-4 w-4 text-muted-foreground" />
             Pedidos não pagos
           </h3>
           <p className="text-xs text-muted-foreground">
             {pedidos.length} {pedidos.length === 1 ? 'pedido aguardando' : 'pedidos aguardando'} pagamento.
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">A receber</p>
+        <div className="sm:text-right">
+          <p className="text-[13px] text-muted-foreground">A receber</p>
           <p className="text-lg font-semibold tabular-nums text-foreground">{formatarMoeda(total)}</p>
         </div>
       </div>
@@ -70,50 +69,34 @@ export function ListaPedidosNaoPagos({ pedidos, total, carregando }: ListaPedido
       ) : pedidos.length === 0 ? (
         <ListaVazia
           className="border-0 bg-transparent py-10"
-          icone={<Receipt className="h-6 w-6" strokeWidth={1.6} />}
+          icone={<Receipt className="h-6 w-6" />}
           titulo="Tudo em dia"
           descricao="Nenhum pedido pendente de pagamento."
         />
       ) : (
         <>
-          <div className="flex flex-col gap-3 px-3 py-3 md:hidden">
+          <ul className="divide-y divide-border/70 md:hidden">
             {paginaItens.map((p) => (
-              <div
-                key={p.id}
-                className={cn(
-                  'rounded-lg border border-[#F1F1F1] bg-[#f7f9fa] p-4 shadow-sm',
-                  'dark:border-[#2D2F2F] dark:bg-[#161717]',
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
-                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.6} aria-hidden />
-                    <span className="text-sm font-medium tabular-nums">{formatarData(p.created_at)}</span>
-                  </div>
-                  <span className="text-base font-semibold tabular-nums text-foreground">
-                    {formatarMoeda(Number(p.total ?? 0))}
-                  </span>
+              <li key={p.id} className="flex min-h-16 items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    #{p.numero_pedido} · {p.nome_cliente || 'Sem nome'}
+                  </p>
+                  <p className="mt-0.5 text-[13px] tabular-nums text-muted-foreground">
+                    {formatarData(p.created_at)} · {ROTULOS_STATUS[p.status] ?? p.status}
+                  </p>
                 </div>
-                <p className="mt-3 truncate text-sm font-semibold text-foreground">
-                  #{p.numero_pedido} · {p.nome_cliente || '—'}
-                </p>
-                <div className="mt-2">
-                  <Badge
-                    variant="outline"
-                    className="rounded-full border-border/70 bg-background/50 font-medium text-muted-foreground"
-                  >
-                    {ROTULOS_STATUS[p.status] ?? p.status}
-                  </Badge>
-                </div>
-              </div>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                  {formatarMoeda(Number(p.total ?? 0))}
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
 
           <div className="hidden max-h-[360px] overflow-auto md:block">
             <Table>
               <TableHeader className="sticky top-0 bg-card">
                 <TableRow className="border-border/60 hover:bg-transparent">
-                  <TableHead className="w-10 text-xs font-medium text-muted-foreground" aria-label="Tipo" />
                   <TableHead className="text-xs font-medium text-muted-foreground">Pedido</TableHead>
                   <TableHead className="text-xs font-medium text-muted-foreground">Cliente</TableHead>
                   <TableHead className="text-xs font-medium text-muted-foreground">
@@ -126,25 +109,13 @@ export function ListaPedidosNaoPagos({ pedidos, total, carregando }: ListaPedido
               <TableBody>
                 {paginaItens.map((p) => (
                   <TableRow key={p.id} className="border-border/60">
-                    <TableCell className="py-3 pl-3">
-                      <div className="flex h-10 items-center border-l-4 border-amber-500">
-                        <span className="pl-3">
-                          <Receipt className="h-4 w-4 text-amber-600" aria-hidden />
-                        </span>
-                      </div>
-                    </TableCell>
                     <TableCell className="whitespace-nowrap py-3 text-sm font-medium tabular-nums text-foreground">
                       #{p.numero_pedido}
                     </TableCell>
                     <TableCell className="py-3 text-sm text-foreground">{p.nome_cliente || '—'}</TableCell>
                     <TableCell className="py-3">
                       <div className="flex w-full justify-center">
-                        <Badge
-                          variant="outline"
-                          className="rounded-full border-border/70 bg-background/50 font-medium text-muted-foreground"
-                        >
-                          {ROTULOS_STATUS[p.status] ?? p.status}
-                        </Badge>
+                        <Selo>{ROTULOS_STATUS[p.status] ?? p.status}</Selo>
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap py-3 text-xs tabular-nums text-muted-foreground">

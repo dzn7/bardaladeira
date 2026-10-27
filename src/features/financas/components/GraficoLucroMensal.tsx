@@ -74,14 +74,14 @@ export function GraficoLucroMensal({ dados, carregando }: GraficoLucroMensalProp
   )
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card p-5">
+    <div className="rounded-xl border border-border/70 bg-card p-4 md:p-5">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-base font-semibold tracking-tight text-foreground">Resultado mensal</h3>
+          <h3 className="text-base font-semibold text-foreground">Resultado mensal</h3>
           <p className="text-sm text-muted-foreground">12 meses encerrando no período selecionado.</p>
         </div>
         <div className="text-right">
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Acumulado</p>
+          <p className="text-[13px] text-muted-foreground">Acumulado</p>
           <p className="text-lg font-semibold tabular-nums text-foreground">{formatarMoeda(totalResultado)}</p>
         </div>
       </div>

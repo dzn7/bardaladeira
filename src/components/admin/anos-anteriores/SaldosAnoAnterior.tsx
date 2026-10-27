@@ -1,11 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
-import { 
-  Wallet, TrendingUp, TrendingDown, Calendar, 
-  ArrowUpCircle, ArrowDownCircle, Clock, RefreshCw, Eye, X
-} from 'lucide-react'
+import { Wallet, ArrowCircleUp as ArrowUpCircle, ArrowCircleDown as ArrowDownCircle, CaretRight } from '@phosphor-icons/react'
+import { Cartao, Esqueleto, Gaveta, Lista, ListaCarregando, ListaVazia, Secao, Selo } from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { supabase } from '@/lib/supabase'
@@ -152,255 +150,133 @@ export default function SaldosAnoAnterior({ ano }: SaldosAnoAnteriorProps) {
     ? movimentacoes.filter(m => m.caixa_id === caixaSelecionado)
     : []
 
+  const caixaAtual = caixaSelecionado ? caixas.find(c => c.id === caixaSelecionado) : undefined
+
   if (carregando) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <RefreshCw className="w-8 h-8 text-amber-600 animate-spin" />
-        <p className="text-zinc-600 dark:text-zinc-400">Carregando saldos de {ano}...</p>
+      <div className="space-y-3" aria-busy="true" aria-label={`Carregando saldos de ${ano}`}>
+        <Esqueleto className="h-[76px] w-full rounded-xl" />
+        <ListaCarregando linhas={4} />
       </div>
     )
   }
 
+  const kpis = [
+    { rotulo: 'Entradas', valor: resumo.totalEntradas, ajuda: `Total de ${ano}`, classe: 'text-emerald-600 dark:text-emerald-400' },
+    { rotulo: 'Saídas', valor: resumo.totalSaidas, ajuda: `Total de ${ano}`, classe: 'text-destructive' },
+    { rotulo: 'Média por dia', valor: resumo.mediaFaturamentoDiario, ajuda: `${resumo.totalCaixasFechados} caixas fechados` },
+    { rotulo: 'Saldo final', valor: resumo.saldoFinal, ajuda: `31/12/${ano}` },
+  ]
+
   return (
-    <div className="space-y-6">
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <ArrowUpCircle className="w-5 h-5" />
-            <span className="text-sm font-medium">Entradas</span>
+    <div className="space-y-5">
+      <Cartao className="grid grid-cols-2 md:grid-cols-4">
+        {kpis.map((kpi, indice) => (
+          <div
+            key={kpi.rotulo}
+            className={cn(
+              'min-w-0 px-4 py-3.5 md:px-5 md:py-4',
+              indice % 2 === 1 && 'border-l border-border/70',
+              indice >= 2 && 'border-t border-border/70 md:border-t-0',
+              indice === 2 && 'md:border-l',
+            )}
+          >
+            <p className="truncate text-[13px] text-muted-foreground">{kpi.rotulo}</p>
+            <p className={cn('mt-1 truncate text-lg font-semibold tabular-nums tracking-tight text-foreground md:text-xl', kpi.classe)}>
+              R$ {formatarMoeda(kpi.valor)}
+            </p>
+            <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{kpi.ajuda}</p>
           </div>
-          <p className="text-2xl font-bold">R$ {formatarMoeda(resumo.totalEntradas)}</p>
-          <p className="text-green-100 text-xs mt-1">Total do ano {ano}</p>
-        </motion.div>
+        ))}
+      </Cartao>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 text-white"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <ArrowDownCircle className="w-5 h-5" />
-            <span className="text-sm font-medium">Saídas</span>
-          </div>
-          <p className="text-2xl font-bold">R$ {formatarMoeda(resumo.totalSaidas)}</p>
-          <p className="text-red-100 text-xs mt-1">Total do ano {ano}</p>
-        </motion.div>
+      <p className="px-1 text-sm text-muted-foreground">
+        Melhor dia: <span className="font-medium tabular-nums text-foreground">R$ {formatarMoeda(resumo.maiorFaturamento)}</span>
+        {' · '}
+        Pior dia: <span className="font-medium tabular-nums text-foreground">R$ {formatarMoeda(resumo.menorFaturamento)}</span>
+      </p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5" />
-            <span className="text-sm font-medium">Média Diária</span>
-          </div>
-          <p className="text-2xl font-bold">R$ {formatarMoeda(resumo.mediaFaturamentoDiario)}</p>
-          <p className="text-amber-100 text-xs mt-1">{resumo.totalCaixasFechados} caixas</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <Wallet className="w-5 h-5" />
-            <span className="text-sm font-medium">Saldo Final</span>
-          </div>
-          <p className="text-2xl font-bold">R$ {formatarMoeda(resumo.saldoFinal)}</p>
-          <p className="text-blue-100 text-xs mt-1">31/12/{ano}</p>
-        </motion.div>
-      </div>
-
-      {/* Estatísticas adicionais */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-green-600" />
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">Maior Faturamento</span>
-          </div>
-          <p className="text-xl font-bold text-zinc-900 dark:text-white">
-            R$ {formatarMoeda(resumo.maiorFaturamento)}
-          </p>
-        </div>
-
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="w-5 h-5 text-red-600" />
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">Menor Faturamento</span>
-          </div>
-          <p className="text-xl font-bold text-zinc-900 dark:text-white">
-            R$ {formatarMoeda(resumo.menorFaturamento)}
-          </p>
-        </div>
-      </div>
-
-      {/* Lista de Caixas */}
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
-          <h3 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-amber-600" />
-            Histórico de Caixas - {ano}
-          </h3>
-        </div>
-
+      <Secao titulo={`Caixas de ${ano}`} descricao="Toque em um caixa para ver as movimentações.">
         {caixas.length === 0 ? (
-          <div className="p-12 text-center">
-            <Wallet className="w-16 h-16 mx-auto text-zinc-300 dark:text-zinc-700 mb-4" />
-            <p className="text-zinc-500 dark:text-zinc-400">Nenhum caixa encontrado em {ano}</p>
-          </div>
+          <ListaVazia icone={<Wallet />} titulo={`Nenhum caixa em ${ano}`} />
         ) : (
-          <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
-            {caixas.map((caixa, index) => (
-              <motion.div
-                key={caixa.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: index * 0.05 }}
-                className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg ${
-                      caixa.status === 'aberto' 
-                        ? 'bg-green-100 dark:bg-green-900/30' 
-                        : 'bg-zinc-100 dark:bg-zinc-800'
-                    }`}>
-                      <Calendar className={`w-5 h-5 ${
-                        caixa.status === 'aberto' ? 'text-green-600' : 'text-zinc-500'
-                      }`} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-zinc-900 dark:text-white">
+          <Lista>
+            {caixas.map((caixa) => (
+              <li key={caixa.id}>
+                <button
+                  type="button"
+                  onClick={() => setCaixaSelecionado(caixa.id)}
+                  className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="font-medium tabular-nums text-foreground">
                         {format(new Date(caixa.data_abertura), "dd/MM/yyyy", { locale: ptBR })}
                       </p>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {caixa.responsavel_abertura}
-                      </p>
+                      {caixa.status === 'aberto' && <Selo tom="sucesso">Aberto</Selo>}
+                      {caixa.diferenca && caixa.diferenca !== 0 ? (
+                        <Selo tom={caixa.diferenca > 0 ? 'sucesso' : 'perigo'}>
+                          Diferença R$ {formatarMoeda(caixa.diferenca)}
+                        </Selo>
+                      ) : null}
                     </div>
+                    <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                      {caixa.responsavel_abertura}
+                      <span className="tabular-nums">
+                        {' · '}+R$ {formatarMoeda(caixa.total_entradas)} · −R$ {formatarMoeda(caixa.total_saidas)}
+                      </span>
+                    </p>
                   </div>
-
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Entradas</p>
-                      <p className="font-medium text-green-600">
-                        R$ {formatarMoeda(caixa.total_entradas)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Saídas</p>
-                      <p className="font-medium text-red-600">
-                        R$ {formatarMoeda(caixa.total_saidas)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Saldo</p>
-                      <p className="font-bold text-amber-600">
-                        R$ {formatarMoeda(caixa.valor_fechamento || caixa.saldo_esperado)}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setCaixaSelecionado(caixa.id)}
-                      className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-                    >
-                      <Eye className="w-5 h-5 text-zinc-500" />
-                    </button>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[13px] text-muted-foreground">Saldo</p>
+                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                      R$ {formatarMoeda(caixa.valor_fechamento || caixa.saldo_esperado)}
+                    </p>
                   </div>
-                </div>
-
-                {caixa.diferenca && caixa.diferenca !== 0 && (
-                  <div className={`mt-2 text-sm ${
-                    caixa.diferenca > 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    Diferença: R$ {formatarMoeda(caixa.diferenca)}
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modal de Detalhes */}
-      {caixaSelecionado && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/50 z-50"
-            onClick={() => setCaixaSelecionado(null)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
-            >
-              <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
-                <h3 className="font-bold text-zinc-900 dark:text-white">
-                  Movimentações do Caixa
-                </h3>
-                <button 
-                  onClick={() => setCaixaSelecionado(null)}
-                  className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
-                >
-                  <X className="w-5 h-5" />
+                  <CaretRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 </button>
-              </div>
-              
-              <div className="p-4 max-h-[60vh] overflow-y-auto">
-                {movimentacoesDoCaixa.length === 0 ? (
-                  <p className="text-center text-zinc-500 py-8">
-                    Nenhuma movimentação encontrada
+              </li>
+            ))}
+          </Lista>
+        )}
+      </Secao>
+
+      <Gaveta
+        aberto={caixaSelecionado !== null}
+        aoFechar={() => setCaixaSelecionado(null)}
+        largura="lg"
+        titulo="Movimentações do caixa"
+        descricao={caixaAtual ? `${format(new Date(caixaAtual.data_abertura), "dd/MM/yyyy", { locale: ptBR })} · ${caixaAtual.responsavel_abertura}` : undefined}
+      >
+        {movimentacoesDoCaixa.length === 0 ? (
+          <ListaVazia icone={<Wallet />} titulo="Nenhuma movimentação neste caixa" />
+        ) : (
+          <Lista>
+            {movimentacoesDoCaixa.map((mov) => (
+              <li key={mov.id} className="flex items-center gap-3 px-4 py-3">
+                {mov.tipo === 'entrada'
+                  ? <ArrowUpCircle className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Entrada" />
+                  : <ArrowDownCircle className="size-5 shrink-0 text-destructive" aria-label="Saída" />
+                }
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {mov.descricao || mov.categoria?.nome || 'Movimentação'}
                   </p>
-                ) : (
-                  <div className="space-y-2">
-                    {movimentacoesDoCaixa.map((mov) => (
-                      <div 
-                        key={mov.id}
-                        className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${
-                            mov.tipo === 'entrada' 
-                              ? 'bg-green-100 dark:bg-green-900/30' 
-                              : 'bg-red-100 dark:bg-red-900/30'
-                          }`}>
-                            {mov.tipo === 'entrada' 
-                              ? <ArrowUpCircle className="w-4 h-4 text-green-600" />
-                              : <ArrowDownCircle className="w-4 h-4 text-red-600" />
-                            }
-                          </div>
-                          <div>
-                            <p className="font-medium text-zinc-900 dark:text-white text-sm">
-                              {mov.descricao || mov.categoria?.nome || 'Movimentação'}
-                            </p>
-                            <p className="text-xs text-zinc-500">
-                              {format(new Date(mov.created_at), "dd/MM HH:mm", { locale: ptBR })}
-                            </p>
-                          </div>
-                        </div>
-                        <span className={`font-bold ${
-                          mov.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {mov.tipo === 'entrada' ? '+' : '-'} R$ {formatarMoeda(mov.valor)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        </>
-      )}
+                  <p className="text-[13px] tabular-nums text-muted-foreground">
+                    {format(new Date(mov.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                  </p>
+                </div>
+                <span className={cn(
+                  'shrink-0 text-sm font-semibold tabular-nums',
+                  mov.tipo === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
+                )}>
+                  {mov.tipo === 'entrada' ? '+' : '−'} R$ {formatarMoeda(mov.valor)}
+                </span>
+              </li>
+            ))}
+          </Lista>
+        )}
+      </Gaveta>
     </div>
   )
 }

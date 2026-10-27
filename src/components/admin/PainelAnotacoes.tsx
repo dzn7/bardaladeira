@@ -3,28 +3,26 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Plus,
-  Search,
-  RefreshCw,
-  Trash2,
-  Edit2,
-  Check,
-  X,
-  Pin,
-  PinOff,
-  GripVertical,
-  StickyNote,
-  Lightbulb,
-  AlertTriangle,
-  Bell,
-  CheckSquare,
-  Filter
-} from 'lucide-react'
+import { Plus, MagnifyingGlass as Search, ArrowsClockwise as RefreshCw, Trash as Trash2, Check, PushPin as Pin, PushPinSlash as PinOff, Note as StickyNote, Lightbulb, Warning as AlertTriangle, Bell, CheckSquare } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { format, formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import {
+  AreaTexto,
+  Botao,
+  CabecalhoPagina,
+  Campo,
+  Chip,
+  Entrada,
+  Gaveta,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Segmentos,
+  Selecao,
+  useConfirmar,
+} from '@/components/admin/ui'
 
 // Tipos
 type CorAnotacao = 'amarelo' | 'verde' | 'azul' | 'rosa' | 'roxo' | 'laranja'
@@ -134,120 +132,81 @@ function CardAnotacao({ anotacao, onEditar, onExcluir, onToggleConcluida, onTogg
   const cores = CORES_POSTIT[anotacao.cor]
   const IconeCategoria = ICONES_CATEGORIA[anotacao.categoria]
   const prioridade = LABELS_PRIORIDADE[anotacao.prioridade]
+  const classeAcao =
+    'flex size-11 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10 md:size-9'
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      whileHover={{ scale: 1.02, rotate: anotacao.fixada ? 0 : 1 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
       className={cn(
-        'relative rounded-lg border-2 p-4 shadow-lg transition-all duration-200 cursor-pointer group',
+        'group relative flex flex-col rounded-xl border p-4',
         cores.fundo,
         cores.borda,
-        cores.sombra,
         anotacao.concluida && 'opacity-60'
       )}
-      onClick={() => onEditar(anotacao)}
     >
-      {/* Indicador de fixado */}
-      {anotacao.fixada && (
-        <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center shadow-md">
-          <Pin className="w-3 h-3 text-white" />
+      <button
+        type="button"
+        onClick={() => onEditar(anotacao)}
+        className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <IconeCategoria className={cn('size-4 shrink-0', cores.texto)} />
+            <h3 className={cn('truncate text-sm font-semibold', cores.texto, anotacao.concluida && 'line-through')}>
+              {anotacao.titulo}
+            </h3>
+          </div>
+          {anotacao.fixada && <Pin weight="fill" className={cn('size-4 shrink-0', cores.texto)} aria-label="Fixada" />}
         </div>
-      )}
-
-      {/* Cabeçalho */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <IconeCategoria className={cn('w-4 h-4 flex-shrink-0', cores.texto)} />
-          <h3 className={cn(
-            'font-semibold text-sm truncate',
-            cores.texto,
-            anotacao.concluida && 'line-through'
-          )}>
-            {anotacao.titulo}
-          </h3>
-        </div>
-        <span className={cn('px-1.5 py-0.5 text-[10px] font-medium rounded', prioridade.cor)}>
-          {prioridade.texto}
-        </span>
-      </div>
-
-      {/* Conteúdo */}
-      {anotacao.conteudo && (
-        <p className={cn(
-          'text-xs mb-3 line-clamp-3',
-          cores.texto,
-          'opacity-80',
-          anotacao.concluida && 'line-through'
-        )}>
-          {anotacao.conteudo}
+        {anotacao.conteudo && (
+          <p className={cn('mt-2 line-clamp-3 text-sm opacity-80', cores.texto, anotacao.concluida && 'line-through')}>
+            {anotacao.conteudo}
+          </p>
+        )}
+        <p className={cn('mt-3 text-xs opacity-70', cores.texto)}>
+          {LABELS_CATEGORIA[anotacao.categoria]} · Prioridade {prioridade.texto.toLowerCase()} · {formatarTempoRelativo(anotacao.created_at)}
         </p>
-      )}
+      </button>
 
-      {/* Rodapé */}
-      <div className="flex items-center justify-between">
-        <span className={cn('text-[10px]', cores.texto, 'opacity-60')}>
-          {formatarTempoRelativo(anotacao.created_at)}
-        </span>
-        <span className={cn(
-          'px-1.5 py-0.5 text-[10px] font-medium rounded',
-          cores.texto,
-          'bg-black/10 dark:bg-white/10'
-        )}>
-          {LABELS_CATEGORIA[anotacao.categoria]}
-        </span>
-      </div>
-
-      {/* Ações (visíveis no hover) */}
-      <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="-mb-2 -mr-2 mt-1 flex justify-end gap-0.5 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleConcluida(anotacao)
-          }}
-          className={cn(
-            'p-1.5 rounded-full transition-colors',
-            anotacao.concluida
-              ? 'bg-emerald-500 text-white'
-              : 'bg-white/80 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
-          )}
+          type="button"
+          onClick={() => onToggleConcluida(anotacao)}
+          className={classeAcao}
+          aria-label={anotacao.concluida ? 'Marcar como pendente' : 'Marcar como concluída'}
           title={anotacao.concluida ? 'Marcar como pendente' : 'Marcar como concluída'}
         >
-          <Check className="w-3 h-3" />
+          <Check className="size-4" weight={anotacao.concluida ? 'bold' : 'regular'} />
         </button>
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleFixada(anotacao)
-          }}
-          className={cn(
-            'p-1.5 rounded-full transition-colors',
-            'bg-white/80 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 hover:bg-amber-100 dark:hover:bg-amber-900/30'
-          )}
-          title={anotacao.fixada ? 'Desafixar' : 'Fixar'}
+          type="button"
+          onClick={() => onToggleFixada(anotacao)}
+          className={classeAcao}
+          aria-label={anotacao.fixada ? 'Desafixar' : 'Fixar no topo'}
+          title={anotacao.fixada ? 'Desafixar' : 'Fixar no topo'}
         >
-          {anotacao.fixada ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+          {anotacao.fixada ? <PinOff className="size-4" /> : <Pin className="size-4" />}
         </button>
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onExcluir(anotacao.id)
-          }}
-          className="p-1.5 rounded-full bg-white/80 dark:bg-zinc-800/80 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+          type="button"
+          onClick={() => onExcluir(anotacao.id)}
+          className={cn(classeAcao, 'text-red-600 hover:text-red-700 dark:text-red-400')}
+          aria-label="Excluir anotação"
           title="Excluir"
         >
-          <Trash2 className="w-3 h-3" />
+          <Trash2 className="size-4" />
         </button>
       </div>
     </motion.div>
   )
 }
 
-// Modal de Edição/Criação
+// Gaveta de edição/criação
 interface ModalAnotacaoProps {
   anotacao: Anotacao | null
   aberto: boolean
@@ -279,10 +238,10 @@ function ModalAnotacao({ anotacao, aberto, onFechar, onSalvar, carregando }: Mod
     }
   }, [anotacao, aberto])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault()
     if (!titulo.trim()) {
-      toast.error('O título é obrigatório')
+      toast.error('Escreva um título')
       return
     }
     onSalvar({
@@ -295,187 +254,88 @@ function ModalAnotacao({ anotacao, aberto, onFechar, onSalvar, carregando }: Mod
     })
   }
 
-  if (!aberto) return null
-
   return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/50 z-40 animate-fadeIn"
-        onClick={onFechar}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="fixed inset-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 
-                   sm:w-full sm:max-w-lg bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl z-50 
-                   flex flex-col max-h-[90vh] overflow-hidden"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-            {anotacao ? 'Editar Anotação' : 'Nova Anotação'}
-          </h2>
-          <button
-            onClick={onFechar}
-            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-zinc-500" />
-          </button>
-        </div>
+    <Gaveta
+      aberto={aberto}
+      aoFechar={onFechar}
+      bloqueada={carregando}
+      titulo={anotacao ? 'Editar anotação' : 'Nova anotação'}
+      rodape={
+        <>
+          <Botao variante="contorno" onClick={onFechar} disabled={carregando}>Cancelar</Botao>
+          <Botao onClick={() => handleSubmit()} carregando={carregando} disabled={!titulo.trim()}>
+            {anotacao ? 'Salvar' : 'Criar anotação'}
+          </Botao>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <Campo rotulo="Título" htmlFor="anotacao-titulo">
+          <Entrada
+            id="anotacao-titulo"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Ex.: Comprar gelo"
+            autoComplete="off"
+          />
+        </Campo>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Título */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-              Título *
-            </label>
-            <input
-              type="text"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Digite o título da anotação..."
-              className="w-full px-3 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800 
-                       border border-zinc-200 dark:border-zinc-700 rounded-lg
-                       text-zinc-900 dark:text-white placeholder-zinc-500
-                       focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-              autoFocus
-            />
+        <Campo rotulo="Detalhes" htmlFor="anotacao-conteudo" opcional>
+          <AreaTexto
+            id="anotacao-conteudo"
+            value={conteudo}
+            onChange={(e) => setConteudo(e.target.value)}
+            rows={4}
+          />
+        </Campo>
+
+        <Campo rotulo="Tipo">
+          <Segmentos
+            opcoes={(Object.keys(LABELS_CATEGORIA) as CategoriaAnotacao[]).map((cat) => ({ valor: cat, rotulo: LABELS_CATEGORIA[cat] }))}
+            valor={categoria}
+            aoMudar={setCategoria}
+            rotuloAcessivel="Tipo da anotação"
+          />
+        </Campo>
+
+        <Campo rotulo="Prioridade">
+          <Segmentos
+            opcoes={(Object.keys(LABELS_PRIORIDADE) as PrioridadeAnotacao[]).map((prio) => ({ valor: prio, rotulo: LABELS_PRIORIDADE[prio].texto }))}
+            valor={prioridade}
+            aoMudar={setPrioridade}
+            rotuloAcessivel="Prioridade"
+          />
+        </Campo>
+
+        <Campo rotulo="Cor">
+          <div role="radiogroup" aria-label="Cor da anotação" className="flex flex-wrap gap-2">
+            {(Object.keys(CORES_POSTIT) as CorAnotacao[]).map((corOpcao) => (
+              <button
+                key={corOpcao}
+                type="button"
+                role="radio"
+                aria-checked={cor === corOpcao}
+                aria-label={corOpcao}
+                onClick={() => setCor(corOpcao)}
+                className={cn(
+                  'size-11 rounded-lg border transition-shadow',
+                  CORES_POSTIT[corOpcao].fundo,
+                  CORES_POSTIT[corOpcao].borda,
+                  cor === corOpcao && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+                )}
+              />
+            ))}
           </div>
-
-          {/* Conteúdo */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-              Conteúdo
-            </label>
-            <textarea
-              value={conteudo}
-              onChange={(e) => setConteudo(e.target.value)}
-              placeholder="Descreva os detalhes..."
-              rows={4}
-              className="w-full px-3 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800 
-                       border border-zinc-200 dark:border-zinc-700 rounded-lg
-                       text-zinc-900 dark:text-white placeholder-zinc-500
-                       focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent
-                       resize-none"
-            />
-          </div>
-
-          {/* Cor */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Cor do Post-it
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {(Object.keys(CORES_POSTIT) as CorAnotacao[]).map((corOpcao) => (
-                <button
-                  key={corOpcao}
-                  type="button"
-                  onClick={() => setCor(corOpcao)}
-                  className={cn(
-                    'w-8 h-8 rounded-lg border-2 transition-all',
-                    CORES_POSTIT[corOpcao].fundo,
-                    cor === corOpcao
-                      ? 'ring-2 ring-offset-2 ring-amber-500 scale-110'
-                      : 'hover:scale-105'
-                  )}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Categoria */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Categoria
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {(Object.keys(LABELS_CATEGORIA) as CategoriaAnotacao[]).map((cat) => {
-                const Icone = ICONES_CATEGORIA[cat]
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategoria(cat)}
-                    className={cn(
-                      'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all',
-                      categoria === cat
-                        ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-500 text-amber-700 dark:text-amber-300'
-                        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
-                    )}
-                  >
-                    <Icone className="w-3.5 h-3.5" />
-                    {LABELS_CATEGORIA[cat]}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Prioridade */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Prioridade
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {(Object.keys(LABELS_PRIORIDADE) as PrioridadeAnotacao[]).map((prio) => (
-                <button
-                  key={prio}
-                  type="button"
-                  onClick={() => setPrioridade(prio)}
-                  className={cn(
-                    'px-3 py-1.5 text-xs font-medium rounded-lg border transition-all',
-                    prioridade === prio
-                      ? cn(LABELS_PRIORIDADE[prio].cor, 'ring-2 ring-offset-1 ring-amber-500')
-                      : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
-                  )}
-                >
-                  {LABELS_PRIORIDADE[prio].texto}
-                </button>
-              ))}
-            </div>
-          </div>
-        </form>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-zinc-200 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={onFechar}
-            className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 
-                     hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={carregando || !titulo.trim()}
-            className="px-4 py-2 text-sm font-medium text-white bg-amber-600 
-                     hover:bg-amber-700 rounded-lg transition-colors
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     flex items-center gap-2"
-          >
-            {carregando ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Check className="w-4 h-4" />
-                {anotacao ? 'Salvar' : 'Criar'}
-              </>
-            )}
-          </button>
-        </div>
-      </motion.div>
-    </>
+        </Campo>
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+      </form>
+    </Gaveta>
   )
 }
 
 // Componente principal
 export function PainelAnotacoes() {
+  const confirmar = useConfirmar()
   const [anotacoes, setAnotacoes] = useState<Anotacao[]>([])
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -557,6 +417,13 @@ export function PainelAnotacoes() {
 
   // Excluir anotação
   const excluirAnotacao = async (id: string) => {
+    const ok = await confirmar({
+      titulo: 'Excluir anotação?',
+      descricao: 'Não dá para desfazer.',
+      confirmar: 'Excluir',
+      perigo: true,
+    })
+    if (!ok) return
     try {
       const { error } = await supabase
         .from('anotacoes_painel')
@@ -707,147 +574,101 @@ export function PainelAnotacoes() {
     setModalAberto(true)
   }
 
+  const filtrosStatus: { valor: typeof filtroStatus; rotulo: string }[] = [
+    { valor: 'todas', rotulo: 'Todas' },
+    { valor: 'pendentes', rotulo: 'Pendentes' },
+    { valor: 'concluidas', rotulo: 'Concluídas' },
+  ]
+
   return (
-    <div className="space-y-4">
-      {/* Cabeçalho */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-            Painel de Anotações
-          </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {estatisticas.total} anotações • {estatisticas.pendentes} pendentes
-            {estatisticas.urgentes > 0 && (
-              <span className="text-red-500 font-medium"> • {estatisticas.urgentes} urgentes</span>
-            )}
-          </p>
-        </div>
+    <Pagina>
+      <CabecalhoPagina
+        titulo="Anotações"
+        descricao={
+          <>
+            {estatisticas.total} anotações · {estatisticas.pendentes} pendentes
+            {estatisticas.urgentes > 0 && <span className="text-destructive"> · {estatisticas.urgentes} urgentes</span>}
+          </>
+        }
+        acoes={
+          <>
+            <Botao variante="contorno" onClick={() => void carregarAnotacoes()} disabled={carregando}>
+              <RefreshCw className={cn(carregando && 'animate-spin')} />
+              Atualizar
+            </Botao>
+            <Botao onClick={abrirNovaAnotacao}>
+              <Plus />
+              Nova anotação
+            </Botao>
+          </>
+        }
+      />
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            onClick={carregarAnotacoes}
-            disabled={carregando}
-            className="p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors
-                     border border-zinc-200 dark:border-zinc-700"
-            title="Atualizar"
-          >
-            <RefreshCw className={cn('w-4 h-4 text-zinc-600 dark:text-zinc-400', carregando && 'animate-spin')} />
-          </button>
-          <button
-            onClick={abrirNovaAnotacao}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white 
-                     bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Nova Anotação</span>
-            <span className="sm:hidden">Nova</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Busca */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Buscar anotações..."
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Entrada
+              type="search"
+              placeholder="Buscar anotação"
+              aria-label="Buscar anotação"
               value={termoBusca}
               onChange={(e) => setTermoBusca(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800 
-                       border border-zinc-200 dark:border-zinc-700 rounded-lg
-                       text-zinc-900 dark:text-white placeholder-zinc-500
-                       focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="pl-9"
             />
-            {termoBusca && (
-              <button
-                onClick={() => setTermoBusca('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
           </div>
-
-          {/* Filtro de categoria */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-            <select
+          <div className="sm:w-52">
+            <Selecao
+              aria-label="Filtrar por tipo"
               value={filtroCategoria}
               onChange={(e) => setFiltroCategoria(e.target.value as CategoriaAnotacao | 'todas')}
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800 
-                       border border-zinc-200 dark:border-zinc-700 rounded-lg
-                       text-zinc-900 dark:text-white
-                       focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent
-                       appearance-none cursor-pointer"
             >
-              <option value="todas">Todas as Categorias</option>
+              <option value="todas">Todos os tipos</option>
               {(Object.keys(LABELS_CATEGORIA) as CategoriaAnotacao[]).map((cat) => (
                 <option key={cat} value={cat}>{LABELS_CATEGORIA[cat]}</option>
               ))}
-            </select>
+            </Selecao>
           </div>
-
-          {/* Filtro de status */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-            <select
-              value={filtroStatus}
-              onChange={(e) => setFiltroStatus(e.target.value as 'todas' | 'pendentes' | 'concluidas')}
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800 
-                       border border-zinc-200 dark:border-zinc-700 rounded-lg
-                       text-zinc-900 dark:text-white
-                       focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent
-                       appearance-none cursor-pointer"
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {filtrosStatus.map((filtro) => (
+            <Chip
+              key={filtro.valor}
+              ativo={filtroStatus === filtro.valor}
+              onClick={() => setFiltroStatus(filtro.valor)}
+              className="h-11 md:h-9"
             >
-              <option value="todas">Todos os Status</option>
-              <option value="pendentes">Pendentes</option>
-              <option value="concluidas">Concluídas</option>
-            </select>
-          </div>
+              {filtro.rotulo}
+            </Chip>
+          ))}
         </div>
       </div>
 
-      {/* Grid de Anotações */}
       {carregando && anotacoes.length === 0 ? (
-        <div className="flex items-center justify-center py-16">
-          <RefreshCw className="w-8 h-8 animate-spin text-zinc-400" />
-        </div>
+        <ListaCarregando linhas={4} />
       ) : anotacoesFiltradas.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-12 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-            <StickyNote className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
-            {anotacoes.length === 0 ? 'Nenhuma anotação ainda' : 'Nenhuma anotação encontrada'}
-          </h3>
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-4">
-            {anotacoes.length === 0
-              ? 'Crie sua primeira anotação para começar!'
-              : 'Tente ajustar os filtros de busca'}
-          </p>
-          {anotacoes.length === 0 && (
-            <button
-              onClick={abrirNovaAnotacao}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white 
-                       bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Criar Anotação
-            </button>
-          )}
-        </div>
+        <ListaVazia
+          icone={<StickyNote />}
+          titulo={anotacoes.length === 0 ? 'Nenhuma anotação ainda' : 'Nenhuma anotação encontrada'}
+          descricao={anotacoes.length === 0 ? 'Anote lembretes e tarefas da equipe.' : 'Tente outra busca ou filtro.'}
+          acao={
+            anotacoes.length === 0 ? (
+              <Botao onClick={abrirNovaAnotacao}>
+                <Plus />
+                Nova anotação
+              </Botao>
+            ) : undefined
+          }
+        />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <AnimatePresence mode="popLayout">
             {anotacoesFiltradas.map((anotacao) => (
               <CardAnotacao
                 key={anotacao.id}
                 anotacao={anotacao}
                 onEditar={abrirEditarAnotacao}
-                onExcluir={excluirAnotacao}
+                onExcluir={(id) => void excluirAnotacao(id)}
                 onToggleConcluida={toggleConcluida}
                 onToggleFixada={toggleFixada}
               />
@@ -856,21 +677,16 @@ export function PainelAnotacoes() {
         </div>
       )}
 
-      {/* Modal */}
-      <AnimatePresence>
-        {modalAberto && (
-          <ModalAnotacao
-            anotacao={anotacaoSelecionada}
-            aberto={modalAberto}
-            onFechar={() => {
-              setModalAberto(false)
-              setAnotacaoSelecionada(null)
-            }}
-            onSalvar={salvarAnotacao}
-            carregando={salvando}
-          />
-        )}
-      </AnimatePresence>
-    </div>
+      <ModalAnotacao
+        anotacao={anotacaoSelecionada}
+        aberto={modalAberto}
+        onFechar={() => {
+          setModalAberto(false)
+          setAnotacaoSelecionada(null)
+        }}
+        onSalvar={salvarAnotacao}
+        carregando={salvando}
+      />
+    </Pagina>
   )
 }

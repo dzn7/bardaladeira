@@ -1,22 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Wallet, Save, RefreshCw } from 'lucide-react'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
+  AreaTexto,
+  Botao,
+  Campo,
+  Chip,
+  EntradaPreco,
+  Gaveta,
+  LinhaInterruptor,
+  Segmentos,
+  formatarPreco,
+  lerPreco,
+} from '@/components/admin/ui'
 import type { ResumoEntregadorDia } from '@/lib/tipos-entregas'
 
 const FORMAS_PAGAMENTO = ['Dinheiro', 'PIX', 'Transferência', 'Cartão']
-
-const formatarMoeda = (valor: number) =>
-  `R$ ${Number(valor || 0).toFixed(2).replace('.', ',')}`
 
 type Props = {
   registro: ResumoEntregadorDia | null
@@ -46,7 +45,7 @@ export default function DialogPagarEntregador({
 
   useEffect(() => {
     if (registro && aberto) {
-      setValor(registro.saldo.toFixed(2))
+      setValor(registro.saldo.toFixed(2).replace('.', ','))
       setAcumularRestante(true)
       setMetodoPagamento('Dinheiro')
       setObservacoes('')
@@ -55,7 +54,7 @@ export default function DialogPagarEntregador({
 
   if (!registro) return null
 
-  const valorNumero = Number(valor.replace(',', '.')) || 0
+  const valorNumero = lerPreco(valor) ?? 0
   const restante = Math.max(0, registro.saldo - valorNumero)
   const valorValido = valorNumero > 0 && valorNumero <= registro.saldo
   const pagandoTudo = restante <= 0.001
@@ -77,166 +76,102 @@ export default function DialogPagarEntregador({
     { day: '2-digit', month: 'long', year: 'numeric' }
   )
 
+  const definirValor = (numero: number) => setValor(numero.toFixed(2).replace('.', ','))
+
   return (
-    <Dialog open={aberto} onOpenChange={(open) => !open && !salvando && onFechar()}>
-      <DialogContent className="sm:max-w-md bg-card border-border">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
-            <Wallet className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-            Pagar entregador
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            {registro.entregador_nome} · {dataFormatada}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Resumo */}
-          <div className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Entregas no dia</span>
-              <span className="font-mono tabular-nums font-medium">{registro.total_entregas}</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Total devido</span>
-              <span className="font-mono tabular-nums font-medium">{formatarMoeda(registro.total_devido)}</span>
-            </div>
-            {registro.valor_pago > 0 && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Já pago</span>
-                <span className="font-mono tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
-                  {formatarMoeda(registro.valor_pago)}
-                </span>
-              </div>
-            )}
-            <div className="flex items-center justify-between border-t border-border/70 pt-1.5 text-sm">
-              <span className="font-medium">A pagar</span>
-              <span className="font-mono tabular-nums font-semibold">{formatarMoeda(registro.saldo)}</span>
-            </div>
+    <Gaveta
+      aberto={aberto}
+      aoFechar={() => !salvando && onFechar()}
+      bloqueada={salvando}
+      titulo="Pagar entregador"
+      descricao={`${registro.entregador_nome} · ${dataFormatada}`}
+      rodape={
+        <>
+          <Botao variante="contorno" onClick={onFechar} disabled={salvando}>
+            Cancelar
+          </Botao>
+          <Botao onClick={handleConfirmar} disabled={!valorValido} carregando={salvando}>
+            Confirmar pagamento
+          </Botao>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <dl className="space-y-2 rounded-xl bg-muted/50 p-4 text-sm">
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Entregas no dia</dt>
+            <dd className="tabular-nums">{registro.total_entregas}</dd>
           </div>
-
-          {/* Valor */}
-          <div className="space-y-1.5">
-            <Label htmlFor="valor-pagamento" className="text-xs font-medium">
-              Valor do pagamento (R$)
-            </Label>
-            <input
-              id="valor-pagamento"
-              type="number"
-              step="0.01"
-              min="0"
-              max={registro.saldo}
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
-              disabled={salvando}
-              className="w-full h-10 rounded-lg border border-border/70 bg-background px-3 text-sm font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-            />
-            <div className="flex gap-1.5 mt-1">
-              <button
-                type="button"
-                onClick={() => setValor(registro.saldo.toFixed(2))}
-                className="flex-1 h-7 px-2 text-xs border border-border/70 rounded-md hover:bg-muted transition-colors"
-              >
-                Total
-              </button>
-              <button
-                type="button"
-                onClick={() => setValor((registro.saldo / 2).toFixed(2))}
-                className="flex-1 h-7 px-2 text-xs border border-border/70 rounded-md hover:bg-muted transition-colors"
-              >
-                Metade
-              </button>
-            </div>
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Total do dia</dt>
+            <dd className="tabular-nums">{formatarPreco(registro.total_devido)}</dd>
           </div>
-
-          {/* Restante */}
-          {!pagandoTudo && valorNumero > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-                <span className="text-xs text-muted-foreground">Restante após pagamento</span>
-                <span className="text-sm font-mono tabular-nums font-medium">{formatarMoeda(restante)}</span>
-              </div>
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acumularRestante}
-                  onChange={(e) => setAcumularRestante(e.target.checked)}
-                  disabled={salvando}
-                  className="w-4 h-4 mt-0.5 rounded border-border accent-foreground"
-                />
-                <div>
-                  <p className="text-sm font-medium">Acumular o restante</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    O saldo fica registrado para pagamento em outro dia.
-                  </p>
-                </div>
-              </label>
+          {registro.valor_pago > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Já pago</dt>
+              <dd className="tabular-nums text-emerald-700 dark:text-emerald-400">
+                {formatarPreco(registro.valor_pago)}
+              </dd>
             </div>
           )}
-
-          {/* Forma de pagamento */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Forma de pagamento</Label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {FORMAS_PAGAMENTO.map((forma) => (
-                <button
-                  key={forma}
-                  type="button"
-                  onClick={() => setMetodoPagamento(forma)}
-                  disabled={salvando}
-                  className={`h-9 px-2 rounded-lg text-xs font-medium transition-colors ${
-                    metodoPagamento === forma
-                      ? 'bg-foreground text-background'
-                      : 'border border-border/70 text-muted-foreground hover:bg-muted'
-                  }`}
-                >
-                  {forma}
-                </button>
-              ))}
-            </div>
+          <div className="flex justify-between border-t border-border/70 pt-2 font-medium">
+            <dt>Falta pagar</dt>
+            <dd className="tabular-nums">{formatarPreco(registro.saldo)}</dd>
           </div>
+        </dl>
 
-          {/* Observações */}
-          <div className="space-y-1.5">
-            <Label htmlFor="observacoes-pagamento" className="text-xs font-medium">
-              Observações (opcional)
-            </Label>
-            <textarea
-              id="observacoes-pagamento"
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
-              disabled={salvando}
-              placeholder="Anote qualquer detalhe sobre este pagamento..."
-              rows={2}
-              className="w-full rounded-lg border border-border/70 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="gap-2 sm:gap-2">
-          <button
-            type="button"
-            onClick={onFechar}
+        <Campo
+          rotulo="Quanto vai pagar agora"
+          htmlFor="valor-pagamento"
+          erro={valorNumero > registro.saldo ? `O máximo é ${formatarPreco(registro.saldo)}.` : null}
+          ajuda={!pagandoTudo && valorNumero > 0 ? `Vai faltar ${formatarPreco(restante)}.` : undefined}
+        >
+          <EntradaPreco
+            id="valor-pagamento"
+            valor={valor}
+            aoMudar={setValor}
             disabled={salvando}
-            className="h-9 px-4 border border-border/70 rounded-lg text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirmar}
-            disabled={!valorValido || salvando}
-            className="h-9 px-4 bg-foreground text-background rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {salvando ? (
-              <RefreshCw className="w-4 h-4 animate-spin" strokeWidth={1.6} />
-            ) : (
-              <Save className="w-4 h-4" strokeWidth={1.6} />
-            )}
-            Confirmar pagamento
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          />
+          <div className="flex gap-2 pt-1">
+            <Chip onClick={() => definirValor(registro.saldo)} disabled={salvando} className="h-10">
+              Tudo
+            </Chip>
+            <Chip onClick={() => definirValor(registro.saldo / 2)} disabled={salvando} className="h-10">
+              Metade
+            </Chip>
+          </div>
+        </Campo>
+
+        {!pagandoTudo && valorNumero > 0 && (
+          <LinhaInterruptor
+            titulo="Guardar o restante"
+            descricao="O que faltar fica anotado para pagar em outro dia."
+            marcado={acumularRestante}
+            aoMudar={setAcumularRestante}
+            desabilitado={salvando}
+          />
+        )}
+
+        <Campo rotulo="Como vai pagar">
+          <Segmentos
+            rotuloAcessivel="Forma de pagamento"
+            opcoes={FORMAS_PAGAMENTO.map((forma) => ({ valor: forma, rotulo: forma }))}
+            valor={metodoPagamento}
+            aoMudar={(forma) => !salvando && setMetodoPagamento(forma)}
+          />
+        </Campo>
+
+        <Campo rotulo="Observação" htmlFor="observacoes-pagamento" opcional>
+          <AreaTexto
+            id="observacoes-pagamento"
+            value={observacoes}
+            onChange={(e) => setObservacoes(e.target.value)}
+            disabled={salvando}
+            placeholder="Algum detalhe sobre este pagamento"
+            rows={2}
+          />
+        </Campo>
+      </div>
+    </Gaveta>
   )
 }

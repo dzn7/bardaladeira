@@ -3,31 +3,9 @@
 import { useMemo, useState } from 'react'
 import { format, differenceInMinutes } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import {
-  AlertTriangle,
-  List,
-  RefreshCw,
-  Search,
-  UserCheck,
-  UserPlus,
-  UsersRound,
-  UtensilsCrossed,
-  Wallet,
-  X,
-} from 'lucide-react'
-import { CHIP_FILTRO_ALERTA, CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
+import { Warning as AlertTriangle, List, ArrowsClockwise as RefreshCw, MagnifyingGlass as Search, UserCheck, UserPlus, Wallet, X } from '@phosphor-icons/react'
 import { ListaVazia, GradeSkeleton } from '@/components/admin/filtros/ListaEstado'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Botao, Chip, Entrada, Gaveta, Selo } from '@/components/admin/ui'
 import ModalDetalhesPedido from '@/components/admin/ModalDetalhesPedido'
 import ModalEditarPedido from '@/components/admin/ModalEditarPedido'
 import { TEMPO_AVISO_MESA_MINUTOS } from '@/lib/mesas-tempo'
@@ -398,88 +376,76 @@ export default function PainelSalaoAtual({
 
   return (
     <section className="space-y-4">
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card p-3.5 shadow-sm md:p-5">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="rounded-xl border border-border/70 bg-card p-4 md:p-5">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base font-semibold tracking-tight text-foreground">
                 {ehParceiro ? 'Locais parceiros' : 'Mesas do salão'}
               </h2>
-              <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              <Selo className="text-xs">
                 {pontosOcupados.length} {ehParceiro ? 'abertos' : 'ocupadas'}
-              </span>
+              </Selo>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {ehParceiro
-                ? 'Pedidos em locais parceiros com garçom, total e movimentos.'
-                : 'Acompanhe tempo, garçom, pagamento e feche a mesa com segurança.'}
+              {resumo.totalItens} itens · {formatarMoeda(resumo.totalPedidos)} em aberto
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="gap-1.5 rounded-full border-border/70 bg-background/50 px-2.5 py-1 text-muted-foreground">
-              <UtensilsCrossed className="h-3.5 w-3.5" />
-              {resumo.totalItens} itens
-            </Badge>
-            <Badge variant="outline" className="gap-1.5 rounded-full border-border/70 bg-background/50 px-2.5 py-1 text-muted-foreground">
-              <UsersRound className="h-3.5 w-3.5" />
-              {formatarMoeda(resumo.totalPedidos)}
-            </Badge>
-            <Button type="button" variant="outline" size="sm" className="h-9 shadow-none" onClick={onAtualizar} disabled={carregando}>
-              <RefreshCw className={cn('mr-2 h-3.5 w-3.5', carregando && 'animate-spin')} />
-              Atualizar
-            </Button>
-          </div>
+          <Botao
+            variante="contorno"
+            onClick={onAtualizar}
+            disabled={carregando}
+            className="h-11 self-start md:h-10"
+          >
+            <RefreshCw className={cn(carregando && 'animate-spin')} />
+            Atualizar
+          </Botao>
         </div>
 
-        <div className="mb-3 w-full overflow-x-auto">
-          <ToggleGroup
-            type="single"
-            value={filtroRapido}
-            onValueChange={(v) => {
-              if (v) setFiltroRapido(v as typeof filtroRapido)
-            }}
-            aria-label="Filtros rápidos do salão"
-            className="flex w-max items-center justify-start gap-2"
-          >
-            <ToggleGroupItem value="todos" aria-label="Todas as mesas" className={CHIP_FILTRO_DEFAULT}>
-              <List className="h-3.5 w-3.5" />
-              <span>Todas</span>
-            </ToggleGroupItem>
-            {!ehParceiro ? (
-              <ToggleGroupItem value="urgentes" aria-label="Tempo crítico" className={CHIP_FILTRO_ALERTA}>
-                <AlertTriangle className="h-3.5 w-3.5" />
-                <span>Tempo crítico ({contagemFiltros.urgentes})</span>
-              </ToggleGroupItem>
-            ) : null}
-            <ToggleGroupItem value="sem-garcom" aria-label="Sem garçom" className={CHIP_FILTRO_DEFAULT}>
-              <UserPlus className="h-3.5 w-3.5" />
-              <span>Sem garçom ({contagemFiltros.semGarcom})</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="pagamento" aria-label="Pagamento pendente" className={CHIP_FILTRO_ALERTA}>
-              <Wallet className="h-3.5 w-3.5" />
-              <span>Pagamento ({contagemFiltros.pagamento})</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
+        <div
+          role="group"
+          aria-label="Filtros rápidos do salão"
+          className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0"
+        >
+          <Chip ativo={filtroRapido === 'todos'} onClick={() => setFiltroRapido('todos')} aria-label="Todas as mesas">
+            <List className="size-4" />
+            Todas
+          </Chip>
+          {!ehParceiro ? (
+            <Chip ativo={filtroRapido === 'urgentes'} onClick={() => setFiltroRapido('urgentes')} aria-label="Tempo crítico">
+              <AlertTriangle className="size-4" />
+              Tempo crítico ({contagemFiltros.urgentes})
+            </Chip>
+          ) : null}
+          <Chip ativo={filtroRapido === 'sem-garcom'} onClick={() => setFiltroRapido('sem-garcom')} aria-label="Sem garçom">
+            <UserPlus className="size-4" />
+            Sem garçom ({contagemFiltros.semGarcom})
+          </Chip>
+          <Chip ativo={filtroRapido === 'pagamento'} onClick={() => setFiltroRapido('pagamento')} aria-label="Pagamento pendente">
+            <Wallet className="size-4" />
+            Pagamento ({contagemFiltros.pagamento})
+          </Chip>
         </div>
 
         <div className="relative mb-4">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Entrada
+            type="search"
             value={buscaPonto}
             onChange={(event) => setBuscaPonto(event.target.value)}
             placeholder={ehParceiro ? 'Buscar parceiro, cliente ou pedido' : 'Buscar mesa, cliente, garçom ou item'}
             aria-label={ehParceiro ? 'Buscar parceiros' : 'Buscar mesas'}
-            className="h-9 rounded-lg border-border/70 bg-background pl-9 pr-9 shadow-none"
+            className="pl-9 pr-11"
           />
           {buscaPonto ? (
             <button
               type="button"
               onClick={() => setBuscaPonto('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground"
               aria-label="Limpar busca"
             >
-              <X className="h-4 w-4" />
+              <X className="size-4" />
             </button>
           ) : null}
         </div>
@@ -592,96 +558,97 @@ export default function PainelSalaoAtual({
         )}
       </div>
 
-      <Dialog open={Boolean(pedidoTimeline)} onOpenChange={(aberto) => !aberto && setPedidoTimeline(null)}>
-        <DialogContent className="max-h-[82vh] overflow-y-auto rounded-xl border-border/70 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)] sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Histórico da {nomeTipo}</DialogTitle>
-            <DialogDescription>
-              {pedidoTimeline
-                ? `${pedidoTimeline.nome_cliente} · pedido #${pedidoTimeline.numero_pedido || pedidoTimeline.id.slice(0, 8)}`
-                : 'Tudo que aconteceu neste pedido'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
+      <Gaveta
+        aberto={Boolean(pedidoTimeline)}
+        aoFechar={() => setPedidoTimeline(null)}
+        largura="lg"
+        titulo={`Histórico da ${nomeTipo}`}
+        descricao={
+          pedidoTimeline
+            ? `${pedidoTimeline.nome_cliente} · pedido #${pedidoTimeline.numero_pedido || pedidoTimeline.id.slice(0, 8)}`
+            : 'Tudo que aconteceu neste pedido'
+        }
+      >
+        {eventosTimelineDialog.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem movimentos ainda.</p>
+        ) : (
+          <ol className="space-y-4">
             {eventosTimelineDialog.map((evento) => (
-              <div key={evento.id} className="grid grid-cols-[56px_minmax(0,1fr)] gap-3">
-                <span className="font-mono text-xs font-semibold tabular-nums text-muted-foreground">
+              <li key={evento.id} className="grid grid-cols-[48px_minmax(0,1fr)] gap-3">
+                <span className="pt-0.5 font-mono text-xs font-medium tabular-nums text-muted-foreground">
                   {formatarHora(evento.data)}
                 </span>
-                <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-foreground">{evento.titulo}</p>
-                    <Badge variant="outline" className="rounded-md border-border/70 px-2 py-0 text-[10px]">
-                      {evento.tipo === 'item' ? 'Item' : 'Alteração'}
-                    </Badge>
+                <div className="min-w-0 border-l border-border/70 pl-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{evento.titulo}</p>
+                    <Selo>{evento.tipo === 'item' ? 'Item' : 'Alteração'}</Selo>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{evento.detalhe}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {evento.garcom ? `Garçom: ${evento.garcom}` : 'Garçom não identificado'} · {formatarDataHora(evento.data)}
+                  <p className="mt-0.5 text-sm text-muted-foreground">{evento.detalhe}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {evento.garcom || 'Garçom não identificado'} · {formatarDataHora(evento.data)}
                   </p>
                 </div>
-              </div>
+              </li>
             ))}
+          </ol>
+        )}
+      </Gaveta>
+
+      <Gaveta
+        aberto={Boolean(pedidoAtribuicao)}
+        aoFechar={() => setPedidoAtribuicao(null)}
+        bloqueada={Boolean(pedidoAtribuicao && atribuindoPedidoId === pedidoAtribuicao.id)}
+        titulo={`Quem atende esta ${nomeTipo}?`}
+        descricao={
+          pedidoAtribuicao
+            ? `${nomeTipoCapitalizado} ${pedidoAtribuicao.mesa || pedidoAtribuicao.comanda || '-'} · ${pedidoAtribuicao.nome_cliente}`
+            : `Escolha o garçom responsável pela ${nomeTipo}`
+        }
+      >
+        {garcons.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-sm text-muted-foreground">
+            Nenhum garçom ativo encontrado.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {garcons.map((garcom) => {
+              const selecionado = pedidoAtribuicao?.garcom_id === garcom.id
+              return (
+                <button
+                  key={garcom.id}
+                  type="button"
+                  aria-pressed={selecionado}
+                  disabled={Boolean(pedidoAtribuicao && atribuindoPedidoId === pedidoAtribuicao.id)}
+                  onClick={() => void atribuirGarcom(garcom.id)}
+                  className={cn(
+                    'flex min-h-12 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-50',
+                    selecionado
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border/70 bg-card hover:bg-accent',
+                  )}
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+                    <UserCheck className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{garcom.nome}</span>
+                  {selecionado && <Selo tom="primario">Atual</Selo>}
+                </button>
+              )
+            })}
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
 
-      <Dialog open={Boolean(pedidoAtribuicao)} onOpenChange={(aberto) => !aberto && setPedidoAtribuicao(null)}>
-        <DialogContent className="max-h-[82vh] overflow-y-auto rounded-xl border-border/70 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)] sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Quem atende esta {nomeTipo}?</DialogTitle>
-            <DialogDescription>
-              {pedidoAtribuicao
-                ? `${nomeTipoCapitalizado} ${pedidoAtribuicao.mesa || pedidoAtribuicao.comanda || '-'} · ${pedidoAtribuicao.nome_cliente}. Escolha o garçom responsável.`
-                : `Escolha o garçom responsável pela ${nomeTipo}`}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-2">
-            {garcons.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-sm text-muted-foreground">
-                Nenhum garçom ativo encontrado.
-              </div>
-            ) : (
-              garcons.map((garcom) => {
-                const selecionado = pedidoAtribuicao?.garcom_id === garcom.id
-                return (
-                  <Button
-                    key={garcom.id}
-                    type="button"
-                    variant={selecionado ? 'default' : 'outline'}
-                    className="h-auto justify-start gap-3 px-3 py-3"
-                    disabled={Boolean(pedidoAtribuicao && atribuindoPedidoId === pedidoAtribuicao.id)}
-                    onClick={() => void atribuirGarcom(garcom.id)}
-                  >
-                    <span className={cn(
-                      'flex size-8 shrink-0 items-center justify-center rounded-lg',
-                      selecionado ? 'bg-white/15 text-white' : 'bg-muted text-foreground',
-                    )}>
-                      <UserCheck className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-left">{garcom.nome}</span>
-                    {selecionado && <span className="size-2 rounded-full bg-emerald-300 animate-pulse" />}
-                  </Button>
-                )
-              })
-            )}
-
-            {pedidoAtribuicao?.garcom_id && (
-              <Button
-                type="button"
-                variant="ghost"
-                className="justify-start text-muted-foreground"
-                disabled={atribuindoPedidoId === pedidoAtribuicao.id}
-                onClick={() => void atribuirGarcom(null)}
-              >
-                Remover garçom da {nomeTipo}
-              </Button>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+        {pedidoAtribuicao?.garcom_id && (
+          <Botao
+            variante="perigoSuave"
+            className="mt-4 h-11 w-full md:h-10"
+            disabled={atribuindoPedidoId === pedidoAtribuicao.id}
+            onClick={() => void atribuirGarcom(null)}
+          >
+            Remover garçom da {nomeTipo}
+          </Botao>
+        )}
+      </Gaveta>
 
       <ModalDetalhesPedido
         pedidoId={pedidoDetalhesId}

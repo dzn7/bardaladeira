@@ -1,20 +1,34 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Wallet, TrendingUp, TrendingDown, Calendar, Download, 
-  ArrowUpCircle, ArrowDownCircle, Clock, FileText, 
-  ChevronLeft, ChevronRight, Filter, Search, Eye,
-  DollarSign, CreditCard, Banknote, RefreshCw, Plus, Minus, X
-} from 'lucide-react'
-import { format, subDays, startOfMonth, endOfMonth, parseISO } from 'date-fns'
+import { Calendar, ArrowCircleUp as ArrowUpCircle, ArrowCircleDown as ArrowDownCircle, CaretLeft as ChevronLeft, MagnifyingGlass as Search, CreditCard, Money as Banknote, ArrowsClockwise as RefreshCw, Plus, Minus, X } from '@phosphor-icons/react'
+import { toast } from 'sonner'
+import { format, subDays, startOfMonth, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { supabase } from '@/lib/supabase'
 import AdminLayout from '@/components/admin/AdminLayout'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import Link from 'next/link'
 import { obterDataInicioAnoAtual } from '@/lib/filtros-ano'
+import {
+  AreaTexto,
+  Botao,
+  CabecalhoPagina,
+  Campo,
+  Cartao,
+  Entrada,
+  EntradaPreco,
+  Gaveta,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Secao,
+  Segmentos,
+  Selo,
+  lerPreco,
+} from '@/components/admin/ui'
+import { cn } from '@/lib/utils'
 
 type Caixa = {
   id: string
@@ -270,12 +284,13 @@ export default function SaldosPage() {
         caixa_id: caixaAberto.id,
         categoria_id: categoriaId,
         tipo: tipoAjuste,
-        valor: Math.abs(parseFloat(valorAjuste)),
+        valor: Math.abs(lerPreco(valorAjuste) ?? 0),
         descricao: `Ajuste de Saldo: ${descricaoAjuste}`,
         forma_pagamento: 'Ajuste'
       })
 
       if (error) throw error
+      toast.success(tipoAjuste === 'entrada' ? 'Valor adicionado ao saldo' : 'Valor retirado do saldo', { description: descricaoAjuste })
 
       // Fechar modal e recarregar dados
       setModalAjuste(false)
@@ -284,6 +299,7 @@ export default function SaldosPage() {
       carregarDados()
     } catch (erro) {
       console.error('Erro ao registrar ajuste:', erro)
+      toast.error('Não foi possível registrar o ajuste.', { description: 'Tente de novo em instantes.' })
     } finally {
       setProcessandoAjuste(false)
     }
@@ -337,490 +353,305 @@ export default function SaldosPage() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)
   }
 
-  if (carregando) {
-    return (
-      <ProtectedRoute><AdminLayout>
-        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-          <RefreshCw className="w-10 h-10 text-bordo-600 animate-spin" />
-          <p className="text-zinc-600 dark:text-zinc-400">Carregando saldos...</p>
-        </div>
-      </AdminLayout></ProtectedRoute>
-    )
-  }
+  const resumoCards = [
+    { rotulo: 'Entradas', valor: formatarMoeda(resumo.totalEntradas), classe: 'text-emerald-700 dark:text-emerald-400' },
+    { rotulo: 'Saídas', valor: formatarMoeda(resumo.totalSaidas), classe: 'text-destructive' },
+    { rotulo: 'Média diária', valor: formatarMoeda(resumo.mediaFaturamentoDiario), classe: 'text-foreground' },
+    { rotulo: 'Caixas fechados', valor: String(resumo.totalCaixasFechados), classe: 'text-foreground' },
+    {
+      rotulo: 'Diferença acumulada',
+      valor: `${resumo.diferencaAcumulada >= 0 ? '+' : ''}${formatarMoeda(resumo.diferencaAcumulada)}`,
+      classe: resumo.diferencaAcumulada >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive',
+    },
+  ]
 
   return (
     <ProtectedRoute><AdminLayout>
-      <div className="space-y-3">
-        {/* Cabeçalho */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Link 
-              href="/admin/caixa"
-              className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Link>
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-bordo-600 flex-shrink-0" />
-                <span className="truncate">Extrato de Saldos</span>
-              </h1>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 truncate">
-                Visão consolidada de todos os caixas
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={carregarDados}
-            className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition-colors flex-shrink-0"
+      <Pagina>
+        <div className="flex items-start gap-2">
+          <Link
+            href="/admin/caixa"
+            aria-label="Voltar para o caixa"
+            className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
-        
-        {/* Botões de ajuste */}
-        {caixaAberto && (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => abrirModalAjuste('entrada')}
-              className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Entrada
-            </button>
-            <button
-              onClick={() => abrirModalAjuste('saida')}
-              className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm"
-            >
-              <Minus className="w-4 h-4" />
-              Saída
-            </button>
-          </div>
-        )}
-
-        {/* Aviso se não há caixa aberto */}
-        {!caixaAberto && (
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
-            <p className="text-amber-700 dark:text-amber-400 text-xs sm:text-sm">
-              <strong>Atenção:</strong> Não há caixa aberto. Abra um caixa para poder registrar ajustes de saldo.
-            </p>
-          </div>
-        )}
-
-        {/* Cards de Resumo */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          <div className="rounded-2xl border border-bordo-200 bg-gradient-to-br from-bordo-50 to-white p-3 shadow-sm dark:border-bordo-500/30 dark:from-bordo-900/20 dark:to-zinc-900">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">Saldo Atual</span>
-              <Wallet className="h-4 w-4 text-bordo-600 dark:text-amber-300" />
-            </div>
-            <p className="truncate text-base font-bold text-bordo-700 dark:text-amber-300">{formatarMoeda(resumo.saldoAtual)}</p>
-            <p className="mt-1 text-[10px] text-zinc-500">{resumo.caixaAberto ? 'Caixa aberto' : 'Último fechamento'}</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Entradas</span>
-              <ArrowUpCircle className="h-4 w-4 text-green-500" />
-            </div>
-            <p className="truncate text-base font-bold text-green-600">{formatarMoeda(resumo.totalEntradas)}</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Saídas</span>
-              <ArrowDownCircle className="h-4 w-4 text-red-500" />
-            </div>
-            <p className="truncate text-base font-bold text-red-600">{formatarMoeda(resumo.totalSaidas)}</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Média diária</span>
-              <TrendingUp className="h-4 w-4 text-blue-500" />
-            </div>
-            <p className="truncate text-base font-bold text-blue-600">{formatarMoeda(resumo.mediaFaturamentoDiario)}</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Caixas fechados</span>
-              <Calendar className="h-4 w-4 text-zinc-500" />
-            </div>
-            <p className="truncate text-base font-bold text-zinc-800 dark:text-zinc-100">{resumo.totalCaixasFechados}</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Diferença acumulada</span>
-              <DollarSign className="h-4 w-4 text-violet-500" />
-            </div>
-            <p className={`truncate text-base font-bold ${resumo.diferencaAcumulada >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {resumo.diferencaAcumulada >= 0 ? '+' : ''}{formatarMoeda(resumo.diferencaAcumulada)}
-            </p>
-          </div>
-        </div>
-
-        {/* Entradas por forma de pagamento */}
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              <CreditCard className="h-4 w-4 text-bordo-600 dark:text-amber-300" />
-              Saldos por forma de pagamento
-            </h2>
-            <span className="text-xs text-zinc-500">Somente entradas</span>
-          </div>
-
-          {entradasPorFormaPagamento.length === 0 ? (
-            <p className="text-xs text-zinc-500">Sem dados no período selecionado.</p>
-          ) : (
-            <div className="space-y-2">
-              {entradasPorFormaPagamento.slice(0, 6).map((item) => (
-                <div key={item.forma} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-zinc-700 dark:text-zinc-200">{item.forma}</span>
-                    <span className="text-zinc-500">{formatarMoeda(item.valor)} • {item.percentual.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800">
-                    <div
-                      className="h-2 rounded-full bg-bordo-500 dark:bg-amber-400"
-                      style={{ width: `${Math.max(4, item.percentual)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Filtros */}
-        <div className="flex flex-col gap-2">
-          {/* Período */}
-          <div className="grid grid-cols-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
-            {[
-              { valor: '7dias', label: '7d' },
-              { valor: '30dias', label: '30d' },
-              { valor: 'mes', label: 'Mês' },
-              { valor: 'todos', label: 'Todos' }
-            ].map(({ valor, label }) => (
-              <button
-                key={valor}
-                onClick={() => setPeriodoFiltro(valor as typeof periodoFiltro)}
-                className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors text-center ${
-                  periodoFiltro === valor
-                    ? 'bg-white dark:bg-zinc-700 text-bordo-600 shadow-sm'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Busca */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-            <input
-              type="text"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar movimentação..."
-              className="w-full pl-9 pr-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl text-sm
-                       border-0 focus:ring-2 focus:ring-bordo-500"
+            <ChevronLeft className="size-5" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <CabecalhoPagina
+              titulo="Extrato de saldos"
+              descricao="Visão de todos os caixas do período."
+              acoes={
+                <>
+                  {caixaAberto && (
+                    <>
+                      <Botao variante="contorno" onClick={() => abrirModalAjuste('entrada')}>
+                        <Plus className="size-4" />
+                        Entrada
+                      </Botao>
+                      <Botao variante="contorno" onClick={() => abrirModalAjuste('saida')}>
+                        <Minus className="size-4" />
+                        Saída
+                      </Botao>
+                    </>
+                  )}
+                  <Botao
+                    variante="fantasma"
+                    tamanho="icone"
+                    onClick={carregarDados}
+                    aria-label="Atualizar"
+                    className="!flex-none"
+                  >
+                    <RefreshCw className={cn('size-4', carregando && 'animate-spin')} />
+                  </Botao>
+                </>
+              }
             />
           </div>
         </div>
 
-        {/* Lista de Caixas */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div className="p-3 sm:p-4 border-b border-zinc-200 dark:border-zinc-800">
-            <h2 className="font-semibold text-zinc-900 dark:text-white flex items-center gap-2 text-sm sm:text-base">
-              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-bordo-600" />
-              Histórico de Caixas
-            </h2>
-          </div>
-
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[400px] overflow-y-auto">
-            {caixas.length === 0 ? (
-              <div className="p-8 text-center text-zinc-500">
-                Nenhum caixa encontrado no período selecionado
-              </div>
-            ) : (
-              caixas.map((caixa) => (
-                <motion.div
-                  key={caixa.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className={`p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors ${
-                    caixaSelecionado === caixa.id ? 'bg-amber-50 dark:bg-amber-950/20' : ''
-                  }`}
-                  onClick={() => setCaixaSelecionado(caixaSelecionado === caixa.id ? null : caixa.id)}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className={`p-1.5 sm:p-2 rounded-xl flex-shrink-0 ${
-                        caixa.status === 'aberto' 
-                          ? 'bg-green-100 dark:bg-green-900/30' 
-                          : 'bg-zinc-100 dark:bg-zinc-800'
-                      }`}>
-                        <Calendar className={`w-4 h-4 sm:w-5 sm:h-5 ${
-                          caixa.status === 'aberto' ? 'text-green-600' : 'text-zinc-500'
-                        }`} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-zinc-900 dark:text-white text-sm truncate">
-                          {format(parseISO(caixa.data_abertura), "dd 'de' MMMM", { locale: ptBR })}
-                        </p>
-                        <p className="text-xs text-zinc-500 truncate">
-                          {caixa.responsavel_abertura} • {caixa.status === 'aberto' ? 'Aberto' : 'Fechado'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="text-right flex-shrink-0">
-                      <p className={`font-bold text-sm ${
-                        caixa.status === 'aberto' ? 'text-green-600' : 'text-zinc-900 dark:text-white'
-                      }`}>
-                        {formatarMoeda(caixa.valor_fechamento || caixa.saldo_esperado)}
-                      </p>
-                      <div className="flex flex-col items-end gap-0.5 text-[10px]">
-                        <span className="text-green-600 font-mono">+{formatarMoeda(caixa.total_entradas)}</span>
-                        <span className="text-red-600 font-mono">-{formatarMoeda(caixa.total_saidas)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Extrato de Movimentações */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div className="p-3 border-b border-zinc-200 dark:border-zinc-800">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="font-semibold text-zinc-900 dark:text-white flex items-center gap-2 text-sm">
-                <Banknote className="w-4 h-4 text-bordo-600 flex-shrink-0" />
-                Extrato Detalhado
-              </h2>
-              <span className="text-xs text-zinc-500 flex-shrink-0">
-                {movimentacoesFiltradas.length} mov.
-              </span>
-            </div>
-          </div>
-
-          <div className="max-h-[500px] overflow-y-auto">
-            {Object.keys(movimentacoesAgrupadas).length === 0 ? (
-              <div className="p-8 text-center text-zinc-500">
-                Nenhuma movimentação encontrada
-              </div>
-            ) : (
-              Object.entries(movimentacoesAgrupadas).map(([data, movs]) => (
-                <div key={data}>
-                  {/* Cabeçalho da data */}
-                  <div className="sticky top-0 bg-zinc-50 dark:bg-zinc-800 px-4 py-2 border-b border-zinc-200 dark:border-zinc-700">
-                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      {format(parseISO(data), "EEEE, dd 'de' MMMM", { locale: ptBR })}
-                    </p>
-                  </div>
-
-                  {/* Movimentações do dia */}
-                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {movs.map((mov) => (
-                      <div key={mov.id} className="p-3 sm:p-4 flex items-center gap-2 sm:gap-4">
-                        {/* Ícone */}
-                        <div className={`p-1.5 sm:p-2 rounded-xl flex-shrink-0 ${
-                          mov.tipo === 'entrada' 
-                            ? 'bg-green-100 dark:bg-green-900/30' 
-                            : 'bg-red-100 dark:bg-red-900/30'
-                        }`}>
-                          {mov.tipo === 'entrada' ? (
-                            <ArrowUpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                          ) : (
-                            <ArrowDownCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
-                          )}
-                        </div>
-
-                        {/* Detalhes */}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-zinc-900 dark:text-white truncate">
-                            {mov.categoria?.nome || 'Sem categoria'}
-                          </p>
-                          <p className="text-xs text-zinc-500 truncate">
-                            {mov.descricao || 'Sem descrição'}
-                            {mov.funcionario && ` • ${mov.funcionario.nome}`}
-                          </p>
-                          <p className="text-xs text-zinc-400">
-                            {format(parseISO(mov.created_at), 'HH:mm')}
-                            {mov.forma_pagamento && ` • ${mov.forma_pagamento}`}
-                          </p>
-                        </div>
-
-                        {/* Valor */}
-                        <div className="text-right">
-                          <p className={`font-bold ${
-                            mov.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {mov.tipo === 'entrada' ? '+' : '-'}{formatarMoeda(mov.valor)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Modal de Ajuste de Saldo */}
-      <AnimatePresence>
-        {modalAjuste && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-            onClick={() => !processandoAjuste && setModalAjuste(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md overflow-hidden max-h-[90dvh] flex flex-col"
-            >
-              <div className={`p-6 border-b border-zinc-200 dark:border-zinc-800 ${
-                tipoAjuste === 'entrada' 
-                  ? 'bg-green-50 dark:bg-green-950/20' 
-                  : 'bg-red-50 dark:bg-red-950/20'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl ${
-                      tipoAjuste === 'entrada'
-                        ? 'bg-green-100 dark:bg-green-900/30'
-                        : 'bg-red-100 dark:bg-red-900/30'
-                    }`}>
-                      {tipoAjuste === 'entrada' ? (
-                        <Plus className={`w-6 h-6 text-green-600`} />
-                      ) : (
-                        <Minus className={`w-6 h-6 text-red-600`} />
-                      )}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
-                        {tipoAjuste === 'entrada' ? 'Adicionar ao Saldo' : 'Retirar do Saldo'}
-                      </h2>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        Ajuste manual no caixa atual
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setModalAjuste(false)}
-                    disabled={processandoAjuste}
-                    className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                    Valor (R$) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={valorAjuste}
-                    onChange={(e) => setValorAjuste(e.target.value)}
-                    placeholder="0,00"
-                    disabled={processandoAjuste}
-                    autoFocus
-                    className={`w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-2 rounded-xl 
-                             text-zinc-900 dark:text-white text-lg font-bold
-                             focus:ring-2 focus:border-transparent
-                             disabled:opacity-50 disabled:cursor-not-allowed ${
-                               tipoAjuste === 'entrada'
-                                 ? 'border-green-300 focus:ring-green-500'
-                                 : 'border-red-300 focus:ring-red-500'
-                             }`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                    Descrição / Motivo *
-                  </label>
-                  <textarea
-                    value={descricaoAjuste}
-                    onChange={(e) => setDescricaoAjuste(e.target.value)}
-                    placeholder="Ex: Troco inicial, Sangria, Correção de valor..."
-                    rows={3}
-                    disabled={processandoAjuste}
-                    className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 
-                             dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white resize-none
-                             focus:ring-2 focus:ring-bordo-500 focus:border-transparent
-                             disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-
-                {caixaAberto && (
-                  <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-3 text-sm">
-                    <p className="text-zinc-600 dark:text-zinc-400">
-                      Caixa: <span className="font-medium text-zinc-900 dark:text-white">
-                        {format(parseISO(caixaAberto.data_abertura), "dd/MM/yyyy 'às' HH:mm")}
-                      </span>
-                    </p>
-                    <p className="text-zinc-600 dark:text-zinc-400">
-                      Responsável: <span className="font-medium text-zinc-900 dark:text-white">
-                        {caixaAberto.responsavel_abertura}
-                      </span>
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 flex gap-3">
-                <button
-                  onClick={() => setModalAjuste(false)}
-                  disabled={processandoAjuste}
-                  className="flex-1 px-4 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 
-                           dark:text-zinc-300 rounded-xl font-medium hover:bg-zinc-200 
-                           dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={registrarAjuste}
-                  disabled={!valorAjuste || !descricaoAjuste || processandoAjuste}
-                  className={`flex-1 px-4 py-3 text-white rounded-xl font-medium 
-                           transition-colors flex items-center justify-center gap-2 
-                           disabled:opacity-50 disabled:cursor-not-allowed ${
-                             tipoAjuste === 'entrada'
-                               ? 'bg-green-600 hover:bg-green-700'
-                               : 'bg-red-600 hover:bg-red-700'
-                           }`}
-                >
-                  {processandoAjuste ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      {tipoAjuste === 'entrada' ? <Plus className="w-5 h-5" /> : <Minus className="w-5 h-5" />}
-                      {tipoAjuste === 'entrada' ? 'Adicionar' : 'Retirar'}
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+        {!caixaAberto && !carregando && (
+          <p className="rounded-xl border border-border/70 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+            Nenhum caixa aberto. Abra um caixa para lançar ajustes de saldo.
+          </p>
         )}
-      </AnimatePresence>
+
+        <Segmentos
+          rotuloAcessivel="Período"
+          valor={periodoFiltro}
+          aoMudar={setPeriodoFiltro}
+          opcoes={[
+            { valor: '7dias', rotulo: '7 dias' },
+            { valor: '30dias', rotulo: '30 dias' },
+            { valor: 'mes', rotulo: 'Este mês' },
+            { valor: 'todos', rotulo: 'Todos' },
+          ]}
+        />
+
+        {carregando ? (
+          <ListaCarregando linhas={4} />
+        ) : (
+          <>
+            <Cartao className="p-4">
+              <p className="text-sm text-muted-foreground">Saldo atual</p>
+              <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-foreground">
+                {formatarMoeda(resumo.saldoAtual)}
+              </p>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {resumo.caixaAberto ? 'Caixa aberto agora' : 'Valor do último fechamento'}
+              </p>
+            </Cartao>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {resumoCards.map((card) => (
+                <Cartao key={card.rotulo} className="p-3">
+                  <p className="truncate text-[13px] text-muted-foreground">{card.rotulo}</p>
+                  <p className={cn('mt-0.5 truncate text-base font-semibold tabular-nums', card.classe)}>{card.valor}</p>
+                </Cartao>
+              ))}
+            </div>
+
+            <Secao titulo="Entradas por forma de pagamento" descricao="Só entradas, no período e filtro atuais.">
+              {entradasPorFormaPagamento.length === 0 ? (
+                <ListaVazia icone={<CreditCard />} titulo="Sem entradas no período" />
+              ) : (
+                <Cartao className="space-y-3 p-4">
+                  {entradasPorFormaPagamento.slice(0, 6).map((item) => (
+                    <div key={item.forma} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate font-medium text-foreground">{item.forma}</span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">
+                          {formatarMoeda(item.valor)} · {item.percentual.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted">
+                        <div className="h-1.5 rounded-full bg-primary" style={{ width: `${Math.max(4, item.percentual)}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </Cartao>
+              )}
+            </Secao>
+
+            <Secao
+              titulo="Histórico de caixas"
+              descricao="Toque num caixa para ver só as movimentações dele."
+              acao={
+                caixaSelecionado ? (
+                  <Botao variante="fantasma" tamanho="sm" onClick={() => setCaixaSelecionado(null)}>
+                    <X className="size-4" />
+                    Ver todos
+                  </Botao>
+                ) : null
+              }
+            >
+              {caixas.length === 0 ? (
+                <ListaVazia icone={<Calendar />} titulo="Nenhum caixa no período" descricao="Escolha outro período acima." />
+              ) : (
+                <Lista className="max-h-[420px] overflow-y-auto">
+                  {caixas.map((caixa) => {
+                    const selecionado = caixaSelecionado === caixa.id
+                    return (
+                      <li key={caixa.id}>
+                        <button
+                          type="button"
+                          aria-pressed={selecionado}
+                          onClick={() => setCaixaSelecionado(selecionado ? null : caixa.id)}
+                          className={cn(
+                            'flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                            selecionado && 'bg-primary/5',
+                          )}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="truncate font-medium text-foreground">
+                                {format(parseISO(caixa.data_abertura), "dd 'de' MMMM", { locale: ptBR })}
+                              </p>
+                              {caixa.status === 'aberto' && <Selo tom="sucesso">Aberto</Selo>}
+                            </div>
+                            <p className="mt-0.5 truncate text-sm text-muted-foreground">{caixa.responsavel_abertura}</p>
+                          </div>
+                          <div className="shrink-0 text-right tabular-nums">
+                            <p className="font-semibold text-foreground">
+                              {formatarMoeda(caixa.valor_fechamento || caixa.saldo_esperado)}
+                            </p>
+                            <p className="text-[13px] text-muted-foreground">
+                              +{formatarMoeda(caixa.total_entradas)} · −{formatarMoeda(caixa.total_saidas)}
+                            </p>
+                          </div>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </Lista>
+              )}
+            </Secao>
+
+            <Secao
+              titulo="Extrato detalhado"
+              descricao={`${movimentacoesFiltradas.length} ${movimentacoesFiltradas.length === 1 ? 'movimentação' : 'movimentações'}`}
+            >
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Entrada
+                  type="search"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar por descrição, categoria ou funcionário"
+                  aria-label="Buscar movimentação"
+                  className="pl-9"
+                />
+              </div>
+
+              {Object.keys(movimentacoesAgrupadas).length === 0 ? (
+                <ListaVazia
+                  icone={<Banknote />}
+                  titulo="Nenhuma movimentação encontrada"
+                  descricao={busca || caixaSelecionado ? 'Limpe a busca ou o caixa selecionado.' : undefined}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {Object.entries(movimentacoesAgrupadas).map(([data, movs]) => (
+                    <div key={data} className="space-y-1.5">
+                      <p className="px-1 text-sm font-medium capitalize text-muted-foreground">
+                        {format(parseISO(data), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                      </p>
+                      <Lista>
+                        {movs.map((mov) => (
+                          <li key={mov.id} className="flex items-center gap-3 px-4 py-3">
+                            {mov.tipo === 'entrada' ? (
+                              <ArrowUpCircle className="size-5 shrink-0 text-emerald-700 dark:text-emerald-400" aria-label="Entrada" />
+                            ) : (
+                              <ArrowDownCircle className="size-5 shrink-0 text-destructive" aria-label="Saída" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium text-foreground">{mov.categoria?.nome || 'Sem categoria'}</p>
+                              <p className="truncate text-sm text-muted-foreground">
+                                {mov.descricao || 'Sem descrição'}
+                                {mov.funcionario && ` · ${mov.funcionario.nome}`}
+                              </p>
+                              <p className="text-[13px] text-muted-foreground">
+                                {format(parseISO(mov.created_at), 'HH:mm')}
+                                {mov.forma_pagamento && ` · ${mov.forma_pagamento}`}
+                              </p>
+                            </div>
+                            <p
+                              className={cn(
+                                'shrink-0 font-semibold tabular-nums',
+                                mov.tipo === 'entrada' ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive',
+                              )}
+                            >
+                              {mov.tipo === 'entrada' ? '+' : '−'}{formatarMoeda(mov.valor)}
+                            </p>
+                          </li>
+                        ))}
+                      </Lista>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Secao>
+          </>
+        )}
+      </Pagina>
+
+      <Gaveta
+        aberto={modalAjuste}
+        aoFechar={() => setModalAjuste(false)}
+        bloqueada={processandoAjuste}
+        titulo={tipoAjuste === 'entrada' ? 'Adicionar ao saldo' : 'Retirar do saldo'}
+        descricao="Ajuste manual no caixa aberto."
+        rodape={
+          <>
+            <Botao variante="contorno" onClick={() => setModalAjuste(false)} disabled={processandoAjuste}>
+              Cancelar
+            </Botao>
+            <Botao
+              variante={tipoAjuste === 'entrada' ? 'primario' : 'perigo'}
+              carregando={processandoAjuste}
+              disabled={!valorAjuste || !descricaoAjuste}
+              onClick={() => void registrarAjuste()}
+            >
+              {tipoAjuste === 'entrada' ? 'Adicionar' : 'Retirar'}
+            </Botao>
+          </>
+        }
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(evento) => {
+            evento.preventDefault()
+            void registrarAjuste()
+          }}
+        >
+          <Segmentos
+            rotuloAcessivel="Tipo de ajuste"
+            valor={tipoAjuste}
+            aoMudar={setTipoAjuste}
+            opcoes={[
+              { valor: 'entrada', rotulo: 'Adicionar' },
+              { valor: 'saida', rotulo: 'Retirar' },
+            ]}
+          />
+          <Campo rotulo="Valor" htmlFor="ajuste-valor">
+            <EntradaPreco id="ajuste-valor" valor={valorAjuste} aoMudar={setValorAjuste} disabled={processandoAjuste} autoFocus />
+          </Campo>
+          <Campo rotulo="Motivo" htmlFor="ajuste-motivo">
+            <AreaTexto
+              id="ajuste-motivo"
+              value={descricaoAjuste}
+              onChange={(e) => setDescricaoAjuste(e.target.value)}
+              placeholder="Ex.: troco inicial, correção de valor"
+              disabled={processandoAjuste}
+            />
+          </Campo>
+          {caixaAberto && (
+            <p className="text-sm text-muted-foreground">
+              Caixa de {format(parseISO(caixaAberto.data_abertura), "dd/MM/yyyy 'às' HH:mm")} · {caixaAberto.responsavel_abertura}
+            </p>
+          )}
+          <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+        </form>
+      </Gaveta>
     </AdminLayout></ProtectedRoute>
   )
 }

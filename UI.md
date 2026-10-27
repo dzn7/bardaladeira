@@ -74,6 +74,23 @@ Primitivos Kibo UI disponíveis:
 - `MiniCalendar` e subcomponentes em `src/components/kibo-ui/mini-calendar/`.
 - `Pill`, `PillStatus`, `PillIndicator` e `PillIcon` em `src/components/kibo-ui/pill/`.
 
+## Kit do admin (`@/components/admin/ui`) — padrão para tela nova
+
+Origem: skill `admin-ux-gaveta`. Use antes de criar componente de formulário/modal no admin.
+
+| Componente | Quando usar |
+|---|---|
+| `Gaveta` | Todo criar/editar/detalhe. Bottom sheet no mobile, painel à direita no desktop; `rodape` fixo, `cabecalho` fixo para busca/abas, `bloqueada` durante salvar, `largura` md/lg/xl. Modal aberto de dentro de gaveta também é `Gaveta`. |
+| `useConfirmar` | Toda confirmação destrutiva. Só sob `/admin` (`ProvedorConfirmacao` em `src/app/admin/layout.tsx`); componente usado em `/garcom` ou `/dzn` usa `Gaveta` local. |
+| `Botao` | `primario`/`contorno`/`fantasma`/`perigo`/`perigoSuave`, `carregando`. Rodapé: editar = Excluir (`perigoSuave`, `md:mr-auto`) + Salvar; criar = Cancelar + Criar X. |
+| `Campo`, `Entrada`, `AreaTexto`, `Selecao`, `EntradaPreco` (+`lerPreco`/`formatarPreco`), `Contador` | Campos com rótulo/ajuda/erro; `text-base` no mobile (sem zoom iOS). Preço aceita vírgula. |
+| `Interruptor`, `LinhaInterruptor`, `Segmentos`, `Chip` | Disponibilidade na linha (faz `stopPropagation`); opções curtas no lugar de `<select>`; filtros. |
+| `Pagina`, `CabecalhoPagina`, `Secao`, `Cartao`, `Lista`, `ListaVazia`, `ListaCarregando`, `Esqueleto`, `Selo` | Estrutura: lista com linha inteira tocável para editar, estados vazio/carregando, selos discretos. |
+
+- Ícones do admin: **Phosphor** (`@phosphor-icons/react`); item ativo da sidebar usa `weight="fill"`. Cardápio público, garçom, entregador e `components/ui` continuam em `lucide-react`.
+- Avisos de resultado são `toast` (sonner); `ModalNotificacao` não é mais usado no admin.
+- Tela-modelo: `src/app/admin/bairros/page.tsx`.
+
 ## Componentes de produto existentes
 
 ### Público/cardápio
@@ -209,6 +226,10 @@ Primitivos Kibo UI disponíveis:
 - Preferir faixas compactas, tabelas, listas e linhas densas às pilhas de cards.
 - Conteúdo precisa continuar utilizável com sidebar colapsada e em viewport menor.
 - Páginas de catálogo polidas (`/admin/bairros`, `/admin/adicionais`, `/admin/combos`): shell `mx-auto w-full max-w-5xl|6xl space-y-5`; header card `rounded-xl border border-border/70 bg-card p-4 sm:p-5` com ícone `text-primary`, contagem no subtítulo e CTAs outline+primary; listas densas com `MenuAcoes` para ações secundárias; empty via `@/components/ui/empty`.
+
+### Anti-padrões do admin (desde 2026-10-27)
+
+- `fixed inset-0` caseiro, `AlertDialog`/`window.confirm` para confirmar, `ModalNotificacao` para sucesso/erro, rótulo em caixa alta com tracking, tabela larga no mobile, ícone lucide em tela do admin.
 
 ### Estoque (`/admin/estoque`)
 

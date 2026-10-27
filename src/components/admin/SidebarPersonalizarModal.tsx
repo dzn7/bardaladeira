@@ -1,24 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import {
-  Eye,
-  EyeOff,
-  GripVertical,
-  Loader2,
-  Pencil,
-  RotateCcw,
-} from 'lucide-react'
+import { Eye, EyeSlash as EyeOff, DotsSixVertical as GripVertical, PencilSimple as Pencil, ArrowCounterClockwise as RotateCcw } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Botao, Gaveta } from '@/components/admin/ui'
 import {
   ITENS_MENU_ADMIN,
   type ItemSidebarRota,
@@ -285,25 +270,37 @@ export const SidebarPersonalizarModal = ({
     (editingCategory === null || !isCategoryNameTaken(editValue.trim(), editingCategory))
 
   return (
-    <Dialog
-      open={aberto}
-      onOpenChange={(open) => {
-        if (!open && !ocupado) onFechar()
+    <Gaveta
+      aberto={aberto}
+      aoFechar={() => {
+        if (!ocupado) onFechar()
       }}
+      bloqueada={ocupado}
+      titulo="Personalizar a barra lateral"
+      descricao="Mostre ou oculte itens, arraste para reordenar e renomeie os grupos. Ocultos ficam em Mais. Vale só para a sua conta."
+      rodape={
+        <>
+          <Botao
+            variante="perigoSuave"
+            className="md:mr-auto"
+            onClick={() => void handleRestaurar()}
+            disabled={ocupado}
+            carregando={acaoPendente === 'reset'}
+            aria-label="Restaurar padrão da sidebar"
+          >
+            <RotateCcw className="size-4" aria-hidden />
+            Restaurar padrão
+          </Botao>
+          <Botao variante="contorno" onClick={onFechar} disabled={ocupado}>
+            Cancelar
+          </Botao>
+          <Botao onClick={() => void handleSalvar()} disabled={ocupado} carregando={acaoPendente === 'save'}>
+            Salvar
+          </Botao>
+        </>
+      }
     >
-      <DialogContent className="flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
-        <DialogHeader className="shrink-0 space-y-1.5 border-b border-border px-4 pb-4 pt-5 text-left sm:px-5">
-          <DialogTitle className="text-base font-semibold leading-snug tracking-tight">
-            Personalizar a barra lateral
-          </DialogTitle>
-          <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
-            Mostre ou oculte itens, arraste para reordenar e renomeie os grupos.
-            Ocultos ficam em <strong className="font-medium text-foreground">Mais</strong>.
-            Vale só para a sua conta.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 [-webkit-overflow-scrolling:touch]">
+        <div>
           <div className="flex flex-col gap-1">
             {sections.map((section) => (
               <div key={section.category || 'main'} className="flex flex-col gap-1">
@@ -329,13 +326,13 @@ export const SidebarPersonalizarModal = ({
                       aria-label={`Renomear grupo ${section.category}`}
                       aria-invalid={!editNameValid}
                       className={cn(
-                        'mx-1 mb-1 mt-3 h-9 w-full max-w-[240px] rounded-md border bg-transparent px-2 text-[11px] font-semibold uppercase tracking-wider text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'mx-1 mb-1 mt-3 h-9 w-full max-w-[240px] rounded-md border bg-transparent px-2 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         editNameValid ? 'border-primary' : 'border-destructive',
                       )}
                     />
                   ) : (
                     <div className="group/cat flex items-center gap-1.5 px-1 pb-1 pt-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <p className="text-sm font-medium text-muted-foreground">
                         {section.category}
                       </p>
                       <button
@@ -344,7 +341,7 @@ export const SidebarPersonalizarModal = ({
                         aria-label={`Renomear grupo ${section.category}`}
                         className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground opacity-100 transition-colors hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-7 sm:opacity-0 sm:group-hover/cat:opacity-100"
                       >
-                        <Pencil className="size-3.5" strokeWidth={1.6} />
+                        <Pencil className="size-3.5" />
                       </button>
                     </div>
                   ))}
@@ -393,7 +390,7 @@ export const SidebarPersonalizarModal = ({
 
                           <div className="flex min-w-0 flex-1 items-center gap-2.5">
                             <Icone
-                              strokeWidth={1.6}
+                             
                               className={cn(
                                 'size-4 shrink-0',
                                 item.visible ? 'text-primary' : 'text-muted-foreground',
@@ -436,51 +433,6 @@ export const SidebarPersonalizarModal = ({
             ))}
           </div>
         </div>
-
-        <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border bg-background px-4 py-3 sm:flex-row sm:justify-between sm:px-5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-11 w-full text-destructive hover:bg-destructive/10 hover:text-destructive sm:h-9 sm:w-auto"
-            onClick={() => void handleRestaurar()}
-            disabled={ocupado}
-            aria-label="Restaurar padrão da sidebar"
-          >
-            {acaoPendente === 'reset' ? (
-              <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
-            ) : (
-              <RotateCcw className="mr-1.5 size-3.5" aria-hidden />
-            )}
-            Restaurar padrão
-          </Button>
-
-          <div className="flex w-full gap-2 sm:w-auto">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-11 flex-1 sm:h-9 sm:flex-none"
-              onClick={onFechar}
-              disabled={ocupado}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="h-11 flex-1 sm:h-9 sm:flex-none"
-              onClick={() => void handleSalvar()}
-              disabled={ocupado}
-            >
-              {acaoPendente === 'save' ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
-              ) : null}
-              Salvar
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </Gaveta>
   )
 }

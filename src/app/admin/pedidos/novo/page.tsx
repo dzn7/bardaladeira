@@ -3,24 +3,7 @@
 import { useState, useEffect, Suspense, useMemo, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import {
-  Save,
-  Plus,
-  Banknote,
-  CreditCard,
-  QrCode,
-  Split,
-  X,
-  Loader2,
-  Search,
-  MapPin,
-  Phone,
-  UserRound,
-  Check,
-  ChevronsUpDown,
-  Wallet,
-  Clock3,
-} from 'lucide-react'
+import { FloppyDisk as Save, Plus, Money as Banknote, CreditCard, QrCode, ArrowsSplit as Split, X, CircleNotch as Loader2, MagnifyingGlass as Search, MapPin, Phone, UserCircle as UserRound, Check, CaretUpDown as ChevronsUpDown, Wallet, Clock as Clock3 } from '@phosphor-icons/react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -39,6 +22,7 @@ import {
   TipoItemCatalogoPedido,
 } from '@/components/admin/pedidos/novo/tipos'
 import { cn } from '@/lib/utils'
+import { Esqueleto } from '@/components/admin/ui'
 import { normalizarNomeCategoria } from '@/lib/categoriasCardapio'
 import { nomeClienteParaPedido, nomeClienteParaPontoSalao } from '@/lib/nome-cliente-local.mjs'
 import { criarVinculoCatalogoItemPedido } from '@/lib/vinculo-catalogo-item-pedido.mjs'
@@ -194,7 +178,7 @@ function SeletorBairroCombobox({ bairros, valor, onSelecionar }: SeletorBairroCo
           type="button"
           role="combobox"
           aria-expanded={aberto}
-          className="flex h-10 w-full items-center justify-between rounded-md border border-border/70 bg-card px-3 text-sm text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring/60"
+          className="flex h-11 w-full items-center justify-between rounded-lg border border-border/70 bg-card px-3 text-base text-foreground md:h-10 md:text-sm transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring/60"
         >
           {bairroAtivo ? (
             <span className="flex min-w-0 items-center gap-2">
@@ -212,7 +196,7 @@ function SeletorBairroCombobox({ bairros, valor, onSelecionar }: SeletorBairroCo
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Buscar bairro..." className="h-9" />
+          <CommandInput placeholder="Buscar bairro" className="h-11 text-base md:h-9 md:text-sm" />
           <CommandList>
             <CommandEmpty>Nenhum bairro encontrado.</CommandEmpty>
             <CommandGroup>
@@ -1711,7 +1695,7 @@ function NovoPedidoContent() {
             )}
           >
             <div className="flex items-center justify-between gap-2 mb-3">
-              <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+              <p className="text-sm font-medium text-muted-foreground">
                 Tipo de atendimento
               </p>
               {atendimentoLocalSelecionado && tipoEntrega === 'local' && (
@@ -1806,8 +1790,10 @@ function NovoPedidoContent() {
                 </div>
 
                 {loadingMesas ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10" aria-busy="true" aria-label="Carregando">
+                    {Array.from({ length: 10 }).map((_, indice) => (
+                      <Esqueleto key={indice} className="h-[76px] rounded-lg" />
+                    ))}
                   </div>
                 ) : pontosSalaoAtivos.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
@@ -1847,7 +1833,7 @@ function NovoPedidoContent() {
                           )}
                         >
                           {!ehParceiro && (
-                            <span className={cn('text-[10px] font-semibold uppercase leading-none tracking-wider', selecionada ? 'text-background/70' : 'text-muted-foreground')}>
+                            <span className={cn('text-[11px] font-medium leading-none', selecionada ? 'text-background/70' : 'text-muted-foreground')}>
                               {modoSalao === 'comanda' ? 'Comanda' : 'Mesa'}
                             </span>
                           )}
@@ -1892,13 +1878,13 @@ function NovoPedidoContent() {
               {produtosSelecionados.length > 0 && (
                 <div className="mt-3 space-y-2 rounded-xl border border-border/70 bg-card p-3 xl:hidden">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+                    <p className="text-sm font-medium text-muted-foreground">
                       No pedido
                     </p>
                     <button
                       type="button"
                       onClick={() => setEtapaMobile('ticket')}
-                      className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+                      className="-my-2 inline-flex min-h-11 items-center px-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
                     >
                       Ver resumo
                     </button>
@@ -1920,7 +1906,7 @@ function NovoPedidoContent() {
                             type="button"
                             onClick={() => atualizarQuantidade(produto.id, produto.quantidade - 1)}
                             disabled={produto.quantidade <= 1}
-                            className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-accent disabled:opacity-40"
+                            className="flex size-10 items-center justify-center rounded text-muted-foreground hover:bg-accent disabled:opacity-40"
                             aria-label={`Diminuir ${produto.nome}`}
                           >
                             <span className="text-sm leading-none">−</span>
@@ -1931,7 +1917,7 @@ function NovoPedidoContent() {
                           <button
                             type="button"
                             onClick={() => atualizarQuantidade(produto.id, produto.quantidade + 1)}
-                            className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-accent"
+                            className="flex size-10 items-center justify-center rounded text-muted-foreground hover:bg-accent"
                             aria-label={`Aumentar ${produto.nome}`}
                           >
                             <span className="text-sm leading-none">+</span>
@@ -1940,7 +1926,7 @@ function NovoPedidoContent() {
                         <button
                           type="button"
                           onClick={() => removerProduto(produto.id)}
-                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive"
+                          className="flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-destructive"
                           aria-label={`Remover ${produto.nome}`}
                         >
                           <X strokeWidth={1.6} className="size-3.5" />
@@ -1965,7 +1951,7 @@ function NovoPedidoContent() {
               )}
             >
               <div className="flex items-center justify-between gap-2 mb-2.5">
-                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+                <p className="text-sm font-medium text-muted-foreground">
                   Tipo de atendimento
                 </p>
                 {atendimentoLocalSelecionado && tipoEntrega === 'local' && (
@@ -2051,8 +2037,10 @@ function NovoPedidoContent() {
                     </span>
                   </div>
                   {loadingMesas ? (
-                    <div className="flex justify-center py-4">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <div className="grid grid-cols-6 gap-1.5" aria-busy="true" aria-label="Carregando">
+                      {Array.from({ length: 6 }).map((_, indice) => (
+                        <Esqueleto key={indice} className="h-12 rounded-lg" />
+                      ))}
                     </div>
                   ) : pontosSalaoAtivos.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-center text-xs text-muted-foreground">
@@ -2110,7 +2098,7 @@ function NovoPedidoContent() {
               >
                 <div className="mb-4 flex items-center justify-between gap-2">
                   <h3 className="text-sm font-medium text-foreground">Cliente</h3>
-                  <span className="text-[11px] uppercase tracking-widest text-muted-foreground">Obrigatório</span>
+                  <span className="text-[13px] text-muted-foreground">Obrigatório</span>
                 </div>
 
                 <div ref={refBuscaCliente} className="relative mb-4">
@@ -2146,7 +2134,7 @@ function NovoPedidoContent() {
                           onChange={(e) => handleBuscaClienteChange(e.target.value)}
                           onFocus={() => { if (clientesBuscados.length > 0) setMostrarDropdownClientes(true) }}
                           placeholder="Buscar cliente por nome ou telefone..."
-                          className="h-11 w-full rounded-md border border-border/70 bg-background pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/60"
+                          className="h-11 w-full rounded-lg border border-border/70 bg-background pl-10 pr-4 text-base text-foreground outline-none md:text-sm transition-colors placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/60"
                         />
                         {buscandoClientes && (
                           <Loader2 strokeWidth={1.6} className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -2218,7 +2206,7 @@ function NovoPedidoContent() {
                         placeholder={tipoEntrega === 'local' ? `Ex: ${obterNomeTipoPontoSalaoCapitalizado(modoSalao)} 3` : 'Digite o nome'}
                         aria-invalid={campoErro === 'nome'}
                         className={cn(
-                          'h-11 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60',
+                          'h-11 min-w-0 flex-1 rounded-lg border bg-background px-3 text-base text-foreground md:text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60',
                           campoErro === 'nome' ? 'border-destructive' : 'border-border/70',
                         )}
                       />
@@ -2251,7 +2239,7 @@ function NovoPedidoContent() {
                       value={telefoneCliente}
                       onChange={(e) => setTelefoneCliente(e.target.value)}
                       placeholder="(00) 00000-0000"
-                      className="h-10 w-full rounded-md border border-border/70 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+                      className="h-11 w-full rounded-lg border border-border/70 bg-background px-3 text-base text-foreground md:h-10 md:text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
                     />
                   </div>
                 </div>
@@ -2267,7 +2255,7 @@ function NovoPedidoContent() {
                   <button
                     type="button"
                     onClick={irParaAtendimento}
-                    className="inline-flex h-8 items-center justify-center rounded-md border border-border/70 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                    className="inline-flex h-11 items-center justify-center rounded-lg border border-border/70 px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent md:h-9"
                   >
                     Trocar
                   </button>
@@ -2290,9 +2278,7 @@ function NovoPedidoContent() {
                         Bairro *
                       </label>
                       {loadingBairros ? (
-                        <div className="flex justify-center py-4">
-                          <Loader2 strokeWidth={1.6} className="size-5 animate-spin text-muted-foreground" />
-                        </div>
+                        <Esqueleto className="h-11 w-full rounded-lg md:h-10" />
                       ) : bairros.length > 0 ? (
                         <div className={cn(campoErro === 'bairro' && 'rounded-md ring-2 ring-destructive/40')}>
                           <SeletorBairroCombobox
@@ -2318,7 +2304,7 @@ function NovoPedidoContent() {
                         onChange={(e) => setEndereco(e.target.value)}
                         placeholder="Ex: Rua das Flores, 123, próximo à padaria..."
                         rows={2}
-                        className="w-full resize-none rounded-md border border-border/70 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+                        className="w-full resize-none rounded-lg border border-border/70 bg-background px-3 py-2.5 text-base text-foreground md:text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
                       />
                     </div>
                   </div>
@@ -2346,7 +2332,7 @@ function NovoPedidoContent() {
                     {aplicarTaxaServico && (
                       <div className="mt-3 grid gap-3 sm:grid-cols-3">
                         <div>
-                          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                          <label className="mb-1 block text-[13px] font-medium text-muted-foreground">
                             Percentual (%)
                           </label>
                           <input
@@ -2356,11 +2342,11 @@ function NovoPedidoContent() {
                             step={0.1}
                             value={percentualTaxaServico}
                             onChange={(evento) => setPercentualTaxaServico(evento.target.value)}
-                            className="h-9 w-full rounded-md border border-border/70 bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+                            className="h-11 w-full rounded-lg border border-border/70 bg-background px-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60 md:h-10 md:text-sm"
                           />
                         </div>
                         <div>
-                          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                          <label className="mb-1 block text-[13px] font-medium text-muted-foreground">
                             Valor manual (R$)
                           </label>
                           <input
@@ -2370,7 +2356,7 @@ function NovoPedidoContent() {
                             value={taxaServicoManual}
                             onChange={(evento) => setTaxaServicoManual(evento.target.value)}
                             placeholder={taxaServicoCalculada.toFixed(2)}
-                            className="h-9 w-full rounded-md border border-border/70 bg-background px-3 font-mono text-sm tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+                            className="h-11 w-full rounded-lg border border-border/70 bg-background px-3 font-mono text-base tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60 md:h-10 md:text-sm"
                           />
                         </div>
                         <div className="rounded-md border border-border/70 bg-card px-3 py-2 text-xs">
@@ -2408,7 +2394,7 @@ function NovoPedidoContent() {
                       if (campoErro === 'pagamento') setCampoErro(null)
                     }}
                     className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                      'inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors md:min-h-9',
                       pagamentoDividido
                         ? 'bg-primary/10 text-primary'
                         : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -2510,7 +2496,7 @@ function NovoPedidoContent() {
                                   placeholder="0,00"
                                   min={calcularTotal()}
                                   step="0.01"
-                                  className="h-9 w-full rounded-md border border-input bg-card pl-10 pr-3 font-mono text-sm tabular-nums text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+                                  className="h-11 w-full rounded-lg border border-input bg-card pl-10 pr-3 font-mono text-base tabular-nums md:h-10 md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
                                 />
                               </div>
                             </div>
@@ -2604,7 +2590,7 @@ function NovoPedidoContent() {
                         <select
                           value={novoPagamentoForma}
                           onChange={(e) => setNovoPagamentoForma(e.target.value)}
-                          className="h-10 min-w-0 flex-1 rounded-md border border-border/70 bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+                          className="h-11 min-w-0 flex-1 rounded-lg border border-border/70 bg-background px-3 text-base text-foreground md:h-10 md:text-sm focus:outline-none focus:ring-2 focus:ring-ring/60"
                         >
                           <option value="">Forma...</option>
                           {FORMAS_PAGAMENTO.map(f => (
@@ -2620,7 +2606,7 @@ function NovoPedidoContent() {
                           onChange={(e) => setNovoPagamentoValor(e.target.value)}
                           placeholder={valorRestante > 0 ? `${valorRestante.toFixed(0)}` : '0'}
                           disabled={valorRestante <= 0}
-                          className="h-10 w-24 rounded-md border border-border/70 bg-background px-2 font-mono text-sm tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60 disabled:opacity-50 sm:w-28 sm:px-3"
+                          className="h-11 w-24 rounded-lg border border-border/70 bg-background px-2 font-mono text-base tabular-nums md:h-10 md:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60 disabled:opacity-50 sm:w-28 sm:px-3"
                         />
                       </div>
                       <button
@@ -2728,7 +2714,7 @@ function NovoPedidoContent() {
                   id="botao-confirmar-pedido"
                   onClick={isDesktop || etapaMobile === 'ticket' ? salvarPedido : avancarEtapaMobile}
                   disabled={loading || ((isDesktop || etapaMobile === 'ticket') ? !podeSalvarPedido : false)}
-                  className="inline-flex h-11 min-w-[140px] items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[200px]"
+                  className="inline-flex h-12 min-w-[140px] items-center justify-center gap-2 rounded-lg bg-primary md:h-11 px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[200px]"
                 >
                   {loading ? (
                     <>

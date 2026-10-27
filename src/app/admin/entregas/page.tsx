@@ -1,12 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Truck, MapPin, Clock, User, CheckCircle2, XCircle, RefreshCw, BarChart3,
-  TrendingUp, Package, Timer, Users, Wallet, CircleDollarSign,
-  PauseCircle, ChevronDown, ChevronUp, Loader2, Power, PowerOff, Ban, Undo2,
-} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Truck, MapPin, Clock, User, CheckCircle as CheckCircle2, XCircle, ArrowsClockwise as RefreshCw, Wallet, CurrencyCircleDollar as CircleDollarSign, PauseCircle, CaretDown as ChevronDown, CaretUp as ChevronUp, Prohibit as Ban, ArrowUUpLeft as Undo2 } from '@phosphor-icons/react'
+import { toast } from 'sonner'
 import {
   format, eachDayOfInterval,
 } from 'date-fns'
@@ -19,10 +15,22 @@ import {
 import { Bar, Line, Doughnut } from 'react-chartjs-2'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
-import ModalNotificacao from '@/components/ModalNotificacao'
-import { FiltrosAtivosChips, type ChipFiltroAtivo } from '@/components/admin/filtros/FiltrosAtivosChips'
-import { ListaSkeleton, ListaVazia } from '@/components/admin/filtros/ListaEstado'
-import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Botao,
+  CabecalhoPagina,
+  Cartao,
+  Esqueleto,
+  LinhaInterruptor,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Secao,
+  Segmentos,
+  Selecao,
+  Selo,
+  useConfirmar,
+} from '@/components/admin/ui'
 import { useEntregas } from '@/lib/useEntregas'
 import { usePagamentosEntregadores } from '@/lib/usePagamentosEntregadores'
 import DialogPagarEntregador from '@/components/admin/entregas/DialogPagarEntregador'
@@ -53,11 +61,13 @@ const formatarMoeda = (valor: number) =>
 
 const CHAVE_ENTREGAS_ONLINE = 'entregas_online_ativas'
 
-const corDotStatus: Record<StatusEntrega, string> = {
-  pendente: 'bg-amber-500',
-  em_rota: 'bg-blue-500',
-  entregue: 'bg-emerald-500',
-  cancelada: 'bg-destructive',
+type Tom = 'neutro' | 'primario' | 'sucesso' | 'alerta' | 'perigo'
+
+const tomStatus: Record<StatusEntrega, Tom> = {
+  pendente: 'alerta',
+  em_rota: 'primario',
+  entregue: 'sucesso',
+  cancelada: 'perigo',
 }
 
 const labelStatus: Record<StatusEntrega, string> = {
@@ -67,38 +77,40 @@ const labelStatus: Record<StatusEntrega, string> = {
   cancelada: 'Cancelada',
 }
 
-const LABEL_PERIODO: Record<PeriodoEntrega, string> = {
-  todos: 'Todos',
-  hoje: 'Hoje',
-  '7dias': '7 dias',
-  '30dias': '30 dias',
-  semana: 'Semana',
-  mes: 'Mês',
-  personalizado: 'Personalizado',
-}
-
-const corPagamentoBadge: Record<StatusPagamentoEntregador, string> = {
-  pendente: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
-  parcial: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400',
-  pago: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-  acumulado: 'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-400',
+const tomPagamento: Record<StatusPagamentoEntregador, Tom> = {
+  pendente: 'alerta',
+  parcial: 'primario',
+  pago: 'sucesso',
+  acumulado: 'neutro',
 }
 
 const labelPagamento: Record<StatusPagamentoEntregador, string> = {
-  pendente: 'Pendente',
-  parcial: 'Pago parcial',
+  pendente: 'A pagar',
+  parcial: 'Pago em parte',
   pago: 'Pago',
-  acumulado: 'Acumulado',
+  acumulado: 'Guardado',
 }
 
-const corDotPagamento: Record<StatusPagamentoEntregador, string> = {
-  pendente: 'bg-amber-500',
-  parcial: 'bg-blue-500',
-  pago: 'bg-emerald-500',
-  acumulado: 'bg-violet-500',
+const ABAS: Array<{ valor: Aba; rotulo: string }> = [
+  { valor: 'entregas', rotulo: 'Entregas' },
+  { valor: 'pagamentos', rotulo: 'Repasse' },
+  { valor: 'relatorios', rotulo: 'Relatórios' },
+]
+
+/** Número de resumo: rótulo pequeno em cima, valor grande embaixo. */
+function Indicador({ rotulo, valor, destaque }: { rotulo: string; valor: ReactNode; destaque?: boolean }) {
+  return (
+    <Cartao className="p-4">
+      <p className="text-[13px] text-muted-foreground">{rotulo}</p>
+      <p className={cn('mt-1 text-xl font-semibold tabular-nums', destaque && 'text-emerald-700 dark:text-emerald-400')}>
+        {valor}
+      </p>
+    </Cartao>
+  )
 }
 
 export default function EntregasPage() {
+  const confirmar = useConfirmar()
   const [abaAtiva, setAbaAtiva] = useState<Aba>('entregas')
   const [periodo, setPeriodo] = useState<PeriodoEntrega>('7dias')
   const [datasPeriodo, setDatasPeriodo] = useState(() => obterDatasPeriodoEntrega('7dias'))
@@ -110,7 +122,7 @@ export default function EntregasPage() {
   const {
     entregas, entregadores, estatisticas, carregando, notificacao,
     carregarDados, atualizarStatusEntrega, atribuirEntregador, alternarExclusaoRepasse,
-    mostrarNotificacao, fecharNotificacao,
+    fecharNotificacao,
   } = useEntregas({
     inicioIso: intervalo.inicioIso,
     fimExclusivoIso: intervalo.fimExclusivoIso,
@@ -131,27 +143,18 @@ export default function EntregasPage() {
   const [carregandoConfigEntrega, setCarregandoConfigEntrega] = useState(true)
   const [salvandoConfigEntrega, setSalvandoConfigEntrega] = useState(false)
 
-  const chipsFiltroAtivo = useMemo((): ChipFiltroAtivo[] => {
-    const chips: ChipFiltroAtivo[] = []
-    if (periodo !== '7dias') {
-      chips.push({
-        key: 'periodo',
-        label: 'Período',
-        value:
-          periodo === 'personalizado'
-            ? `${intervalo.dataInicio} → ${intervalo.dataFim}`
-            : LABEL_PERIODO[periodo],
-      })
+  // Avisos vindos do hook useEntregas viram toast (ou confirmação, se pedirem).
+  useEffect(() => {
+    if (!notificacao) return
+    const { tipo, titulo, mensagem, onConfirm } = notificacao
+    fecharNotificacao()
+    if (tipo === 'confirmacao') {
+      void confirmar({ titulo, descricao: mensagem }).then((ok) => ok && onConfirm?.())
+      return
     }
-    if (filtroStatus !== 'todos') {
-      chips.push({ key: 'status', label: 'Status', value: labelStatus[filtroStatus] })
-    }
-    if (abaAtiva === 'pagamentos' && filtroEntregador !== 'todos') {
-      const nome = entregadores.find((item) => item.id === filtroEntregador)?.nome
-      chips.push({ key: 'entregador', label: 'Entregador', value: nome ?? filtroEntregador })
-    }
-    return chips
-  }, [periodo, intervalo.dataInicio, intervalo.dataFim, filtroStatus, filtroEntregador, abaAtiva, entregadores])
+    const mostrar = { sucesso: toast.success, erro: toast.error, aviso: toast.warning, info: toast.info }[tipo]
+    mostrar(titulo, { description: mensagem })
+  }, [notificacao, fecharNotificacao, confirmar])
 
   const handleLimparFiltros = () => {
     setPeriodo('7dias')
@@ -172,11 +175,11 @@ export default function EntregasPage() {
       setEntregasOnlineAtivas((data?.valor ?? 'true') !== 'false')
     } catch (error) {
       console.error('[Entregas] Erro ao carregar configuração de entregas:', error)
-      mostrarNotificacao('erro', 'Erro nas entregas', 'Não foi possível carregar o status das entregas online.')
+      toast.error('Erro nas entregas', { description: 'Não foi possível carregar o status das entregas online.' })
     } finally {
       setCarregandoConfigEntrega(false)
     }
-  }, [mostrarNotificacao])
+  }, [])
 
   const alterarEntregasOnline = async (ativo: boolean) => {
     const valorAnterior = entregasOnlineAtivas
@@ -216,17 +219,15 @@ export default function EntregasPage() {
         if (erroInsert) throw erroInsert
       }
 
-      mostrarNotificacao(
-        'sucesso',
-        ativo ? 'Entregas ativadas' : 'Entregas desligadas',
-        ativo
+      toast.success(ativo ? 'Entregas ativadas' : 'Entregas desligadas', {
+        description: ativo
           ? 'O site já pode aceitar pedidos para entrega.'
-          : 'A opção Entrega foi removida do checkout em tempo real.'
-      )
+          : 'A opção Entrega saiu do site na hora.',
+      })
     } catch (error) {
       console.error('[Entregas] Erro ao alterar entregas online:', error)
       setEntregasOnlineAtivas(valorAnterior)
-      mostrarNotificacao('erro', 'Erro ao salvar', 'Não foi possível alterar o status das entregas.')
+      toast.error('Erro ao salvar', { description: 'Não foi possível alterar o status das entregas.' })
     } finally {
       setSalvandoConfigEntrega(false)
     }
@@ -262,19 +263,20 @@ export default function EntregasPage() {
   const confirmarTodasPendentes = async () => {
     const pendentes = entregas.filter(e => e.status === 'pendente' || e.status === 'em_rota')
     if (pendentes.length === 0) {
-      mostrarNotificacao('info', 'Nenhuma pendente', 'Não há entregas pendentes para confirmar.')
+      toast.info('Nenhuma pendente', { description: 'Não há entregas pendentes para confirmar.' })
       return
     }
 
-    mostrarNotificacao('confirmacao', 'Confirmar todas',
-      `Deseja marcar ${pendentes.length} entrega(s) como entregue?`,
-      async () => {
-        for (const entrega of pendentes) {
-          await atualizarStatusEntrega(entrega.id, 'entregue')
-        }
-        mostrarNotificacao('sucesso', 'Sucesso', `${pendentes.length} entrega(s) confirmada(s).`)
-      }
-    )
+    const ok = await confirmar({
+      titulo: 'Marcar todas como entregues?',
+      descricao: `${pendentes.length} entrega(s) pendente(s) ou em rota vão para Entregue.`,
+      confirmar: 'Marcar entregues',
+    })
+    if (!ok) return
+    for (const entrega of pendentes) {
+      await atualizarStatusEntrega(entrega.id, 'entregue')
+    }
+    toast.success('Sucesso', { description: `${pendentes.length} entrega(s) confirmada(s).` })
   }
 
   const dataInicioGrafico = useMemo(
@@ -470,37 +472,39 @@ export default function EntregasPage() {
 
   const abrirDialogPagar = (registro: ResumoEntregadorDia) => {
     if (!registro.registro_id || registro.saldo <= 0) {
-      mostrarNotificacao('aviso', 'Sem saldo a pagar', 'Esta diária já está quitada.')
+      toast.warning('Sem saldo a pagar', { description: 'Esta diária já está quitada.' })
       return
     }
     setRegistroPagamento(registro)
     setDialogPagarAberto(true)
   }
 
-  const confirmarAcumular = (registro: ResumoEntregadorDia) => {
+  const confirmarAcumular = async (registro: ResumoEntregadorDia) => {
     if (!registro.registro_id) return
     if (registro.saldo <= 0) {
-      mostrarNotificacao('aviso', 'Sem saldo', 'Esta diária já foi quitada.')
+      toast.warning('Sem saldo', { description: 'Esta diária já foi quitada.' })
       return
     }
-    mostrarNotificacao('confirmacao', 'Acumular diária',
-      `Marcar a diária de ${registro.entregador_nome} (${formatarMoeda(registro.saldo)}) como acumulada?`,
-      async () => {
-        const ok = await acumular(registro.registro_id!)
-        if (ok) mostrarNotificacao('sucesso', 'Acumulado', 'Diária marcada como acumulada.')
-      }
-    )
+    const ok = await confirmar({
+      titulo: 'Guardar para outro dia?',
+      descricao: `A diária de ${registro.entregador_nome} (${formatarMoeda(registro.saldo)}) fica marcada como acumulada para pagar depois.`,
+      confirmar: 'Guardar',
+    })
+    if (!ok) return
+    const feito = await acumular(registro.registro_id)
+    if (feito) toast.success('Acumulado', { description: 'Diária marcada como acumulada.' })
   }
 
-  const confirmarReabrir = (registro: ResumoEntregadorDia) => {
+  const confirmarReabrir = async (registro: ResumoEntregadorDia) => {
     if (!registro.registro_id) return
-    mostrarNotificacao('confirmacao', 'Reabrir diária',
-      'Voltar esta diária para o status pendente?',
-      async () => {
-        const ok = await reabrir(registro.registro_id!)
-        if (ok) mostrarNotificacao('sucesso', 'Reaberto', 'Diária reaberta.')
-      }
-    )
+    const ok = await confirmar({
+      titulo: 'Reabrir diária?',
+      descricao: 'Ela volta a aparecer como a pagar.',
+      confirmar: 'Reabrir',
+    })
+    if (!ok) return
+    const feito = await reabrir(registro.registro_id)
+    if (feito) toast.success('Reaberto', { description: 'Diária reaberta.' })
   }
 
   const alterarPeriodo = (novoPeriodo: Exclude<PeriodoEntrega, 'personalizado'>) => {
@@ -526,600 +530,394 @@ export default function EntregasPage() {
     }))
   }
 
+  const temPendentes = estatisticas.entregasPendentes > 0 || estatisticas.entregasEmRota > 0
+
   return (
     <ProtectedRoute><AdminLayout>
-      <div className="space-y-5">
+      <Pagina>
+        <CabecalhoPagina
+          titulo="Entregas"
+          descricao="Entregas, pagamento dos entregadores e relatórios."
+          acoes={
+            <Botao variante="contorno" onClick={carregarDados} aria-label="Atualizar entregas" className="h-11 md:h-10">
+              <RefreshCw className={cn('size-4', carregando && 'animate-spin')} />
+              Atualizar
+            </Botao>
+          }
+        />
 
-        {/* Cabeçalho */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Entregas</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Acompanhe entregas, repasses e relatórios em tempo real.
-            </p>
-          </div>
-          <button
-            onClick={carregarDados}
-            className="h-9 w-9 inline-flex items-center justify-center border border-border/70 rounded-lg hover:bg-muted transition-colors self-start"
-            title="Atualizar"
-            aria-label="Atualizar entregas"
-          >
-            <RefreshCw className={cn('w-4 h-4', carregando && 'animate-spin')} strokeWidth={1.6} />
-          </button>
-        </div>
+        <LinhaInterruptor
+          titulo="Entregas pelo site"
+          descricao={
+            carregandoConfigEntrega
+              ? 'Carregando…'
+              : entregasOnlineAtivas
+                ? 'Ligado: o cliente pode pedir entrega no site.'
+                : 'Desligado: a opção Entrega não aparece no site.'
+          }
+          marcado={entregasOnlineAtivas}
+          aoMudar={(ativo) => void alterarEntregasOnline(ativo)}
+          desabilitado={carregandoConfigEntrega || salvandoConfigEntrega}
+          rotuloAcessivel={entregasOnlineAtivas ? 'Desligar entregas pelo site' : 'Ligar entregas pelo site'}
+        />
 
-        <div className="rounded-lg border border-border/70 bg-card p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border',
-                entregasOnlineAtivas
-                  ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                  : 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-400'
-              )}>
-                {entregasOnlineAtivas ? <Truck className="h-5 w-5" /> : <PowerOff className="h-5 w-5" />}
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-sm font-semibold">Entregas online</h2>
-                  <span className={cn(
-                    'rounded-md border px-2 py-0.5 text-xs font-medium',
-                    entregasOnlineAtivas
-                      ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                      : 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-400'
-                  )}>
-                    {entregasOnlineAtivas ? 'ativas' : 'desligadas'}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Controla a opção Entrega no site do cliente em tempo real.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              role="switch"
-              aria-checked={entregasOnlineAtivas}
-              disabled={carregandoConfigEntrega || salvandoConfigEntrega}
-              onClick={() => alterarEntregasOnline(!entregasOnlineAtivas)}
-              className={cn(
-                'inline-flex h-10 min-w-[156px] items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-60',
-                entregasOnlineAtivas
-                  ? 'border-border/70 bg-background hover:bg-muted'
-                  : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400'
-              )}
-            >
-              {salvandoConfigEntrega ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : entregasOnlineAtivas ? (
-                <PowerOff className="h-4 w-4" />
-              ) : (
-                <Power className="h-4 w-4" />
-              )}
-              {entregasOnlineAtivas ? 'Desligar' : 'Ativar'}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <FiltroEntregasAdmin
-            hasFilter={
-              periodo !== '7dias' ||
-              filtroStatus !== 'todos' ||
-              (abaAtiva === 'pagamentos' && filtroEntregador !== 'todos')
+        <FiltroEntregasAdmin
+          hasFilter={
+            periodo !== '7dias' ||
+            filtroStatus !== 'todos' ||
+            (abaAtiva === 'pagamentos' && filtroEntregador !== 'todos')
+          }
+          mostrarEntregador={abaAtiva === 'pagamentos'}
+          entregadores={entregadores.map((item) => ({ id: item.id, nome: item.nome }))}
+          valor={{
+            periodo,
+            dataInicio: intervalo.dataInicio,
+            dataFim: intervalo.dataFim,
+            status: filtroStatus,
+            entregadorId: filtroEntregador,
+          }}
+          onLimpar={handleLimparFiltros}
+          onChange={(proximo) => {
+            if (proximo.periodo && proximo.periodo !== 'personalizado') {
+              alterarPeriodo(proximo.periodo)
+            } else if (proximo.periodo === 'personalizado') {
+              setPeriodo('personalizado')
             }
-            mostrarEntregador={abaAtiva === 'pagamentos'}
-            entregadores={entregadores.map((item) => ({ id: item.id, nome: item.nome }))}
-            valor={{
-              periodo,
-              dataInicio: intervalo.dataInicio,
-              dataFim: intervalo.dataFim,
-              status: filtroStatus,
-              entregadorId: filtroEntregador,
-            }}
-            onLimpar={handleLimparFiltros}
-            onChange={(proximo) => {
-              if (proximo.periodo && proximo.periodo !== 'personalizado') {
-                alterarPeriodo(proximo.periodo)
-              } else if (proximo.periodo === 'personalizado') {
-                setPeriodo('personalizado')
-              }
-              if (proximo.dataInicio !== undefined) alterarDataInicio(proximo.dataInicio)
-              if (proximo.dataFim !== undefined) alterarDataFim(proximo.dataFim)
-              if (proximo.status !== undefined) setFiltroStatus(proximo.status)
-              if (proximo.entregadorId !== undefined) setFiltroEntregador(proximo.entregadorId)
-            }}
-          />
-        </div>
+            if (proximo.dataInicio !== undefined) alterarDataInicio(proximo.dataInicio)
+            if (proximo.dataFim !== undefined) alterarDataFim(proximo.dataFim)
+            if (proximo.status !== undefined) setFiltroStatus(proximo.status)
+            if (proximo.entregadorId !== undefined) setFiltroEntregador(proximo.entregadorId)
+          }}
+        />
 
-        <FiltrosAtivosChips chips={chipsFiltroAtivo} onLimpar={handleLimparFiltros} />
-
-        {/* Cards de resumo do período selecionado */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Resumo do período */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {carregando ? (
             Array.from({ length: 4 }).map((_, indice) => (
-              <div key={indice} className="rounded-lg border border-border/70 bg-card p-4 space-y-3">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-7 w-16" />
-              </div>
+              <Cartao key={indice} className="space-y-2 p-4">
+                <Esqueleto className="h-3 w-24" />
+                <Esqueleto className="h-6 w-16" />
+              </Cartao>
             ))
           ) : (
             <>
-          <div className="bg-card border border-border/70 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-muted-foreground">Pendentes no período</p>
-              <Package className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-            </div>
-            <p className="text-xl font-semibold font-mono tabular-nums">
-              {estatisticasPeriodo.pendentes}
-            </p>
-          </div>
-          <div className="bg-card border border-border/70 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-muted-foreground">Total no período</p>
-              <Truck className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-            </div>
-            <p className="text-xl font-semibold font-mono tabular-nums">
-              {estatisticasPeriodo.total}
-            </p>
-          </div>
-          <div className="bg-card border border-border/70 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-muted-foreground">Concluídas no período</p>
-              <CheckCircle2 className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-            </div>
-            <p className="text-xl font-semibold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
-              {estatisticasPeriodo.concluidas}
-            </p>
-          </div>
-          <div className="bg-card border border-border/70 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-muted-foreground">Tempo médio</p>
-              <Timer className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-            </div>
-            <p className="text-xl font-semibold font-mono tabular-nums">
-              {estatisticasPeriodo.tempoMedio} min
-            </p>
-          </div>
+              <Indicador rotulo="Pendentes" valor={estatisticasPeriodo.pendentes} />
+              <Indicador rotulo="Total" valor={estatisticasPeriodo.total} />
+              <Indicador rotulo="Entregues" valor={estatisticasPeriodo.concluidas} destaque />
+              <Indicador rotulo="Tempo médio" valor={`${estatisticasPeriodo.tempoMedio} min`} />
             </>
           )}
         </div>
 
         {/* Abas */}
-        <div className="flex border-b border-border/70">
-          {([
-            { id: 'entregas' as const, label: 'Entregas', icon: Truck },
-            { id: 'pagamentos' as const, label: 'Repasse', icon: Wallet },
-            { id: 'relatorios' as const, label: 'Relatórios', icon: BarChart3 },
-          ]).map(({ id, label, icon: Icon }) => (
+        <div role="tablist" aria-label="Seções de entregas" className="grid grid-cols-3 rounded-xl bg-muted p-1">
+          {ABAS.map(({ valor, rotulo }) => (
             <button
-              key={id}
-              onClick={() => setAbaAtiva(id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm font-medium transition-colors relative ${
-                abaAtiva === id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Icon className="w-4 h-4" strokeWidth={1.6} />
-              <span>{label}</span>
-              {id === 'pagamentos' && totaisGerais.totalDevido > 0 && (
-                <span className="bg-foreground text-background text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-                  {formatarMoeda(totaisGerais.totalDevido).replace('R$ ', '')}
-                </span>
+              key={valor}
+              type="button"
+              role="tab"
+              aria-selected={abaAtiva === valor}
+              onClick={() => setAbaAtiva(valor)}
+              className={cn(
+                'flex h-11 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9',
+                abaAtiva === valor ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
               )}
-              {abaAtiva === id && (
-                <motion.div
-                  layoutId="entregasTabIndicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground"
-                />
+            >
+              {rotulo}
+              {valor === 'pagamentos' && totaisGerais.totalDevido > 0 && (
+                <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">
+                  {formatarMoeda(totaisGerais.totalDevido)}
+                </span>
               )}
             </button>
           ))}
         </div>
 
-        <AnimatePresence mode="wait">
-
-          {/* Aba: Entregas */}
-          {abaAtiva === 'entregas' && (
-            <motion.div key="entregas" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
-
-              {(estatisticas.entregasPendentes > 0 || estatisticas.entregasEmRota > 0) && (
-                <div className="flex justify-end">
-                  <button
-                    onClick={confirmarTodasPendentes}
-                    className="h-9 px-3 bg-foreground text-background rounded-lg text-xs font-medium flex items-center gap-1.5 hover:bg-foreground/90 transition-colors"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.6} />
-                    Confirmar todas
-                  </button>
-                </div>
-              )}
-
-              {/* Lista */}
-              {carregando ? (
-                <ListaSkeleton quantidade={5} />
-              ) : entregasFiltradas.length === 0 ? (
-                <ListaVazia
-                  icone={<Truck className="h-6 w-6" strokeWidth={1.6} />}
-                  titulo="Nenhuma entrega encontrada"
-                  descricao="Ajuste o período ou o status para ver outras entregas."
-                />
-              ) : (
-                <div className="space-y-2">
-                  {entregasFiltradas.map((entrega) => (
-                    <div
-                      key={entrega.id}
-                      className="bg-card border border-border/70 rounded-lg p-3.5"
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${corDotStatus[entrega.status]}`} />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-medium truncate">
-                                {entrega.pedido?.nome_cliente || 'Cliente'}
-                              </p>
-                              <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                {labelStatus[entrega.status]}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                              {entrega.pedido?.telefone || '—'}
-                            </p>
+        {/* Aba: Entregas */}
+        {abaAtiva === 'entregas' && (
+          <Secao
+            titulo={`${entregasFiltradas.length} ${entregasFiltradas.length === 1 ? 'entrega' : 'entregas'}`}
+            acao={
+              temPendentes ? (
+                <Botao variante="contorno" tamanho="sm" onClick={() => void confirmarTodasPendentes()} className="h-10">
+                  <CheckCircle2 className="size-4" />
+                  Marcar todas entregues
+                </Botao>
+              ) : null
+            }
+          >
+            {carregando ? (
+              <ListaCarregando linhas={5} />
+            ) : entregasFiltradas.length === 0 ? (
+              <ListaVazia
+                icone={<Truck />}
+                titulo="Nenhuma entrega aqui"
+                descricao="Troque o período ou a situação para ver outras entregas."
+              />
+            ) : (
+              <Lista>
+                {entregasFiltradas.map((entrega) => {
+                  const emAberto = entrega.status === 'pendente' || entrega.status === 'em_rota'
+                  const endereco = entrega.endereco_entrega || entrega.pedido?.endereco
+                  return (
+                    <li key={entrega.id} className="space-y-3 px-4 py-3.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate font-medium">{entrega.pedido?.nome_cliente || 'Cliente'}</p>
+                            <Selo tom={tomStatus[entrega.status]}>{labelStatus[entrega.status]}</Selo>
+                            {entrega.excluida_repasse && <Selo tom="alerta">Fora do repasse</Selo>}
                           </div>
+                          <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                            {entrega.pedido?.telefone || '—'}
+                          </p>
                         </div>
-                        <p className="text-sm font-semibold font-mono tabular-nums whitespace-nowrap">
+                        <p className="whitespace-nowrap font-semibold tabular-nums">
                           {formatarMoeda(entrega.pedido?.total || 0)}
                         </p>
                       </div>
 
-                      {(entrega.endereco_entrega || entrega.pedido?.endereco) && (
-                        <div className="flex items-start gap-1.5 text-xs text-muted-foreground mb-2 ml-4">
-                          <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" strokeWidth={1.6} />
-                          <span className="truncate">{entrega.endereco_entrega || entrega.pedido?.endereco}</span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between gap-2 ml-4 flex-wrap">
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap min-w-0 flex-1">
-                          <label className="flex items-center gap-1.5">
-                            <User className="w-3 h-3 flex-shrink-0" strokeWidth={1.6} />
-                            <select
-                              value={entrega.entregador_id || ''}
-                              onChange={(e) => atribuirEntregador(entrega.id, e.target.value || null)}
-                              className="h-7 rounded-md border border-border/70 bg-card px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring/60"
-                              aria-label="Atribuir entregador"
-                            >
-                              <option value="">Sem entregador</option>
-                              {entregadores.map((ent) => (
-                                <option key={ent.id} value={ent.id}>{ent.nome}</option>
-                              ))}
-                            </select>
-                          </label>
+                      {(endereco || entrega.tempo_real || entrega.taxa_entrega > 0) && (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                          {endereco && (
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <MapPin className="size-4 shrink-0" />
+                              <span className="truncate">{endereco}</span>
+                            </span>
+                          )}
                           {entrega.tempo_real && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3 flex-shrink-0" strokeWidth={1.6} />
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="size-4 shrink-0" />
                               {entrega.tempo_real} min
                             </span>
                           )}
                           {entrega.taxa_entrega > 0 && (
-                            <span className="flex items-center gap-1 font-mono tabular-nums">
-                              <CircleDollarSign className="w-3 h-3 flex-shrink-0" strokeWidth={1.6} />
-                              {formatarMoeda(entrega.taxa_entrega)}
-                            </span>
-                          )}
-                          {entrega.excluida_repasse && (
-                            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-                              <Ban className="w-3 h-3" strokeWidth={1.6} />
-                              Fora do repasse
+                            <span className="flex items-center gap-1.5 tabular-nums">
+                              <CircleDollarSign className="size-4 shrink-0" />
+                              Taxa {formatarMoeda(entrega.taxa_entrega)}
                             </span>
                           )}
                         </div>
+                      )}
 
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => alternarExclusaoRepasse(entrega.id, !entrega.excluida_repasse)}
-                            className={cn(
-                              'h-7 w-7 flex items-center justify-center rounded-md transition-colors',
-                              entrega.excluida_repasse
-                                ? 'border border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400'
-                                : 'text-muted-foreground hover:bg-muted',
-                            )}
-                            title={entrega.excluida_repasse ? 'Voltar para o repasse' : 'Excluir do repasse'}
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <div className="min-w-0 sm:w-56">
+                          <Selecao
+                            value={entrega.entregador_id || ''}
+                            onChange={(e) => atribuirEntregador(entrega.id, e.target.value || null)}
+                            aria-label="Atribuir entregador"
                           >
-                            {entrega.excluida_repasse
-                              ? <Undo2 className="w-3.5 h-3.5" strokeWidth={1.6} />
-                              : <Ban className="w-3.5 h-3.5" strokeWidth={1.6} />}
-                          </button>
-                          {(entrega.status === 'pendente' || entrega.status === 'em_rota') && (
+                            <option value="">Sem entregador</option>
+                            {entregadores.map((ent) => (
+                              <option key={ent.id} value={ent.id}>{ent.nome}</option>
+                            ))}
+                          </Selecao>
+                        </div>
+                        <div className="flex gap-2 sm:ml-auto">
+                          <Botao
+                            variante="fantasma"
+                            tamanho="icone"
+                            onClick={() => alternarExclusaoRepasse(entrega.id, !entrega.excluida_repasse)}
+                            className="size-11 shrink-0 text-muted-foreground md:size-10"
+                            title={entrega.excluida_repasse ? 'Voltar para o repasse' : 'Excluir do repasse'}
+                            aria-label={entrega.excluida_repasse ? 'Voltar para o repasse' : 'Excluir do repasse'}
+                          >
+                            {entrega.excluida_repasse ? <Undo2 /> : <Ban />}
+                          </Botao>
+                          {emAberto && (
                             <>
-                              <button
-                                onClick={() => atualizarStatusEntrega(entrega.id, 'entregue')}
-                                className="h-7 w-7 flex items-center justify-center border border-border/70 rounded-md hover:bg-muted transition-colors"
-                                title="Confirmar entrega"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.6} />
-                              </button>
-                              <button
+                              <Botao
+                                variante="perigoSuave"
                                 onClick={() => atualizarStatusEntrega(entrega.id, 'cancelada')}
-                                className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-md transition-colors"
-                                title="Cancelar"
+                                className="h-11 flex-1 sm:flex-none md:h-10"
                               >
-                                <XCircle className="w-3.5 h-3.5" strokeWidth={1.6} />
-                              </button>
+                                <XCircle />
+                                Cancelar
+                              </Botao>
+                              <Botao
+                                variante="contorno"
+                                onClick={() => atualizarStatusEntrega(entrega.id, 'entregue')}
+                                className="h-11 flex-1 sm:flex-none md:h-10"
+                              >
+                                <CheckCircle2 />
+                                Entregue
+                              </Botao>
                             </>
                           )}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          )}
+                    </li>
+                  )
+                })}
+              </Lista>
+            )}
+          </Secao>
+        )}
 
-          {/* Aba: Pagamentos / Repasse */}
-          {abaAtiva === 'pagamentos' && (
-            <motion.div key="pagamentos" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+        {/* Aba: Pagamentos / Repasse */}
+        {abaAtiva === 'pagamentos' && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Indicador rotulo="Total do período" valor={formatarMoeda(totaisGerais.totalDevido)} />
+              <Indicador rotulo="A pagar" valor={formatarMoeda(totaisGerais.totalPendente)} />
+              <Indicador rotulo="Guardado" valor={formatarMoeda(totaisGerais.totalAcumulado)} />
+              <Indicador rotulo="Já pago" valor={formatarMoeda(totaisGerais.totalPagoPeriodo)} destaque />
+            </div>
 
-              {/* Cards de totais */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-muted-foreground">A pagar no período</p>
-                    <Wallet className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-                  </div>
-                  <p className="text-xl font-semibold font-mono tabular-nums">
-                    {formatarMoeda(totaisGerais.totalDevido)}
-                  </p>
-                </div>
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-muted-foreground">Pendente no período</p>
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  </div>
-                  <p className="text-xl font-semibold font-mono tabular-nums">
-                    {formatarMoeda(totaisGerais.totalPendente)}
-                  </p>
-                </div>
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-muted-foreground">Acumulado no período</p>
-                    <span className="w-2 h-2 rounded-full bg-violet-500" />
-                  </div>
-                  <p className="text-xl font-semibold font-mono tabular-nums">
-                    {formatarMoeda(totaisGerais.totalAcumulado)}
-                  </p>
-                </div>
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-muted-foreground">Pago nas diárias do período</p>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  </div>
-                  <p className="text-xl font-semibold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
-                    {formatarMoeda(totaisGerais.totalPagoPeriodo)}
-                  </p>
-                </div>
-              </div>
+            <Segmentos
+              rotuloAcessivel="Agrupar repasse"
+              opcoes={[
+                { valor: 'entregador', rotulo: 'Por entregador' },
+                { valor: 'dia', rotulo: 'Por dia' },
+              ]}
+              valor={agruparPorEntregador ? 'entregador' : 'dia'}
+              aoMudar={(valor) => setAgruparPorEntregador(valor === 'entregador')}
+            />
 
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex h-9 overflow-hidden rounded-lg border border-border/70">
-                  <button
-                    onClick={() => setAgruparPorEntregador(true)}
-                    className={`px-3 text-xs font-medium transition-colors ${
-                      agruparPorEntregador
-                        ? 'bg-foreground text-background'
-                        : 'hover:bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    Por entregador
-                  </button>
-                  <button
-                    onClick={() => setAgruparPorEntregador(false)}
-                    className={`border-l border-border/70 px-3 text-xs font-medium transition-colors ${
-                      !agruparPorEntregador
-                        ? 'bg-foreground text-background'
-                        : 'hover:bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    Por dia
-                  </button>
-                </div>
-              </div>
-
-              {/* Lista agrupada por entregador */}
-              {agruparPorEntregador ? (
-                resumoAgrupadoPorEntregador.length === 0 ? (
-                  <div className="bg-card border border-border/70 rounded-lg p-12 text-center">
-                    <Wallet className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" strokeWidth={1.2} />
-                    <p className="text-sm text-muted-foreground">Nenhum repasse registrado ainda</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {resumoAgrupadoPorEntregador.map(grupo => {
-                      const expandido = entregadoresExpandidos.has(grupo.entregador_id)
-                      const diasPendentes = grupo.dias.filter(d => d.status !== 'pago')
-                      return (
-                        <div
-                          key={grupo.entregador_id}
-                          className="bg-card border border-border/70 rounded-lg overflow-hidden"
-                        >
-                          <button
-                            onClick={() => toggleEntregador(grupo.entregador_id)}
-                            className="w-full flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors text-left"
-                          >
-                            <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                              <User className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{grupo.entregador_nome}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {grupo.total_entregas} entregas · {diasPendentes.length} {diasPendentes.length === 1 ? 'dia em aberto' : 'dias em aberto'}
-                              </p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-base font-semibold font-mono tabular-nums">
-                                {formatarMoeda(grupo.saldo_total)}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground">a pagar</p>
-                            </div>
-                            {expandido ? (
-                              <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" strokeWidth={1.6} />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" strokeWidth={1.6} />
-                            )}
-                          </button>
-
-                          {expandido && (
-                            <div className="border-t border-border/70 divide-y divide-border/70">
-                              {grupo.dias.map(dia => (
-                                <DiaRepasseRow
-                                  key={`${dia.entregador_id}-${dia.data_referencia}`}
-                                  dia={dia}
-                                  entregasDoDia={entregasPorEntregadorDia.get(`${dia.entregador_id}::${dia.data_referencia}`) || []}
-                                  salvando={salvandoPagamento === dia.registro_id}
-                                  onPagar={() => abrirDialogPagar(dia)}
-                                  onAcumular={() => confirmarAcumular(dia)}
-                                  onReabrir={() => confirmarReabrir(dia)}
-                                  onAlternarExclusao={alternarExclusaoRepasse}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              ) : (
-                resumoFiltrado.length === 0 ? (
-                  <div className="bg-card border border-border/70 rounded-lg p-12 text-center">
-                    <Wallet className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" strokeWidth={1.2} />
-                    <p className="text-sm text-muted-foreground">Nenhum repasse registrado ainda</p>
-                  </div>
-                ) : (
-                  <div className="bg-card border border-border/70 rounded-lg divide-y divide-border/70 overflow-hidden">
-                    {resumoFiltrado.map(dia => (
-                      <DiaRepasseRow
-                        key={`${dia.entregador_id}-${dia.data_referencia}`}
-                        dia={dia}
-                        entregasDoDia={entregasPorEntregadorDia.get(`${dia.entregador_id}::${dia.data_referencia}`) || []}
-                        mostrarEntregador
-                        salvando={salvandoPagamento === dia.registro_id}
-                        onPagar={() => abrirDialogPagar(dia)}
-                        onAcumular={() => confirmarAcumular(dia)}
-                        onReabrir={() => confirmarReabrir(dia)}
-                        onAlternarExclusao={alternarExclusaoRepasse}
-                      />
-                    ))}
-                  </div>
-                )
-              )}
-            </motion.div>
-          )}
-
-          {/* Aba: Relatórios */}
-          {abaAtiva === 'relatorios' && (
-            <motion.div key="relatorios" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-muted-foreground">Total</p>
-                    <Truck className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-                  </div>
-                  <p className="text-xl font-semibold font-mono tabular-nums">{estatisticasPeriodo.total}</p>
-                </div>
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-muted-foreground">Taxa de sucesso</p>
-                    <TrendingUp className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-                  </div>
-                  <p className="text-xl font-semibold font-mono tabular-nums">{estatisticasPeriodo.taxaSucesso}%</p>
-                </div>
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-muted-foreground">Tempo médio</p>
-                    <Timer className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-                  </div>
-                  <p className="text-xl font-semibold font-mono tabular-nums">{estatisticasPeriodo.tempoMedio} min</p>
-                </div>
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-muted-foreground">Total taxas</p>
-                    <CircleDollarSign className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-                  </div>
-                  <p className="text-xl font-semibold font-mono tabular-nums">{formatarMoeda(estatisticasPeriodo.totalTaxas)}</p>
-                </div>
-              </div>
-
-              {/* Gráficos */}
-              <div className="bg-card border border-border/70 rounded-lg p-4">
-                <h3 className="text-sm font-medium mb-3">Entregas por dia</h3>
-                <div className="h-40">
-                  <Bar data={dadosEntregasDia} options={opcoesGrafico} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <h3 className="text-sm font-medium mb-3">Por entregador</h3>
-                  <div className="h-36">
-                    {dadosPorEntregador.labels.length > 0 ? (
-                      <Bar data={dadosPorEntregador} options={opcoesGrafico} />
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
-                        Sem dados
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="bg-card border border-border/70 rounded-lg p-4">
-                  <h3 className="text-sm font-medium mb-3">Por status</h3>
-                  <div className="h-36">
-                    <Doughnut data={dadosStatus} options={opcoesPizza} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-card border border-border/70 rounded-lg p-4">
-                <h3 className="text-sm font-medium mb-3">Tempo médio por dia</h3>
-                <div className="h-40">
-                  <Line data={dadosTempoMedio} options={{ ...opcoesGrafico, plugins: { legend: { display: true } } }} />
-                </div>
-              </div>
-
-              <div className="bg-card border border-border/70 rounded-lg overflow-hidden">
-                <div className="px-4 py-3 border-b border-border/70 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-muted-foreground" strokeWidth={1.6} />
-                  <h3 className="text-sm font-medium">Ranking de entregadores</h3>
-                </div>
-                {dadosPorEntregador.labels.length > 0 ? (
-                  <div className="divide-y divide-border/70">
-                    {dadosPorEntregador.labels.map((nome, i) => (
-                      <div key={nome} className="px-4 py-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-mono tabular-nums font-semibold">
-                            {i + 1}
-                          </span>
-                          <span className="text-sm font-medium">{nome}</span>
-                        </div>
-                        <span className="text-sm font-semibold font-mono tabular-nums">
-                          {dadosPorEntregador.datasets[0].data[i]}
+            {(agruparPorEntregador ? resumoAgrupadoPorEntregador.length : resumoFiltrado.length) === 0 ? (
+              <ListaVazia
+                icone={<Wallet />}
+                titulo="Nenhum repasse no período"
+                descricao="Quando houver entregas com entregador, o valor de cada um aparece aqui."
+              />
+            ) : agruparPorEntregador ? (
+              <div className="space-y-2">
+                {resumoAgrupadoPorEntregador.map(grupo => {
+                  const expandido = entregadoresExpandidos.has(grupo.entregador_id)
+                  const diasPendentes = grupo.dias.filter(d => d.status !== 'pago')
+                  return (
+                    <Cartao key={grupo.entregador_id} className="overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => toggleEntregador(grupo.entregador_id)}
+                        aria-expanded={expandido}
+                        className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      >
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                          <User className="size-5" />
                         </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-6 text-center text-sm text-muted-foreground">
-                    Nenhum entregador com entregas no período
-                  </div>
-                )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{grupo.entregador_nome}</p>
+                          <p className="mt-0.5 text-sm text-muted-foreground">
+                            {grupo.total_entregas} entregas · {diasPendentes.length} {diasPendentes.length === 1 ? 'dia em aberto' : 'dias em aberto'}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="font-semibold tabular-nums">{formatarMoeda(grupo.saldo_total)}</p>
+                          <p className="text-xs text-muted-foreground">a pagar</p>
+                        </div>
+                        {expandido
+                          ? <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+                          : <ChevronDown className="size-4 shrink-0 text-muted-foreground" />}
+                      </button>
+
+                      {expandido && (
+                        <div className="divide-y divide-border/70 border-t border-border/70">
+                          {grupo.dias.map(dia => (
+                            <DiaRepasseRow
+                              key={`${dia.entregador_id}-${dia.data_referencia}`}
+                              dia={dia}
+                              entregasDoDia={entregasPorEntregadorDia.get(`${dia.entregador_id}::${dia.data_referencia}`) || []}
+                              salvando={salvandoPagamento === dia.registro_id}
+                              onPagar={() => abrirDialogPagar(dia)}
+                              onAcumular={() => void confirmarAcumular(dia)}
+                              onReabrir={() => void confirmarReabrir(dia)}
+                              onAlternarExclusao={alternarExclusaoRepasse}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </Cartao>
+                  )
+                })}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            ) : (
+              <Cartao className="divide-y divide-border/70 overflow-hidden">
+                {resumoFiltrado.map(dia => (
+                  <DiaRepasseRow
+                    key={`${dia.entregador_id}-${dia.data_referencia}`}
+                    dia={dia}
+                    entregasDoDia={entregasPorEntregadorDia.get(`${dia.entregador_id}::${dia.data_referencia}`) || []}
+                    mostrarEntregador
+                    salvando={salvandoPagamento === dia.registro_id}
+                    onPagar={() => abrirDialogPagar(dia)}
+                    onAcumular={() => void confirmarAcumular(dia)}
+                    onReabrir={() => void confirmarReabrir(dia)}
+                    onAlternarExclusao={alternarExclusaoRepasse}
+                  />
+                ))}
+              </Cartao>
+            )}
+          </div>
+        )}
+
+        {/* Aba: Relatórios */}
+        {abaAtiva === 'relatorios' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <Indicador rotulo="Total" valor={estatisticasPeriodo.total} />
+              <Indicador rotulo="Entregues" valor={`${estatisticasPeriodo.taxaSucesso}%`} />
+              <Indicador rotulo="Tempo médio" valor={`${estatisticasPeriodo.tempoMedio} min`} />
+              <Indicador rotulo="Taxas recebidas" valor={formatarMoeda(estatisticasPeriodo.totalTaxas)} />
+            </div>
+
+            <Cartao className="p-4">
+              <h3 className="mb-3 text-sm font-medium">Entregas por dia</h3>
+              <div className="h-48">
+                <Bar data={dadosEntregasDia} options={opcoesGrafico} />
+              </div>
+            </Cartao>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Cartao className="p-4">
+                <h3 className="mb-3 text-sm font-medium">Por entregador</h3>
+                <div className="h-44">
+                  {dadosPorEntregador.labels.length > 0 ? (
+                    <Bar data={dadosPorEntregador} options={opcoesGrafico} />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                      Sem dados
+                    </div>
+                  )}
+                </div>
+              </Cartao>
+              <Cartao className="p-4">
+                <h3 className="mb-3 text-sm font-medium">Por situação</h3>
+                <div className="h-44">
+                  <Doughnut data={dadosStatus} options={opcoesPizza} />
+                </div>
+              </Cartao>
+            </div>
+
+            <Cartao className="p-4">
+              <h3 className="mb-3 text-sm font-medium">Tempo médio por dia</h3>
+              <div className="h-48">
+                <Line data={dadosTempoMedio} options={{ ...opcoesGrafico, plugins: { legend: { display: true } } }} />
+              </div>
+            </Cartao>
+
+            <Secao titulo="Ranking de entregadores">
+              {dadosPorEntregador.labels.length > 0 ? (
+                <Lista>
+                  {dadosPorEntregador.labels.map((nome, i) => (
+                    <li key={nome} className="flex min-h-12 items-center gap-3 px-4 py-3">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums">
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">{nome}</span>
+                      <span className="text-sm font-semibold tabular-nums">
+                        {dadosPorEntregador.datasets[0].data[i]}
+                      </span>
+                    </li>
+                  ))}
+                </Lista>
+              ) : (
+                <ListaVazia titulo="Nenhum entregador com entregas no período" />
+              )}
+            </Secao>
+          </div>
+        )}
+      </Pagina>
 
       <DialogPagarEntregador
         registro={registroPagamento}
@@ -1131,19 +929,10 @@ export default function EntregasPage() {
         }}
         onConfirmar={async (params) => {
           const ok = await pagar(params)
-          if (ok) mostrarNotificacao('sucesso', 'Pagamento registrado', 'O pagamento foi registrado.')
-          else mostrarNotificacao('erro', 'Erro', 'Não foi possível registrar o pagamento.')
+          if (ok) toast.success('Pagamento registrado', { description: 'O pagamento foi registrado.' })
+          else toast.error('Erro', { description: 'Não foi possível registrar o pagamento.' })
           return ok
         }}
-      />
-
-      <ModalNotificacao
-        aberto={!!notificacao}
-        tipo={notificacao?.tipo || 'info'}
-        titulo={notificacao?.titulo || ''}
-        mensagem={notificacao?.mensagem || ''}
-        onFechar={fecharNotificacao}
-        onConfirmar={notificacao?.onConfirm}
       />
     </AdminLayout></ProtectedRoute>
   )
@@ -1171,89 +960,85 @@ function DiaRepasseRow({
   const temDetalhes = entregasDoDia.length > 0
 
   return (
-    <div className="hover:bg-muted/20 transition-colors">
-      <div className="flex items-center gap-3 p-4">
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${corDotPagamento[dia.status]}`} />
-
+    <div>
+      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
         <button
           type="button"
           onClick={() => temDetalhes && setExpandido((v) => !v)}
           disabled={!temDetalhes}
-          className="flex-1 min-w-0 text-left disabled:cursor-default"
+          aria-expanded={temDetalhes ? expandido : undefined}
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
         >
-          <div className="flex items-center gap-2 flex-wrap">
-            {mostrarEntregador && (
-              <span className="text-sm font-medium truncate">{dia.entregador_nome}</span>
-            )}
-            <span className="text-sm text-muted-foreground capitalize">{dataFormatada}</span>
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${corPagamentoBadge[dia.status]}`}>
-              {labelPagamento[dia.status]}
-            </span>
-            {temDetalhes && (
-              expandido
-                ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.6} />
-                : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.6} />
-            )}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-            <span className="flex items-center gap-1">
-              <Truck className="w-3 h-3" strokeWidth={1.6} />
-              {dia.total_entregas} {dia.total_entregas === 1 ? 'entrega' : 'entregas'}
-            </span>
-            {dia.valor_pago > 0 && (
-              <span className="font-mono tabular-nums">
-                Pago: {formatarMoeda(dia.valor_pago)}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {mostrarEntregador && (
+                <span className="truncate font-medium">{dia.entregador_nome}</span>
+              )}
+              <span className={cn('text-sm capitalize', mostrarEntregador ? 'text-muted-foreground' : 'font-medium')}>
+                {dataFormatada}
               </span>
-            )}
-            {dia.metodo_pagamento && finalizado && (
-              <span>via {dia.metodo_pagamento}</span>
+              <Selo tom={tomPagamento[dia.status]}>{labelPagamento[dia.status]}</Selo>
+            </div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+              <span>{dia.total_entregas} {dia.total_entregas === 1 ? 'entrega' : 'entregas'}</span>
+              {dia.valor_pago > 0 && (
+                <span className="tabular-nums">Pago {formatarMoeda(dia.valor_pago)}</span>
+              )}
+              {dia.metodo_pagamento && finalizado && (
+                <span>via {dia.metodo_pagamento}</span>
+              )}
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="font-semibold tabular-nums">
+              {formatarMoeda(finalizado ? dia.valor_pago : dia.saldo)}
+            </p>
+            {!finalizado && dia.total_devido !== dia.saldo && (
+              <p className="text-xs tabular-nums text-muted-foreground">
+                de {formatarMoeda(dia.total_devido)}
+              </p>
             )}
           </div>
+          {temDetalhes && (
+            expandido
+              ? <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+              : <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+          )}
         </button>
 
-        <div className="text-right flex-shrink-0">
-          <p className="text-sm font-semibold font-mono tabular-nums">
-            {formatarMoeda(finalizado ? dia.valor_pago : dia.saldo)}
-          </p>
-          {!finalizado && dia.total_devido !== dia.saldo && (
-            <p className="text-[10px] text-muted-foreground font-mono tabular-nums">
-              de {formatarMoeda(dia.total_devido)}
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex shrink-0 gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
           {finalizado ? (
-            <button
+            <Botao
+              variante="contorno"
               onClick={onReabrir}
-              disabled={salvando}
-              className="h-8 px-3 text-xs border border-border/70 rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
-              title="Reabrir"
+              carregando={salvando}
+              className="h-11 md:h-9"
             >
-              {salvando ? <RefreshCw className="w-3 h-3 animate-spin" strokeWidth={1.6} /> : 'Reabrir'}
-            </button>
+              Reabrir
+            </Botao>
           ) : (
             <>
               {!acumulado && dia.saldo > 0 && (
-                <button
+                <Botao
+                  variante="contorno"
                   onClick={onAcumular}
                   disabled={salvando}
-                  className="h-8 px-3 text-xs border border-border/70 rounded-md hover:bg-muted disabled:opacity-50 transition-colors flex items-center gap-1"
-                  title="Acumular para outro dia"
+                  className="h-11 md:h-9"
+                  title="Guardar para pagar em outro dia"
                 >
-                  <PauseCircle className="w-3 h-3" strokeWidth={1.6} />
-                  Acumular
-                </button>
+                  <PauseCircle />
+                  Guardar
+                </Botao>
               )}
               {dia.saldo > 0 && (
-                <button
+                <Botao
                   onClick={onPagar}
-                  disabled={salvando}
-                  className="h-8 px-3 bg-foreground text-background text-xs font-medium rounded-md hover:bg-foreground/90 disabled:opacity-50 transition-colors flex items-center gap-1"
+                  carregando={salvando}
+                  className="h-11 md:h-9"
                 >
-                  {salvando ? <RefreshCw className="w-3 h-3 animate-spin" strokeWidth={1.6} /> : <Wallet className="w-3 h-3" strokeWidth={1.6} />}
+                  {!salvando && <Wallet />}
                   Pagar
-                </button>
+                </Botao>
               )}
             </>
           )}
@@ -1261,64 +1046,49 @@ function DiaRepasseRow({
       </div>
 
       {expandido && temDetalhes && (
-        <div className="border-t border-border/60 bg-muted/10 px-4 py-3">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            Pedidos do dia
-          </p>
-          <ul className="space-y-1.5">
+        <div className="border-t border-border/70 bg-muted/30 px-4 py-3">
+          <p className="mb-2 text-sm font-medium text-muted-foreground">Pedidos do dia</p>
+          <ul className="space-y-2">
             {entregasDoDia
               .slice()
               .sort((a, b) => new Date(b.data_entrega || b.created_at).getTime() - new Date(a.data_entrega || a.created_at).getTime())
               .map((entrega) => {
                 const hora = format(new Date(entrega.data_entrega || entrega.created_at), 'HH:mm', { locale: ptBR })
+                const endereco = entrega.endereco_entrega || entrega.pedido?.endereco
                 return (
                   <li
                     key={entrega.id}
                     className={cn(
-                      'flex flex-col gap-2 rounded-md border border-border/60 bg-card px-3 py-2 text-xs sm:flex-row sm:items-center sm:gap-3',
+                      'flex items-center gap-3 rounded-lg border border-border/70 bg-card px-3 py-2',
                       entrega.excluida_repasse && 'opacity-60',
                     )}
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <span className="w-10 shrink-0 font-mono tabular-nums text-muted-foreground sm:w-12">{hora}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {entrega.pedido?.nome_cliente || 'Cliente'}
-                        </p>
-                        {(entrega.endereco_entrega || entrega.pedido?.endereco) && (
-                          <p className="truncate text-xs text-muted-foreground">
-                            {entrega.endereco_entrega || entrega.pedido?.endereco}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 sm:flex-shrink-0">
-                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium">
-                        <span className={cn('size-1.5 rounded-full', corDotStatus[entrega.status])} />
+                    <span className="w-11 shrink-0 text-sm tabular-nums text-muted-foreground">{hora}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{entrega.pedido?.nome_cliente || 'Cliente'}</p>
+                      <p className="truncate text-[13px] text-muted-foreground">
                         {labelStatus[entrega.status]}
-                      </span>
-                      <span className="font-mono tabular-nums text-sm font-semibold ml-auto sm:ml-0 sm:w-20 sm:text-right">
-                        {formatarMoeda(entrega.taxa_entrega || 0)}
-                      </span>
-                      {onAlternarExclusao && (
-                        <button
-                          type="button"
-                          onClick={() => onAlternarExclusao(entrega.id, !entrega.excluida_repasse)}
-                          className={cn(
-                            'h-7 w-7 flex items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                            entrega.excluida_repasse
-                              ? 'border border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400'
-                              : 'border border-border/70 text-muted-foreground hover:bg-muted',
-                          )}
-                          title={entrega.excluida_repasse ? 'Voltar ao repasse' : 'Excluir do repasse'}
-                          aria-label={entrega.excluida_repasse ? 'Voltar ao repasse' : 'Excluir do repasse'}
-                        >
-                          {entrega.excluida_repasse
-                            ? <Undo2 className="w-3.5 h-3.5" strokeWidth={1.6} />
-                            : <Ban className="w-3.5 h-3.5" strokeWidth={1.6} />}
-                        </button>
-                      )}
+                        {endereco ? ` · ${endereco}` : ''}
+                      </p>
                     </div>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatarMoeda(entrega.taxa_entrega || 0)}
+                    </span>
+                    {onAlternarExclusao && (
+                      <Botao
+                        variante="fantasma"
+                        tamanho="icone"
+                        onClick={() => onAlternarExclusao(entrega.id, !entrega.excluida_repasse)}
+                        className={cn(
+                          'size-11 shrink-0 md:size-9',
+                          entrega.excluida_repasse ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground',
+                        )}
+                        title={entrega.excluida_repasse ? 'Voltar ao repasse' : 'Excluir do repasse'}
+                        aria-label={entrega.excluida_repasse ? 'Voltar ao repasse' : 'Excluir do repasse'}
+                      >
+                        {entrega.excluida_repasse ? <Undo2 /> : <Ban />}
+                      </Botao>
+                    )}
                   </li>
                 )
               })}

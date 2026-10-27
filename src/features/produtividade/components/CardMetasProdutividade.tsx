@@ -1,8 +1,7 @@
 'use client'
 
-import { CalendarDays, Clock, Info, Target } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { CalendarDots as CalendarDays, Clock, Info, Target } from '@phosphor-icons/react'
+import { Botao, Cartao as CartaoKit, Esqueleto } from '@/components/admin/ui'
 import { cn } from '@/lib/utils'
 import { formatarPercentual, formatarPontos } from '../lib/periodo'
 import type { ConfigProdutividade } from '../types'
@@ -49,26 +48,20 @@ export function CardMetasProdutividade({ metas, config, carregando, onAjustarMet
   ]
 
   return (
-    <section className="rounded-xl border border-border/70 bg-card p-4 shadow-sm md:p-5">
+    <CartaoKit className="p-4 md:p-5">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-sm font-medium text-foreground">Metas da equipe</h2>
-          <p className="mt-1 flex items-start gap-1.5 text-xs text-muted-foreground">
+          <h2 className="text-base font-semibold text-foreground">Metas da equipe</h2>
+          <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>
-              Janelas fixas (hoje, semana, mês corrente). Não seguem o filtro de período acima.
+              Sempre hoje, esta semana e este mês. Não mudam com o filtro de período.
             </span>
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 shrink-0 shadow-none"
-          onClick={onAjustarMetas}
-        >
+        <Botao variante="contorno" className="mt-2 shrink-0 sm:mt-0" onClick={onAjustarMetas}>
           Ajustar pontuação
-        </Button>
+        </Botao>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -79,13 +72,13 @@ export function CardMetasProdutividade({ metas, config, carregando, onAjustarMet
           return (
             <div
               key={cartao.titulo}
-              className="rounded-lg border border-border/60 bg-background p-3.5"
+              className="rounded-lg border border-border/70 p-3.5"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                   <cartao.icone
                     className={cn('h-4 w-4 shrink-0', cartao.destaque)}
-                    strokeWidth={1.8}
+                    weight="duotone"
                     aria-hidden="true"
                   />
                   <span className="truncate text-sm font-medium text-foreground">
@@ -93,7 +86,7 @@ export function CardMetasProdutividade({ metas, config, carregando, onAjustarMet
                   </span>
                 </div>
                 {carregando ? (
-                  <Skeleton className="h-6 w-12" />
+                  <Esqueleto className="h-6 w-12" />
                 ) : (
                   <span className={cn('text-xl font-semibold tabular-nums', cartao.destaque)}>
                     {formatarPontos(cartao.valor)}
@@ -102,7 +95,7 @@ export function CardMetasProdutividade({ metas, config, carregando, onAjustarMet
               </div>
 
               <div className="mt-3">
-                <div className="flex justify-between text-[11px] text-muted-foreground">
+                <div className="flex justify-between text-[13px] text-muted-foreground">
                   <span>Meta: {formatarPontos(cartao.meta)} pts</span>
                   <span className={cn(atingiu && 'font-medium text-emerald-600 dark:text-emerald-400')}>
                     {atingiu ? 'Meta batida' : formatarPercentual(progresso)}
@@ -129,6 +122,6 @@ export function CardMetasProdutividade({ metas, config, carregando, onAjustarMet
           )
         })}
       </div>
-    </section>
+    </CartaoKit>
   )
 }

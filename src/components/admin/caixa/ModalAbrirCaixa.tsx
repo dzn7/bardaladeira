@@ -1,26 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Unlock } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Botao, Campo, EntradaPreco, Gaveta, Segmentos, Selecao } from '@/components/admin/ui'
 import { formatarMoedaCaixa } from '@/lib/caixa-gaveta'
 import type { Funcionario } from '@/lib/tipos-caixa'
 import type { PedidoDia } from '@/lib/useCaixa'
@@ -40,6 +22,11 @@ type Props = {
     modoAbertura?: ModoAbertura,
   ) => Promise<boolean>
 }
+
+const opcoesModo: { valor: 'manual' | 'pedidos'; rotulo: string }[] = [
+  { valor: 'manual', rotulo: 'Só o fundo' },
+  { valor: 'pedidos', rotulo: 'Com pedidos do dia' },
+]
 
 export default function ModalAbrirCaixa({
   aberto,
@@ -86,87 +73,64 @@ export default function ModalAbrirCaixa({
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={(open) => !open && !processando && onFechar()}>
-      <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
-        <DialogHeader className="border-b border-border/70 px-5 py-4">
-          <DialogTitle className="flex items-center gap-2">
-            <Unlock className="h-4 w-4 text-primary" strokeWidth={1.6} />
-            Abrir caixa
-          </DialogTitle>
-          <DialogDescription>Inicia a sessão do dia com o fundo de gaveta.</DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <div className="space-y-2">
-            <Label>Responsável</Label>
-            <Select value={responsavel} onValueChange={setResponsavel}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                {ativos.map((f) => (
-                  <SelectItem key={f.id} value={f.nome}>
-                    {f.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Modo de abertura</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  { id: 'manual' as const, label: 'Fundo manual' },
-                  { id: 'pedidos' as const, label: 'Com pedidos do dia' },
-                ] as const
-              ).map((opcao) => (
-                <button
-                  key={opcao.id}
-                  type="button"
-                  onClick={() => setModo(opcao.id)}
-                  className={
-                    modo === opcao.id
-                      ? 'rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-left text-sm font-medium text-primary'
-                      : 'rounded-lg border border-border/70 bg-card px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted'
-                  }
-                >
-                  {opcao.label}
-                </button>
-              ))}
-            </div>
-            {modo === 'pedidos' && (
-              <p className="text-xs text-muted-foreground">
-                Abertura em R$ 0 e sincroniza pedidos do dia como entradas (
-                {formatarMoedaCaixa(totalPedidosHoje)}).
-              </p>
-            )}
-          </div>
-
-          {modo === 'manual' && (
-            <div className="space-y-2">
-              <Label htmlFor="valor-abertura">Dinheiro na gaveta (abertura)</Label>
-              <Input
-                id="valor-abertura"
-                inputMode="decimal"
-                value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                className="h-11 font-mono tabular-nums"
-              />
-            </div>
-          )}
-        </div>
-
-        <DialogFooter className="gap-2 border-t border-border/70 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-2">
-          <Button type="button" variant="outline" className="h-11 w-full sm:w-auto" onClick={onFechar} disabled={processando}>
+    <Gaveta
+      aberto={aberto}
+      aoFechar={onFechar}
+      bloqueada={processando}
+      titulo="Abrir caixa"
+      descricao="Começa o caixa do dia com o dinheiro que já está na gaveta."
+      rodape={
+        <>
+          <Botao variante="contorno" onClick={onFechar} disabled={processando}>
             Cancelar
-          </Button>
-          <Button type="button" className="h-11 w-full sm:w-auto" onClick={() => void handleConfirmar()} disabled={processando}>
-            {processando ? 'Abrindo…' : 'Abrir caixa'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </Botao>
+          <Botao carregando={processando} onClick={() => void handleConfirmar()}>
+            Abrir caixa
+          </Botao>
+        </>
+      }
+    >
+      <form
+        className="space-y-5"
+        onSubmit={(evento) => {
+          evento.preventDefault()
+          void handleConfirmar()
+        }}
+      >
+        <Campo rotulo="Responsável" htmlFor="responsavel-abertura">
+          <Selecao id="responsavel-abertura" value={responsavel} onChange={(e) => setResponsavel(e.target.value)}>
+            {ativos.length === 0 && <option value="">Nenhum funcionário ativo</option>}
+            {ativos.map((f) => (
+              <option key={f.id} value={f.nome}>
+                {f.nome}
+              </option>
+            ))}
+          </Selecao>
+        </Campo>
+
+        <Campo
+          rotulo="Como abrir"
+          ajuda={
+            modo === 'pedidos'
+              ? `Abre com R$ 0 e lança os pedidos de hoje como entradas (${formatarMoedaCaixa(totalPedidosHoje)}).`
+              : undefined
+          }
+        >
+          <Segmentos
+            opcoes={opcoesModo}
+            valor={modo === 'pedidos' ? 'pedidos' : 'manual'}
+            aoMudar={setModo}
+            rotuloAcessivel="Como abrir o caixa"
+          />
+        </Campo>
+
+        {modo === 'manual' && (
+          <Campo rotulo="Dinheiro na gaveta" htmlFor="valor-abertura" ajuda="Troco que fica na gaveta para começar o dia.">
+            <EntradaPreco id="valor-abertura" valor={valor} aoMudar={setValor} />
+          </Campo>
+        )}
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+      </form>
+    </Gaveta>
   )
 }

@@ -1,9 +1,10 @@
 'use client'
 
 import { RefObject, useMemo } from 'react'
-import { Search, X, Loader2, ShoppingBag, Pencil } from 'lucide-react'
+import { MagnifyingGlass as Search, X, ShoppingBag, PencilSimple as Pencil } from '@phosphor-icons/react'
 import { CategoriaCatalogoPedido, ItemCatalogoPedido } from './tipos'
 import { cn } from '@/lib/utils'
+import { Botao, Esqueleto, ListaVazia, Selo } from '@/components/admin/ui'
 
 type PainelCategoriasProdutoProps = {
   carregando: boolean
@@ -54,14 +55,12 @@ export default function PainelCategoriasProduto({
       <div className="shrink-0 border-b border-border/70 px-4 py-3">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="text-sm font-medium text-foreground">Cardápio</h3>
-          <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            {todosItens.length} produtos
-          </span>
+          <Selo>{todosItens.length} produtos</Selo>
         </div>
 
         <div className="relative">
           <Search
-            strokeWidth={1.6}
+           
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <input
@@ -70,16 +69,16 @@ export default function PainelCategoriasProduto({
             value={termoBusca}
             onChange={(e) => onAlterarBusca(e.target.value)}
             placeholder="Buscar produto"
-            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+            className="h-11 w-full rounded-lg border border-input bg-background pl-9 pr-11 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 md:h-10 md:text-sm"
           />
           {termoBusca && (
             <button
               type="button"
               onClick={onLimparBusca}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-0 top-0 flex size-11 items-center justify-center rounded-r-lg text-muted-foreground hover:text-foreground md:size-10"
               aria-label="Limpar busca"
             >
-              <X strokeWidth={1.6} className="size-4" />
+              <X className="size-4" />
             </button>
           )}
         </div>
@@ -99,7 +98,7 @@ export default function PainelCategoriasProduto({
                   type="button"
                   onClick={() => onExpandirCategoria(categoria.id)}
                   className={cn(
-                    'flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1',
+                    'flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1',
                     ativa
                       ? 'border-foreground text-foreground'
                       : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -123,29 +122,27 @@ export default function PainelCategoriasProduto({
 
       <div className="min-w-0 flex-1 overflow-y-auto p-4">
         {carregando ? (
-          <div className="flex items-center justify-center py-14">
-            <Loader2 strokeWidth={1.6} className="size-6 animate-spin text-muted-foreground" />
+          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-busy="true" aria-label="Carregando cardápio">
+            {Array.from({ length: 6 }).map((_, indice) => (
+              <Esqueleto key={indice} className="h-[76px] rounded-lg" />
+            ))}
           </div>
         ) : itensParaExibir.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 text-center">
-            <ShoppingBag strokeWidth={1.6} className="mb-3 size-10 text-muted-foreground/60" />
-            <p className="text-sm font-medium text-foreground">
-              {termoBusca ? 'Nenhum produto encontrado' : 'Categoria vazia'}
-            </p>
-            {termoBusca && (
-              <button
-                type="button"
-                onClick={onLimparBusca}
-                className="mt-2 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Limpar busca
-              </button>
-            )}
-          </div>
+          <ListaVazia
+            icone={<ShoppingBag />}
+            titulo={termoBusca ? 'Nenhum produto encontrado' : 'Categoria vazia'}
+            acao={
+              termoBusca ? (
+                <Botao variante="contorno" onClick={onLimparBusca}>
+                  Limpar busca
+                </Botao>
+              ) : undefined
+            }
+          />
         ) : (
           <>
             {termoBusca && (
-              <p className="mb-3 text-xs text-muted-foreground">
+              <p className="mb-3 text-[13px] text-muted-foreground">
                 {itensFiltrados?.length} resultado{itensFiltrados?.length === 1 ? '' : 's'} para
                 {' '}&ldquo;{termoBusca}&rdquo;
               </p>
@@ -187,10 +184,10 @@ export default function PainelCategoriasProduto({
                       <button
                         type="button"
                         onClick={() => onPersonalizarItem(item)}
-                        className="flex h-8 items-center justify-center gap-1.5 border-t border-border/70 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-inset"
+                        className="flex h-10 items-center justify-center gap-1.5 rounded-b-lg border-t border-border/70 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-inset"
                         aria-label={`Personalizar ${item.nome}`}
                       >
-                        <Pencil strokeWidth={1.6} className="size-3" />
+                        <Pencil className="size-3" />
                         Personalizar
                       </button>
                     )}

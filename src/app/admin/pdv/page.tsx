@@ -3,35 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  ArrowLeft,
-  Banknote,
-  Check,
-  CircleDollarSign,
-  Clock3,
-  CreditCard,
-  Loader2,
-  LogOut,
-  Maximize2,
-  Minus,
-  MoreHorizontal,
-  PackagePlus,
-  Plus,
-  Power,
-  Printer,
-  QrCode,
-  ReceiptText,
-  RefreshCw,
-  RotateCcw,
-  Search,
-  ShoppingCart,
-  Store,
-  Trash2,
-  UserRound,
-  UsersRound,
-  Wallet,
-  X,
-} from 'lucide-react'
+import { ArrowLeft, Money as Banknote, Check, CurrencyCircleDollar as CircleDollarSign, Clock as Clock3, CreditCard, CircleNotch as Loader2, SignOut as LogOut, ArrowsOut as Maximize2, Minus, DotsThree as MoreHorizontal, BoxArrowDown as PackagePlus, Plus, Power, Printer, QrCode, Receipt as ReceiptText, ArrowsClockwise as RefreshCw, ArrowCounterClockwise as RotateCcw, MagnifyingGlass as Search, ShoppingCart, Storefront as Store, Trash as Trash2, UserCircle as UserRound, Users as UsersRound, Wallet, X } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { TEMPO_PADRAO_MESA_MINUTOS, calcularLiberacaoMesa } from '@/lib/mesas-tempo'
@@ -66,22 +38,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { Botao, Campo, Contador, EntradaPreco, Entrada, Esqueleto, Gaveta, ListaVazia, Segmentos, useConfirmar } from '@/components/admin/ui'
 import {
   Command,
   CommandEmpty,
@@ -322,15 +279,6 @@ const pedidoTemPagamentoPendente = (pedido: PedidoDia) =>
 const pedidoEstaEncerrado = (status?: string | null) =>
   ['entregue', 'cancelado'].includes(String(status || '').toLowerCase())
 
-type ConfirmacaoPdv = {
-  aberto: boolean
-  titulo: string
-  mensagem: string
-  textoConfirmar: string
-  variante: 'perigo' | 'padrao'
-  onConfirmar: () => Promise<void>
-}
-
 export default function PdvAdminPage() {
   const router = useRouter()
   const buscaClienteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -388,7 +336,7 @@ export default function PdvAdminPage() {
   const [loadingPedidosDia, setLoadingPedidosDia] = useState(false)
   const [buscaPedidosDia, setBuscaPedidosDia] = useState('')
   const [acoesPedido, setAcoesPedido] = useState<Record<string, Partial<Record<'pagamento' | 'impressao' | 'concluir' | 'excluir', boolean>>>>({})
-  const [confirmacaoPdv, setConfirmacaoPdv] = useState<ConfirmacaoPdv | null>(null)
+  const confirmar = useConfirmar()
 
   useEffect(() => {
     const sessao = obterSessao()
@@ -1661,28 +1609,26 @@ export default function PdvAdminPage() {
     })
   }
 
-  const confirmarExclusaoPedido = (pedido: PedidoDia) => {
-    setConfirmacaoPdv({
-      aberto: true,
+  const confirmarExclusaoPedido = async (pedido: PedidoDia) => {
+    const ok = await confirmar({
       titulo: 'Excluir pedido',
-      mensagem: `Excluir o pedido de ${pedido.nome_cliente || 'cliente'}? Essa ação não pode ser desfeita e a mesa vinculada será liberada.`,
-      textoConfirmar: 'Excluir pedido',
-      variante: 'perigo',
-      onConfirmar: () => excluirPedidoDia(pedido),
+      descricao: `Excluir o pedido de ${pedido.nome_cliente || 'cliente'}? Não dá para desfazer, e a mesa vinculada será liberada.`,
+      confirmar: 'Excluir pedido',
+      perigo: true,
     })
+    if (ok) void excluirPedidoDia(pedido)
   }
 
   const confirmarLiberacaoPonto = (ponto: { id: string; pedido_id: string | null; identificador?: string | null; numero: number }) => {
     const pedido = obterPedidoDoPonto(ponto)
-    setConfirmacaoPdv({
-      aberto: true,
+    void confirmar({
       titulo: pedido ? 'Fechar mesa' : 'Liberar mesa',
-      mensagem: pedido
+      descricao: pedido
         ? `Marcar o pedido de ${pedido.nome_cliente || 'cliente'} como entregue e liberar este ponto?`
         : `Liberar ${ponto.identificador || `Mesa ${ponto.numero}`} sem pedido vinculado?`,
-      textoConfirmar: pedido ? 'Fechar mesa' : 'Liberar mesa',
-      variante: 'padrao',
-      onConfirmar: () => pedido ? concluirPedidoDia(pedido) : liberarPontoSemPedido(ponto.id),
+      confirmar: pedido ? 'Fechar mesa' : 'Liberar mesa',
+    }).then((ok) => {
+      if (ok) void (pedido ? concluirPedidoDia(pedido) : liberarPontoSemPedido(ponto.id))
     })
   }
 
@@ -1838,7 +1784,7 @@ export default function PdvAdminPage() {
                         setModalSenhaAberto(true)
                       }}
                     />
-                    <span className="absolute left-1/2 top-3 -translate-x-1/2 rounded-md border border-border/70 bg-card px-2 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">
+                    <span className="absolute left-1/2 top-3 -translate-x-1/2 rounded-md border border-border/70 bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                       {perfil.papel === 'garcom' ? 'garçom' : 'admin'}
                     </span>
                   </div>
@@ -1954,13 +1900,13 @@ export default function PdvAdminPage() {
       <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="flex h-[calc(100dvh-57px)] flex-col overflow-hidden">
         <div className="border-b border-border/70 bg-background/80 px-3 py-2 lg:px-4">
           <TabsList className="h-11 rounded-lg bg-muted/60 p-1">
-            <TabsTrigger value="venda" className="h-9 rounded-md px-4 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            <TabsTrigger value="venda" className="h-11 rounded-md px-4 text-sm font-medium md:h-9 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
               Venda
             </TabsTrigger>
-            <TabsTrigger value="pedidos" className="h-9 rounded-md px-4 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            <TabsTrigger value="pedidos" className="h-11 rounded-md px-4 text-sm font-medium md:h-9 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
               Pedidos do dia
             </TabsTrigger>
-            <TabsTrigger value="mesas" className="h-9 rounded-md px-4 text-sm font-medium data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            <TabsTrigger value="mesas" className="h-11 rounded-md px-4 text-sm font-medium md:h-9 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm">
               Mesas
             </TabsTrigger>
           </TabsList>
@@ -1971,7 +1917,7 @@ export default function PdvAdminPage() {
         <div className="flex min-h-0 flex-col gap-3">
           <div className="grid gap-3 rounded-lg border border-border/70 bg-card p-3 lg:grid-cols-[1fr_auto] lg:items-end">
             <Field className="gap-1.5">
-              <FieldLabel htmlFor="pdv-busca-produto" className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              <FieldLabel htmlFor="pdv-busca-produto" className="text-sm font-medium text-muted-foreground">
                 Buscar item
               </FieldLabel>
               <div className="relative">
@@ -2001,7 +1947,7 @@ export default function PdvAdminPage() {
               type="button"
               onClick={() => setCategoriaAtiva('todos')}
               className={cn(
-                'h-9 shrink-0 rounded-lg px-3 text-sm font-semibold transition',
+                'h-11 shrink-0 rounded-lg px-3 text-sm font-semibold transition md:h-9',
                 categoriaAtiva === 'todos'
                   ? 'bg-primary text-primary-foreground'
                   : 'border border-border/70 bg-card text-foreground hover:border-primary',
@@ -2015,7 +1961,7 @@ export default function PdvAdminPage() {
                 type="button"
                 onClick={() => setCategoriaAtiva(categoria.nome)}
                 className={cn(
-                  'h-9 shrink-0 rounded-lg px-3 text-sm font-semibold transition',
+                  'h-11 shrink-0 rounded-lg px-3 text-sm font-semibold transition md:h-9',
                   categoriaAtiva === categoria.nome
                     ? 'bg-primary text-primary-foreground'
                     : 'border border-border/70 bg-card text-foreground hover:border-primary',
@@ -2030,12 +1976,12 @@ export default function PdvAdminPage() {
           <div className="min-h-0 flex-1 pr-1">
             <div className="grid grid-cols-2 gap-2 pb-6 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {loadingCatalogo ? (
-              <div className="col-span-full grid min-h-72 place-items-center rounded-lg border border-border/70 bg-card">
-                <Loader2 className="size-8 animate-spin text-primary" />
-              </div>
+              Array.from({ length: 10 }).map((_, indice) => (
+                <Esqueleto key={indice} className="h-32 rounded-lg" />
+              ))
             ) : produtosFiltrados.length === 0 ? (
-              <div className="col-span-full grid min-h-72 place-items-center rounded-lg border border-border/70 bg-card text-muted-foreground">
-                Nenhum item encontrado.
+              <div className="col-span-full">
+                <ListaVazia icone={<Search />} titulo="Nenhum item encontrado" descricao="Tente outro nome ou outra categoria." />
               </div>
             ) : (
               produtosFiltrados.map((produto) => (
@@ -2075,7 +2021,7 @@ export default function PdvAdminPage() {
             </div>
             <div className="space-y-3">
               <Field className="relative gap-1.5">
-                <FieldLabel htmlFor="pdv-busca-cliente" className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                <FieldLabel htmlFor="pdv-busca-cliente" className="text-sm font-medium text-muted-foreground">
                   Buscar cliente
                 </FieldLabel>
                 <Input
@@ -2113,7 +2059,7 @@ export default function PdvAdminPage() {
               </Field>
               <div className="grid gap-2 sm:grid-cols-2">
                 <Field className="gap-1.5">
-                  <FieldLabel htmlFor="pdv-nome-cliente" className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  <FieldLabel htmlFor="pdv-nome-cliente" className="text-sm font-medium text-muted-foreground">
                     Nome no pedido
                   </FieldLabel>
                   <Input
@@ -2132,7 +2078,7 @@ export default function PdvAdminPage() {
                   />
                 </Field>
                 <Field className="gap-1.5">
-                  <FieldLabel htmlFor="pdv-telefone-cliente" className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  <FieldLabel htmlFor="pdv-telefone-cliente" className="text-sm font-medium text-muted-foreground">
                     Telefone
                   </FieldLabel>
                   <Input
@@ -2178,7 +2124,7 @@ export default function PdvAdminPage() {
 
             <div className="border-y border-border/70 bg-muted/40 p-3">
               {itens.length === 0 ? (
-                <div className="grid min-h-24 place-items-center rounded-lg border border-dashed border-border/70 bg-card text-center text-sm text-muted-foreground">
+                <div className="grid min-h-24 place-items-center rounded-lg border border-dashed border-border/70 bg-card px-4 text-center text-sm text-muted-foreground">
                   Toque em um produto para começar.
                 </div>
               ) : (
@@ -2192,7 +2138,7 @@ export default function PdvAdminPage() {
                         <div className="grid grid-cols-[1fr_auto] items-start gap-2">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="grid size-6 shrink-0 place-items-center rounded-md bg-primary text-xs font-semibold text-white">
+                              <span className="grid size-6 shrink-0 place-items-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
                                 {index + 1}
                               </span>
                               <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-foreground">{item.nome}</h3>
@@ -2221,7 +2167,7 @@ export default function PdvAdminPage() {
                               type="button"
                               aria-label={`Abrir ações de ${item.nome}`}
                               onClick={() => setItemEditorLocalId(item.localId)}
-                              className="size-9 rounded-lg border border-border/70 bg-card p-0 text-foreground hover:bg-primary/10"
+                              className="size-11 rounded-lg border border-border/70 bg-card p-0 text-foreground hover:bg-primary/10 md:size-9"
                             >
                               <MoreHorizontal className="size-4" />
                             </Button>
@@ -2248,7 +2194,7 @@ export default function PdvAdminPage() {
                           if (tipo.id === 'salao') setMesaDialogAberto(true)
                         }}
                         className={cn(
-                          'h-9 rounded-lg text-xs font-semibold',
+                          'h-11 rounded-lg text-xs font-semibold md:h-9',
                           ativo
                             ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                             : 'border border-border/70 bg-card text-foreground hover:bg-primary/10',
@@ -2264,7 +2210,7 @@ export default function PdvAdminPage() {
                   <Button
                     onClick={() => setMesaDialogAberto(true)}
                     variant="outline"
-                    className={cn('h-9 w-full rounded-lg text-xs font-semibold', pdvOutlineButtonClassName)}
+                    className={cn('h-11 w-full rounded-lg text-xs font-semibold md:h-9', pdvOutlineButtonClassName)}
                   >
                     <UsersRound className="mr-1.5 size-4" />
                     {mesaSelecionada ? labelPontoSalao(mesaSelecionada) : 'Selecionar mesa, comanda ou parceiro'}
@@ -2273,7 +2219,7 @@ export default function PdvAdminPage() {
               </div>
 
               <Field className="gap-1.5">
-                <FieldLabel className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                <FieldLabel className="text-sm font-medium text-muted-foreground">
                   Forma rápida
                 </FieldLabel>
                 <FieldDescription className="sr-only">
@@ -2303,7 +2249,7 @@ export default function PdvAdminPage() {
 
               <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
                 <label className="rounded-lg border border-border/70 bg-card px-2 py-1">
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  <span className="block text-xs font-medium text-muted-foreground">
                     Desconto pedido
                   </span>
                   <Input
@@ -2317,18 +2263,18 @@ export default function PdvAdminPage() {
                     }}
                     placeholder="0,00"
                     inputMode="decimal"
-                    className="h-7 border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-0"
+                    className="h-8 border-0 bg-transparent px-0 py-0 text-base shadow-none focus-visible:ring-0 md:h-7 md:text-sm"
                   />
                 </label>
                 <label className="rounded-lg border border-border/70 bg-card px-2 py-1">
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  <span className="block text-xs font-medium text-muted-foreground">
                     Observações
                   </span>
                   <Input
                     value={observacoesPedido}
                     onChange={(event) => setObservacoesPedido(event.target.value)}
                     placeholder="Sem observação"
-                    className="h-7 border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-0"
+                    className="h-8 border-0 bg-transparent px-0 py-0 text-base shadow-none focus-visible:ring-0 md:h-7 md:text-sm"
                   />
                 </label>
               </div>
@@ -2361,7 +2307,7 @@ export default function PdvAdminPage() {
               <Button
                 onClick={finalizarPedido}
                 disabled={salvando}
-                className="h-11 w-full rounded-xl bg-primary text-base font-semibold text-white hover:bg-primary/90"
+                className="h-11 w-full rounded-xl bg-primary text-base font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 {salvando ? <Loader2 className="mr-2 size-5 animate-spin" /> : <ReceiptText className="mr-2 size-5" />}
                 Finalizar e imprimir
@@ -2388,7 +2334,7 @@ export default function PdvAdminPage() {
                     </div>
                     <Button
                       onClick={() => imprimirItemFinalizado(item)}
-                      className="h-10 shrink-0 rounded-lg bg-primary font-semibold text-white hover:bg-primary/90"
+                      className="h-10 shrink-0 rounded-lg bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
                     >
                       <Printer className="mr-2 size-5" />
                       Item
@@ -2559,50 +2505,14 @@ export default function PdvAdminPage() {
         </TabsContent>
       </Tabs>
 
-      <AlertDialog
-        open={Boolean(confirmacaoPdv?.aberto)}
-        onOpenChange={(aberto) => {
-          if (!aberto) setConfirmacaoPdv(null)
-        }}
+      <Gaveta
+        aberto={categoriaDialogAberto}
+        aoFechar={() => setCategoriaDialogAberto(false)}
+        titulo="Escolher categoria"
+        descricao="Atalho: Ctrl/⌘ + K"
       >
-        <AlertDialogContent className="border-border/70 bg-card text-foreground dark:bg-card dark:text-foreground">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirmacaoPdv?.titulo || 'Confirmar ação'}</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              {confirmacaoPdv?.mensagem || 'Confirme para continuar.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className={cn('h-11 rounded-lg font-semibold', pdvOutlineButtonClassName)}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className={cn(
-                'h-11 rounded-lg font-semibold',
-                confirmacaoPdv?.variante === 'perigo'
-                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90',
-              )}
-              onClick={(evento) => {
-                evento.preventDefault()
-                const acao = confirmacaoPdv?.onConfirmar
-                setConfirmacaoPdv(null)
-                if (acao) void acao()
-              }}
-            >
-              {confirmacaoPdv?.textoConfirmar || 'Confirmar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={categoriaDialogAberto} onOpenChange={setCategoriaDialogAberto}>
-        <DialogContent className="max-w-lg border-border/70 bg-card text-foreground dark:bg-card dark:text-foreground">
-          <DialogHeader>
-            <DialogTitle>Escolher categoria</DialogTitle>
-          </DialogHeader>
           <Command className={pdvCommandClassName}>
-            <CommandInput placeholder="Buscar categoria" className="dark:bg-card" />
+            <CommandInput placeholder="Buscar categoria" className="text-base dark:bg-card md:text-sm" />
             <CommandList className="bg-card">
               <CommandEmpty className="text-muted-foreground">Nenhuma categoria encontrada.</CommandEmpty>
               <CommandGroup>
@@ -2642,8 +2552,7 @@ export default function PdvAdminPage() {
               </CommandGroup>
             </CommandList>
           </Command>
-        </DialogContent>
-      </Dialog>
+      </Gaveta>
 
       <ModalDetalhesPedido
         pedidoId={pedidoDetalhesId}
@@ -2682,179 +2591,120 @@ export default function PdvAdminPage() {
         }}
       />
 
-      <Dialog open={Boolean(itemEditor)} onOpenChange={(aberto) => !aberto && setItemEditorLocalId(null)}>
-        <DialogContent className="max-w-lg border-border/70 bg-card text-foreground dark:bg-card dark:text-foreground">
-          {itemEditor && (() => {
-            const qtdPaga = obterQuantidadePaga(itemEditor.localId)
-            const qtdRestante = Math.max(0, itemEditor.quantidade - qtdPaga)
-            const descontoItem = calcularDescontoItem(itemEditor)
-            const subtotalItem = calcularSubtotalItem(itemEditor)
-            const quantidadeTravada = qtdPaga > 0
+      {(() => {
+        const qtdPaga = itemEditor ? obterQuantidadePaga(itemEditor.localId) : 0
+        const qtdRestante = itemEditor ? Math.max(0, itemEditor.quantidade - qtdPaga) : 0
+        const descontoItem = itemEditor ? calcularDescontoItem(itemEditor) : 0
+        const subtotalItem = itemEditor ? calcularSubtotalItem(itemEditor) : 0
+        const quantidadeTravada = qtdPaga > 0
 
-            return (
-              <>
-                <DialogHeader>
-                  <DialogTitle>Ajustar item</DialogTitle>
-                </DialogHeader>
+        return (
+          <Gaveta
+            aberto={Boolean(itemEditor)}
+            aoFechar={() => setItemEditorLocalId(null)}
+            titulo={itemEditor ? <span className="line-clamp-2">{itemEditor.nome}</span> : 'Ajustar item'}
+            descricao={
+              itemEditor ? (
+                <>
+                  {itemEditor.quantidade} x {formatarMoeda(itemEditor.preco)}
+                  {qtdPaga > 0 && ` · pago ${qtdPaga}/${itemEditor.quantidade}`}
+                  {' · '}
+                  <span className="font-mono font-medium tabular-nums text-foreground">{formatarMoeda(subtotalItem)}</span>
+                </>
+              ) : undefined
+            }
+          >
+            {itemEditor && (
+              <div className="space-y-5">
+                {descontoItem > 0 && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                    Desconto aplicado: {formatarMoeda(descontoItem)}
+                  </div>
+                )}
 
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-border/70 bg-muted/40 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="line-clamp-2 text-base font-semibold leading-tight">{itemEditor.nome}</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {itemEditor.quantidade} x {formatarMoeda(itemEditor.preco)}
-                          {qtdPaga > 0 && ` · pago ${qtdPaga}/${itemEditor.quantidade}`}
-                        </p>
-                      </div>
-                      <strong className="shrink-0 font-mono text-lg font-semibold text-primary">
-                        {formatarMoeda(subtotalItem)}
-                      </strong>
-                    </div>
-                    {descontoItem > 0 && (
-                      <div className="mt-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive">
-                        Desconto aplicado: {formatarMoeda(descontoItem)}
-                      </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">Quantidade</p>
+                    {quantidadeTravada && (
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">Desfaça as unidades pagas para mudar.</p>
                     )}
                   </div>
-
-                  <div className="grid gap-3">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                        Quantidade
-                      </label>
-                      <div className="grid grid-cols-[3rem_1fr_3rem] items-center gap-2">
-                        <Button
-                          type="button"
-                          aria-label={`Diminuir ${itemEditor.nome}`}
-                          disabled={quantidadeTravada}
-                          onClick={() => alterarQuantidade(itemEditor.localId, itemEditor.quantidade - 1)}
-                          className="h-11 rounded-lg border border-border/70 bg-card p-0 text-foreground hover:bg-primary/10 disabled:opacity-45"
-                        >
-                          <Minus className="size-5" />
-                        </Button>
-                        <div className="grid h-11 place-items-center rounded-lg border border-border/70 bg-card text-lg font-semibold tabular-nums">
-                          {itemEditor.quantidade}
-                        </div>
-                        <Button
-                          type="button"
-                          aria-label={`Aumentar ${itemEditor.nome}`}
-                          disabled={quantidadeTravada}
-                          onClick={() => alterarQuantidade(itemEditor.localId, itemEditor.quantidade + 1)}
-                          className="h-11 rounded-lg bg-primary p-0 text-white hover:bg-primary/90 disabled:opacity-45"
-                        >
-                          <Plus className="size-5" />
-                        </Button>
-                      </div>
-                      {quantidadeTravada && (
-                        <p className="mt-1.5 text-xs text-muted-foreground">Reverta as unidades pagas para mudar a quantidade.</p>
-                      )}
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                          Desconto do item
-                        </label>
-                        <Input
-                          value={itemEditor.descontoManualInput}
-                          onChange={(event) => atualizarDescontoItem(itemEditor.localId, event.target.value)}
-                          placeholder="0,00"
-                          inputMode="decimal"
-                          className="h-11 rounded-lg border-border/70 bg-card"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                          Observação
-                        </label>
-                        <Input
-                          value={itemEditor.observacoes}
-                          onChange={(event) => atualizarObservacaoItem(itemEditor.localId, event.target.value)}
-                          placeholder="Sem cebola, ponto, etc."
-                          className="h-11 rounded-lg border-border/70 bg-card"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      disabled={qtdRestante <= 0}
-                      onClick={() => pagarUnidades(itemEditor, 1)}
-                      className="h-11 rounded-lg bg-primary font-semibold text-white hover:bg-primary/90 disabled:opacity-45"
-                    >
-                      <Check className="mr-2 size-4" />
-                      Pagar 1
-                    </Button>
-                    <Button
-                      type="button"
-                      disabled={qtdRestante <= 0}
-                      onClick={() => pagarUnidades(itemEditor, qtdRestante)}
-                      className="h-11 rounded-lg border border-border/70 bg-card font-semibold text-foreground hover:bg-primary/10 disabled:opacity-45"
-                    >
-                      <CircleDollarSign className="mr-2 size-4" />
-                      Pagar restante
-                    </Button>
-                    <Button
-                      type="button"
-                      disabled={qtdPaga <= 0}
-                      onClick={() => reverterUnidades(itemEditor, 1)}
-                      className="h-11 rounded-lg border border-border/70 bg-card font-semibold text-foreground hover:bg-primary/10 disabled:opacity-45"
-                    >
-                      <RotateCcw className="mr-2 size-4" />
-                      Reverter 1
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => removerItem(itemEditor.localId)}
-                      className="h-11 rounded-lg bg-destructive font-semibold text-white hover:bg-destructive/90"
-                    >
-                      <Trash2 className="mr-2 size-4" />
-                      Remover
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )
-          })()}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={mesaDialogAberto} onOpenChange={setMesaDialogAberto}>
-        <DialogContent className="max-w-4xl border-border/70 bg-card text-foreground dark:bg-card dark:text-foreground">
-          <DialogHeader>
-            <DialogTitle>Selecionar mesa ou parceiro</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'mesa' as TipoPontoSalao, label: 'Mesas' },
-                { id: 'comanda' as TipoPontoSalao, label: 'Comandas' },
-                { id: 'local_externo' as TipoPontoSalao, label: 'Parceiros' },
-              ].map((tipo) => (
-                <Button
-                  key={tipo.id}
-                  type="button"
-                  onClick={() => setTipoPontoSalao(tipo.id)}
-                  className={cn(
-                    'h-11 rounded-lg font-semibold',
-                    tipoPontoSalao === tipo.id
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'border border-border/70 bg-card text-foreground hover:bg-primary/10',
+                  {quantidadeTravada ? (
+                    <span className="font-mono text-lg font-semibold tabular-nums">{itemEditor.quantidade}</span>
+                  ) : (
+                    <Contador
+                      valor={itemEditor.quantidade}
+                      aoMudar={(quantidade) => alterarQuantidade(itemEditor.localId, quantidade)}
+                      minimo={0}
+                      maximo={999}
+                      rotuloAcessivel={`quantidade de ${itemEditor.nome}`}
+                    />
                   )}
-                >
-                  {tipo.label}
-                </Button>
-              ))}
-            </div>
-
-            <div className="max-h-[62vh] overflow-y-auto pr-1">
-              {pontosSalaoDialog.length === 0 ? (
-                <div className="grid min-h-40 place-items-center rounded-lg border border-dashed border-border/70 text-center text-muted-foreground">
-                  Nenhum ponto cadastrado.
                 </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Campo rotulo="Desconto do item" htmlFor="pdv-editor-desconto" opcional>
+                    <EntradaPreco
+                      id="pdv-editor-desconto"
+                      valor={itemEditor.descontoManualInput}
+                      aoMudar={(valor) => atualizarDescontoItem(itemEditor.localId, valor)}
+                    />
+                  </Campo>
+                  <Campo rotulo="Observação" htmlFor="pdv-editor-observacao" opcional>
+                    <Entrada
+                      id="pdv-editor-observacao"
+                      value={itemEditor.observacoes}
+                      onChange={(event) => atualizarObservacaoItem(itemEditor.localId, event.target.value)}
+                      placeholder="Sem cebola, ponto, etc."
+                    />
+                  </Campo>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Botao tamanho="lg" disabled={qtdRestante <= 0} onClick={() => pagarUnidades(itemEditor, 1)}>
+                    <Check />
+                    Pagar 1
+                  </Botao>
+                  <Botao variante="contorno" tamanho="lg" disabled={qtdRestante <= 0} onClick={() => pagarUnidades(itemEditor, qtdRestante)}>
+                    <CircleDollarSign />
+                    Pagar restante
+                  </Botao>
+                  <Botao variante="contorno" tamanho="lg" disabled={qtdPaga <= 0} onClick={() => reverterUnidades(itemEditor, 1)}>
+                    <RotateCcw />
+                    Desfazer 1
+                  </Botao>
+                  <Botao variante="perigoSuave" tamanho="lg" className="border border-destructive/30" onClick={() => removerItem(itemEditor.localId)}>
+                    <Trash2 />
+                    Remover
+                  </Botao>
+                </div>
+              </div>
+            )}
+          </Gaveta>
+        )
+      })()}
+
+      <Gaveta
+        aberto={mesaDialogAberto}
+        aoFechar={() => setMesaDialogAberto(false)}
+        titulo="Escolher mesa ou parceiro"
+        largura="xl"
+        cabecalho={
+          <Segmentos
+            rotuloAcessivel="Tipo de ponto"
+            valor={tipoPontoSalao}
+            aoMudar={setTipoPontoSalao}
+            opcoes={[
+              { valor: 'mesa', rotulo: 'Mesas' },
+              { valor: 'comanda', rotulo: 'Comandas' },
+              { valor: 'local_externo', rotulo: 'Parceiros' },
+            ]}
+          />
+        }
+      >
+          <div>
+              {pontosSalaoDialog.length === 0 ? (
+                <ListaVazia titulo="Nada cadastrado aqui" descricao="Cadastre em Mesas para aparecer nesta lista." />
               ) : (
                 <div className={cn('grid gap-2', tipoPontoSalao === 'local_externo' ? 'sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-5')}>
                   {pontosSalaoDialog.map((ponto) => {
@@ -2889,17 +2739,15 @@ export default function PdvAdminPage() {
                           {parceiro ? 'Parceiro' : ocupada ? ponto.nome_cliente || 'Ocupada' : 'Livre'}
                         </span>
                         {selecionada && (
-                          <Badge className="mt-3 rounded-md bg-primary text-primary-foreground hover:bg-primary">Selecionado</Badge>
+                          <Badge className="mt-3 rounded-md bg-primary text-primary-foreground hover:bg-primary">Escolhido</Badge>
                         )}
                       </button>
                     )
                   })}
                 </div>
               )}
-            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </Gaveta>
     </main>
   )
 }

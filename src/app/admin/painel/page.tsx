@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { RefreshCw, Search, X } from 'lucide-react'
+import { ArrowsClockwise as RefreshCw, MagnifyingGlass as Search, X } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
@@ -10,7 +10,7 @@ import ModalEditarPedido from '@/components/admin/ModalEditarPedido'
 import { ColunaKanban } from '@/components/admin/painel/ColunaKanban'
 import { PEDIDO_DEMO_ID, useDemoPainel } from '@/features/onboarding'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { useConfirmar } from '@/components/admin/ui'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -121,7 +121,7 @@ function PainelKanbanPage() {
   const [modalAberto, setModalAberto] = useState(false)
   const [pedidoParaEditar, setPedidoParaEditar] = useState<Pedido | null>(null)
   const [modalEditarAberto, setModalEditarAberto] = useState(false)
-  const [pedidoParaApagar, setPedidoParaApagar] = useState<Pedido | null>(null)
+  const confirmar = useConfirmar()
   const [acoesPedido, setAcoesPedido] = useState<Record<string, AcoesPedidoKanban>>({})
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const pedidosRef = useRef<Pedido[]>([])
@@ -849,7 +849,17 @@ function PainelKanbanPage() {
     onAvancarStatus: comGuardaDemo(avancarStatus, 'Exemplo do tutorial: o pedido avançaria para a próxima coluna.'),
     onMoverParaColuna: comGuardaDemo(moverParaColuna, 'Exemplo do tutorial: o pedido mudaria de coluna.'),
     onEditar: comGuardaDemo(editarPedido, 'Exemplo do tutorial: aqui você editaria o pedido.'),
-    onApagar: comGuardaDemo(setPedidoParaApagar, 'Exemplo do tutorial: aqui você excluiria o pedido.'),
+    onApagar: comGuardaDemo((pedido: Pedido) => {
+      void (async () => {
+        const ok = await confirmar({
+          titulo: `Apagar o pedido de ${pedido.nome_cliente || 'cliente'}?`,
+          descricao: 'O pedido sai do painel e não dá para desfazer.',
+          confirmar: 'Apagar pedido',
+          perigo: true,
+        })
+        if (ok) void apagarPedido(pedido)
+      })()
+    }, 'Exemplo do tutorial: aqui você excluiria o pedido.'),
     onImprimirCozinha: comGuardaDemo(imprimirCozinha, 'Exemplo do tutorial: a via da cozinha seria impressa.'),
     onConfirmarPagamento: comGuardaDemo(confirmarPagamento, 'Exemplo do tutorial: o pagamento seria confirmado.'),
   }
@@ -896,12 +906,14 @@ function PainelKanbanPage() {
                   placeholder="Buscar por nome, telefone ou número"
                   value={termoBusca}
                   onChange={(e) => setTermoBusca(e.target.value)}
-                  className="h-9 pl-8 pr-8 text-sm"
+                  className="h-11 pl-8 pr-11 text-base md:h-9 md:pr-9 md:text-sm"
                 />
                 {termoBusca && (
                   <button
+                    type="button"
                     onClick={() => setTermoBusca('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar busca"
+                    className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground md:size-9"
                   >
                     <X strokeWidth={1.6} className="size-4" />
                   </button>
@@ -913,7 +925,7 @@ function PainelKanbanPage() {
                 size="sm"
                 onClick={() => carregarPedidos()}
                 disabled={carregando}
-                className="size-9 p-0"
+                className="size-11 shrink-0 p-0 md:size-9"
                 aria-label="Atualizar"
               >
                 <RefreshCw strokeWidth={1.6} className={cn('size-4', carregando && 'animate-spin')} />
@@ -942,7 +954,7 @@ function PainelKanbanPage() {
                   type="button"
                   onClick={() => irParaColuna(chave)}
                   className={cn(
-                    'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                    'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
                     !ativo && 'border-border/70 bg-card text-muted-foreground hover:bg-muted',
                   )}
                   style={{
@@ -1059,30 +1071,6 @@ function PainelKanbanPage() {
             onSucesso={onSucessoEditar}
           />
 
-          <Dialog open={!!pedidoParaApagar} onOpenChange={(open) => !open && setPedidoParaApagar(null)}>
-            <DialogContent className="sm:max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Apagar pedido</DialogTitle>
-                <DialogDescription>
-                  Tem certeza que deseja apagar o pedido de <span className="font-semibold">{pedidoParaApagar?.nome_cliente}</span>? Esta ação não pode ser desfeita.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="gap-2 sm:gap-2">
-                <button
-                  onClick={() => setPedidoParaApagar(null)}
-                  className="inline-flex h-9 items-center px-4 rounded-md border border-border/70 bg-card text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => { if (pedidoParaApagar) { apagarPedido(pedidoParaApagar); setPedidoParaApagar(null) } }}
-                  className="inline-flex h-9 items-center px-4 rounded-md bg-destructive text-sm font-medium text-white hover:bg-destructive/90 transition-colors"
-                >
-                  Apagar
-                </button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </AdminLayout>
     </ProtectedRoute>

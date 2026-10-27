@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Smartphone, X } from 'lucide-react'
+import { DeviceMobile as Smartphone, X } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ModalPreviewMobile from './ModalPreviewMobile'
 

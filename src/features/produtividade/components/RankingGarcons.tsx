@@ -2,18 +2,23 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, Medal, Trophy, Users } from 'lucide-react'
+import { CaretRight, Trophy, Users } from '@phosphor-icons/react'
 import { AvatarUsuario } from '@/components/admin/AvatarUsuario'
-import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
+import { Cartao, Chip, ListaCarregando, ListaVazia, Selo } from '@/components/admin/ui'
 import { MenuAcoes, type MenuAcaoItem } from '@/components/ui/menu-acoes'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
 import { cn } from '@/lib/utils'
 import { formatarMoeda, formatarPercentual, formatarPontos } from '../lib/periodo'
 import { seloQualidade as selo, taxaFechamento, taxaQualidade } from '../lib/metricas'
 import type { GarcomProdutividade } from '../types'
 
 type Ordenacao = 'pontos' | 'vendas' | 'pedidos' | 'qualidade'
+
+const ORDENACOES: { valor: Ordenacao; rotulo: string }[] = [
+  { valor: 'pontos', rotulo: 'Pontos' },
+  { valor: 'vendas', rotulo: 'Vendas' },
+  { valor: 'pedidos', rotulo: 'Pedidos' },
+  { valor: 'qualidade', rotulo: 'Qualidade' },
+]
 
 type Props = {
   garcons: GarcomProdutividade[]
@@ -30,7 +35,6 @@ const CORES_POSICAO = [
 export function RankingGarcons({ garcons, carregando, onAbrirDetalhe }: Props) {
   const router = useRouter()
   const [ordenacao, setOrdenacao] = useState<Ordenacao>('pontos')
-  const [abertos, setAbertos] = useState<Set<string>>(() => new Set())
 
   const ordenados = useMemo(() => {
     const lista = [...garcons]
@@ -54,15 +58,6 @@ export function RankingGarcons({ garcons, carregando, onAbrirDetalhe }: Props) {
     }
   }, [ordenados])
 
-  const alternarAccordion = (id: string) => {
-    setAbertos((anterior) => {
-      const proximo = new Set(anterior)
-      if (proximo.has(id)) proximo.delete(id)
-      else proximo.add(id)
-      return proximo
-    })
-  }
-
   const acoes = (garcom: GarcomProdutividade): MenuAcaoItem[] => [
     {
       key: 'detalhe',
@@ -77,45 +72,32 @@ export function RankingGarcons({ garcons, carregando, onAbrirDetalhe }: Props) {
   ]
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border/70 bg-card p-3.5 shadow-sm md:p-5">
+    <Cartao className="overflow-hidden p-4 md:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-base font-medium text-foreground/90">Ranking</span>
-          <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-            {totalEmAtividade} em atividade
-          </span>
+          <h2 className="text-base font-semibold text-foreground">Ranking</h2>
+          <Selo className="text-xs">{totalEmAtividade} em atividade</Selo>
         </div>
-        <ToggleGroup
-          type="single"
-          value={ordenacao}
-          onValueChange={(valor) => {
-            if (valor) setOrdenacao(valor as Ordenacao)
-          }}
-          aria-label="Ordenar ranking"
-          className="flex w-max flex-wrap items-center justify-start gap-2"
-        >
-          <ToggleGroupItem value="pontos" className={CHIP_FILTRO_DEFAULT}>
-            Pontos
-          </ToggleGroupItem>
-          <ToggleGroupItem value="vendas" className={CHIP_FILTRO_DEFAULT}>
-            Vendas
-          </ToggleGroupItem>
-          <ToggleGroupItem value="pedidos" className={CHIP_FILTRO_DEFAULT}>
-            Pedidos
-          </ToggleGroupItem>
-          <ToggleGroupItem value="qualidade" className={CHIP_FILTRO_DEFAULT}>
-            Qualidade
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <div role="group" aria-label="Ordenar ranking" className="flex flex-wrap gap-2">
+          {ORDENACOES.map((item) => (
+            <Chip
+              key={item.valor}
+              ativo={ordenacao === item.valor}
+              onClick={() => setOrdenacao(item.valor)}
+            >
+              {item.rotulo}
+            </Chip>
+          ))}
+        </div>
       </div>
 
       {carregando ? (
-        <TabelaSkeleton linhas={6} />
+        <ListaCarregando linhas={6} />
       ) : lista.length === 0 ? (
         <ListaVazia
-          icone={<Users className="h-5 w-5" />}
+          icone={<Users />}
           titulo="Nenhum garçom cadastrado"
-          descricao="Cadastre um usuário com papel Garçom em Usuários."
+          descricao="Cadastre um usuário com o papel Garçom na tela Usuários."
         />
       ) : (
         <>
@@ -150,8 +132,8 @@ export function RankingGarcons({ garcons, carregando, onAbrirDetalhe }: Props) {
                       <td className="px-3 py-3">
                         {disputa && indice < 3 ? (
                           <Trophy
-                            className={cn('h-4 w-4', CORES_POSICAO[indice])}
-                            strokeWidth={1.8}
+                            className={cn('size-4', CORES_POSICAO[indice])}
+                            weight="fill"
                             aria-label={`${indice + 1}º lugar`}
                           />
                         ) : (
@@ -199,7 +181,7 @@ export function RankingGarcons({ garcons, carregando, onAbrirDetalhe }: Props) {
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {garcom.pontosNegativos > 0 ? (
-                          <span className="text-rose-600 dark:text-rose-400">
+                          <span className="text-destructive">
                             −{formatarPontos(garcom.pontosNegativos)}
                           </span>
                         ) : (
@@ -229,34 +211,29 @@ export function RankingGarcons({ garcons, carregando, onAbrirDetalhe }: Props) {
             </table>
           </div>
 
-          <div className="space-y-2 md:hidden">
+          <ul className="-mx-4 divide-y divide-border/70 border-t border-border/70 md:hidden">
             {lista.map((garcom, indice) => {
-              const aberto = abertos.has(garcom.garcomId)
               const qualidade = taxaQualidade(garcom)
               const marca = selo(qualidade)
               const disputa = idsEmAtividade.has(garcom.garcomId)
 
               return (
-                <div
-                  key={garcom.garcomId}
-                  className="overflow-hidden rounded-xl border border-border/70 bg-background"
-                >
+                <li key={garcom.garcomId}>
                   <button
                     type="button"
-                    onClick={() => alternarAccordion(garcom.garcomId)}
-                    className="flex w-full items-center gap-3 p-3.5 text-left transition-colors hover:bg-muted/20"
-                    aria-expanded={aberto}
-                    aria-controls={`produtividade-garcom-${garcom.garcomId}`}
+                    onClick={() => onAbrirDetalhe(garcom)}
+                    className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    aria-label={`Ver pontos de ${garcom.nome}`}
                   >
-                    <span className="flex w-6 shrink-0 justify-center">
+                    <span className="flex w-5 shrink-0 justify-center">
                       {disputa && indice < 3 ? (
-                        <Medal
-                          className={cn('h-4 w-4', CORES_POSICAO[indice])}
-                          strokeWidth={1.8}
-                          aria-hidden="true"
+                        <Trophy
+                          className={cn('size-4', CORES_POSICAO[indice])}
+                          weight="fill"
+                          aria-label={`${indice + 1}º lugar`}
                         />
                       ) : (
-                        <span className="text-xs tabular-nums text-muted-foreground">
+                        <span className="text-sm tabular-nums text-muted-foreground">
                           {disputa ? indice + 1 : '—'}
                         </span>
                       )}
@@ -269,99 +246,34 @@ export function RankingGarcons({ garcons, carregando, onAbrirDetalhe }: Props) {
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">{garcom.nome}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {garcom.pedidosCriados} pedidos · {formatarMoeda(garcom.vendas)}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-base font-semibold tabular-nums text-foreground">
-                        {formatarPontos(garcom.pontos)}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">pts</p>
-                    </div>
-                    <ChevronDown
-                      className={cn(
-                        'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
-                        aberto && 'rotate-180',
-                      )}
-                      strokeWidth={1.6}
-                    />
-                  </button>
-
-                  {aberto ? (
-                    <div
-                      id={`produtividade-garcom-${garcom.garcomId}`}
-                      className="border-t border-border/60 px-3.5 pb-3.5 pt-3"
-                    >
-                      <span
-                        className={cn(
-                          'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                          marca.classe,
-                        )}
-                      >
-                        {marca.texto} · {formatarPercentual(qualidade)} sem falha
-                      </span>
-
-                      <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
-                        <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Fechados
-                          </p>
-                          <p className="mt-0.5 text-sm font-semibold tabular-nums">
-                            {garcom.pedidosFechados}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Em aberto
-                          </p>
-                          <p className="mt-0.5 text-sm font-semibold tabular-nums">
-                            {garcom.pedidosAbertos}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Itens
-                          </p>
-                          <p className="mt-0.5 text-sm font-semibold tabular-nums">
-                            {garcom.itensAdicionados}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Perdidos
-                          </p>
-                          <p
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[13px] text-muted-foreground">
+                          {garcom.pedidosCriados} pedidos · {formatarMoeda(garcom.vendas)}
+                        </span>
+                        {disputa ? (
+                          <span
                             className={cn(
-                              'mt-0.5 text-sm font-semibold tabular-nums',
-                              garcom.pontosNegativos > 0 && 'text-rose-600 dark:text-rose-400',
+                              'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                              marca.classe,
                             )}
                           >
-                            {garcom.pontosNegativos > 0
-                              ? `−${formatarPontos(garcom.pontosNegativos)}`
-                              : '0'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          type="button"
-                          className="h-9 flex-1 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
-                          onClick={() => onAbrirDetalhe(garcom)}
-                        >
-                          Ver composição
-                        </button>
-                        <MenuAcoes ariaLabel={`Ações de ${garcom.nome}`} items={acoes(garcom)} />
+                            {marca.texto}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
-                  ) : null}
-                </div>
+                    <span className="shrink-0 text-right text-base font-semibold tabular-nums text-foreground">
+                      {formatarPontos(garcom.pontos)}
+                      <span className="ml-0.5 text-[13px] font-normal text-muted-foreground">pts</span>
+                    </span>
+                    <CaretRight className="size-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </li>
               )
             })}
-          </div>
+          </ul>
         </>
       )}
-    </section>
+    </Cartao>
   )
 }

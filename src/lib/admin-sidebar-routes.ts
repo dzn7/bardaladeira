@@ -1,35 +1,10 @@
 import { ComponentType } from 'react'
-import {
-  Archive,
-  Armchair,
-  BadgePercent,
-  BarChart3,
-  CalendarDays,
-  Coins,
-  Contact,
-  CookingPot,
-  CreditCard,
-  Kanban,
-  Landmark,
-  LayoutDashboard,
-  Layers,
-  ListPlus,
-  MapPin,
-  Package,
-  PlusCircle,
-  Printer,
-  Receipt,
-  ShoppingBasket,
-  Trophy,
-  Truck,
-  UserCog,
-  UtensilsCrossed,
-  Wallet,
-} from 'lucide-react'
+import type { IconWeight } from '@phosphor-icons/react'
+import { Archive, Armchair, SealPercent as BadgePercent, ChartBar as BarChart3, CalendarDots as CalendarDays, Coins, AddressBook as Contact, CookingPot, CreditCard, Kanban, Bank as Landmark, SquaresFour as LayoutDashboard, Stack as Layers, ListPlus, MapPin, Package, PlusCircle, Printer, Receipt, Basket as ShoppingBasket, Trophy, Truck, UserGear as UserCog, ForkKnife as UtensilsCrossed, Wallet } from '@phosphor-icons/react/dist/ssr'
 import IconeMesa from '@/components/icons/IconeMesa'
 import IconeWhatsApp from '@/components/icons/IconeWhatsApp'
 
-export type IconeSidebar = ComponentType<{ className?: string; strokeWidth?: number | string }>
+export type IconeSidebar = ComponentType<{ className?: string; weight?: IconWeight }>
 
 export type ItemSidebarRota = {
   id: string

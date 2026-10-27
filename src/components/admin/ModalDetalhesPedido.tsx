@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { X, FileText, Edit2, Package, User, MapPin, CreditCard, Banknote, QrCode, Truck, Store, UtensilsCrossed, Clock, Plus, Minus, Split, Printer, BadgePercent, Wallet, Check, ListChecks, Loader2, CircleDollarSign, RotateCcw } from 'lucide-react'
+import { X, FileText, PencilSimple as Edit2, Package, User, MapPin, CreditCard, Money as Banknote, QrCode, Truck, Storefront as Store, ForkKnife as UtensilsCrossed, Clock, Plus, Minus, ArrowsSplit as Split, Printer, SealPercent as BadgePercent, Wallet, Check, ListChecks, CircleNotch as Loader2, CurrencyCircleDollar as CircleDollarSign, ArrowCounterClockwise as RotateCcw } from '@phosphor-icons/react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { gerarTicketPDF } from '@/lib/pdf-generator'
 import { cn } from '@/lib/utils'
-import { ModalSheet } from '@/components/ui/modal-sheet'
+import { Botao, Campo, Contador, Gaveta, ListaCarregando, ListaVazia, Segmentos } from '@/components/admin/ui'
 import { ModalFormaPagamentoItens } from '@/components/admin/pagamento/ModalFormaPagamentoItens'
 import {
   type ItemPagoSnapshot,
@@ -1106,49 +1106,179 @@ export default function ModalDetalhesPedido({
     }
   }, [aberto])
 
+  const reversao = modalReversaoAberto
+    ? (() => {
+        const { item, origem, quantidade, maxPagamento, maxCrediario } = modalReversaoAberto
+        const maxOrigem = origem === 'pagamento' ? maxPagamento : maxCrediario
+        return {
+          item,
+          origem,
+          quantidade,
+          maxPagamento,
+          maxCrediario,
+          maxOrigem,
+          valorRevertido: Number((valorUnitarioItem(item) * quantidade).toFixed(2)),
+          ocupado: revertendoItemId === item.id,
+        }
+      })()
+    : null
+
+  const selecionarOrigemReversao = (proximaOrigem: 'pagamento' | 'crediario') => {
+    setModalReversaoAberto((atual) => {
+      if (!atual) return atual
+      const proximoMax = proximaOrigem === 'pagamento' ? atual.maxPagamento : atual.maxCrediario
+      if (proximoMax <= 0) return atual
+      return {
+        ...atual,
+        origem: proximaOrigem,
+        quantidade: normalizarQuantidadeUnidades(atual.quantidade, proximoMax),
+      }
+    })
+  }
+
+  const ajustarQuantidadeReversao = (proximaQuantidade: number) => {
+    setModalReversaoAberto((atual) => {
+      if (!atual) return atual
+      const maxOrigem = atual.origem === 'pagamento' ? atual.maxPagamento : atual.maxCrediario
+      return { ...atual, quantidade: normalizarQuantidadeUnidades(proximaQuantidade, maxOrigem) }
+    })
+  }
+
+  const selecao = (() => {
+    if (!pedido || !modoSelecaoTimeline) return null
+    const itensSelecionadosLista = itensTimeline.filter((item) => itensSelecionadosTimeline.has(item.id))
+    const itensNaoPagosSelecionados = itensSelecionadosLista.filter(
+      (item) => obterStatusItem(item).qtdRestante > 0,
+    )
+    const valorSelecionado = Number(
+      itensNaoPagosSelecionados
+        .reduce((sum, item) => {
+          const status = obterStatusItem(item)
+          const total = Number(item.quantidade || 1)
+          const subtotal = Number(item.subtotal || 0)
+          const precoUnit = total > 0 ? subtotal / total : Number(item.preco_unitario || 0)
+          return sum + status.qtdRestante * precoUnit
+        }, 0)
+        .toFixed(2),
+    )
+    return { itensNaoPagosSelecionados, valorSelecionado }
+  })()
+
+  const rodapeDetalhes = !pedido ? undefined : selecao ? (
+    <>
+      <Botao variante="contorno" onClick={cancelarModoSelecao}>
+        Cancelar
+      </Botao>
+      <Botao
+        variante="contorno"
+        onClick={() => void imprimirItensSelecionados()}
+        carregando={imprimindoSelecionados}
+        disabled={itensSelecionadosTimeline.size === 0}
+      >
+        {!imprimindoSelecionados && <Printer className="size-4" />}
+        Imprimir{itensSelecionadosTimeline.size > 0 ? ` ${itensSelecionadosTimeline.size}` : ''}
+      </Botao>
+      <Botao
+        onClick={() => abrirModalForma(selecao.itensNaoPagosSelecionados, 'selecao')}
+        carregando={pagandoSelecionados}
+        disabled={selecao.itensNaoPagosSelecionados.length === 0}
+      >
+        {!pagandoSelecionados && <CircleDollarSign className="size-4" />}
+        Pagar{selecao.itensNaoPagosSelecionados.length > 0 ? ` ${selecao.itensNaoPagosSelecionados.length}` : ''}
+      </Botao>
+    </>
+  ) : (
+    <>
+      {onEditar && (
+        <Botao
+          variante="contorno"
+          className="md:mr-auto"
+          onClick={() => {
+            onEditar(pedido)
+            onFechar()
+          }}
+        >
+          <Edit2 className="size-4" />
+          Editar
+        </Botao>
+      )}
+      {onGerarPDF && (
+        <Botao
+          variante="contorno"
+          onClick={() => {
+            const pedidoComPagamentos = {
+              ...pedido,
+              pagamentos: pagamentos.length > 0 ? pagamentos : undefined,
+            }
+            onGerarPDF(pedidoComPagamentos as any)
+            onFechar()
+          }}
+        >
+          <FileText className="size-4" />
+          PDF
+        </Botao>
+      )}
+      <Botao
+        onClick={() => {
+          const pedidoComDados = {
+            ...pedido,
+            itens: itens.map((item) => ({
+              nome_item: item.nome_item || 'Produto',
+              quantidade: item.quantidade,
+              preco_unitario: item.preco_unitario,
+              subtotal: item.subtotal,
+              adicionais:
+                item.adicionais_lista && item.adicionais_lista.length > 0
+                  ? item.adicionais_lista
+                      .map((a) => `${a.quantidade && a.quantidade > 1 ? a.quantidade + 'x ' : ''}${a.nome}`)
+                      .join(', ')
+                  : item.adicionais,
+              observacoes: item.observacoes,
+            })),
+            pagamentos: pagamentos.length > 0 ? pagamentos : undefined,
+          }
+          gerarTicketPDF(pedidoComDados as any)
+          onFechar()
+        }}
+      >
+        <Printer className="size-4" />
+        Ticket
+      </Botao>
+    </>
+  )
+
   return (
     <>
-      <ModalSheet
-        open={aberto}
-        onOpenChange={(open) => {
-          if (!open) onFechar()
-        }}
-        title="Detalhes do pedido"
-        showCloseButton={false}
-        className="max-h-[100dvh] overflow-hidden sm:max-h-[90dvh] sm:max-w-4xl"
+      <Gaveta
+        aberto={aberto}
+        aoFechar={onFechar}
+        largura="xl"
+        titulo={<span className="font-mono tabular-nums">Pedido #{pedidoId?.slice(0, 8).toUpperCase()}</span>}
+        descricao={
+          pedido
+            ? format(new Date(pedido.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+            : 'Carregando pedido'
+        }
+        cabecalho={
+          selecao ? (
+            <p className="text-sm text-muted-foreground">
+              {itensSelecionadosTimeline.size === 0
+                ? 'Toque nos itens da linha do tempo para selecionar.'
+                : `${itensSelecionadosTimeline.size} ${
+                    itensSelecionadosTimeline.size === 1 ? 'selecionado' : 'selecionados'
+                  }${selecao.valorSelecionado > 0 ? ` · R$ ${selecao.valorSelecionado.toFixed(2)}` : ''}`}
+            </p>
+          ) : undefined
+        }
+        rodape={rodapeDetalhes}
       >
-            <div className="flex max-h-[90dvh] w-full flex-col overflow-hidden">
-              {/* Header */}
-              <div className="flex flex-shrink-0 items-start justify-between gap-4 border-b border-border/70 p-4 md:p-5">
-                <div>
-                  <p className="mb-0.5 text-xs text-muted-foreground">Detalhes do pedido</p>
-                  <h3 className="font-mono text-lg font-semibold tabular-nums text-foreground">
-                    #{pedidoId?.slice(0, 8).toUpperCase()}
-                  </h3>
-                  {pedido && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {format(new Date(pedido.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={onFechar}
-                  className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <X strokeWidth={1.6} className="size-4" />
-                </button>
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-5">
+              <div>
                 {loading ? (
-                  <div className="flex h-64 items-center justify-center">
-                    <div className="size-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
-                  </div>
+                  <ListaCarregando linhas={4} />
                 ) : pedido ? (
                   <div className="space-y-4">
                     {/* Grid info principal */}
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
                       {/* Cliente */}
                       <div className="rounded-lg border border-border/70 bg-muted/30 p-3">
                         <div className="mb-1.5 flex items-center gap-1.5">
@@ -1258,7 +1388,7 @@ export default function ModalDetalhesPedido({
                       <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
                         <div className="mb-3 flex items-center gap-2">
                           <Split strokeWidth={1.6} className="size-4 text-muted-foreground" />
-                          <p className="text-sm font-medium text-foreground">Pagamento Dividido</p>
+                          <p className="text-sm font-medium text-foreground">Pagamento dividido</p>
                         </div>
                         <div className="space-y-1.5">
                           {pagamentos.map((p, idx) => {
@@ -1294,7 +1424,7 @@ export default function ModalDetalhesPedido({
                           <MapPin strokeWidth={1.6} className="mt-0.5 size-4 text-muted-foreground" />
                           <div className="flex-1">
                             <p className="mb-1 text-[11px] font-medium text-muted-foreground">
-                              Endereço de Entrega
+                              Endereço de entrega
                             </p>
                             <p className="text-sm font-medium text-foreground">{pedido.endereco}</p>
                             {pedido.bairro && (
@@ -1317,7 +1447,7 @@ export default function ModalDetalhesPedido({
                       <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
                         <div className="mb-3 flex items-center gap-2">
                           <Banknote strokeWidth={1.6} className="size-4 text-muted-foreground" />
-                          <p className="text-sm font-medium text-foreground">Troco Necessário</p>
+                          <p className="text-sm font-medium text-foreground">Troco</p>
                         </div>
                         <div className="grid grid-cols-3 gap-3 text-center">
                           <div>
@@ -1370,7 +1500,7 @@ export default function ModalDetalhesPedido({
                       <div className="mb-3 flex items-center gap-2">
                         <Package strokeWidth={1.6} className="size-4 text-muted-foreground" />
                         <h4 className="text-sm font-medium text-foreground">
-                          Itens do Pedido ({itens.length})
+                          Itens ({itens.length})
                         </h4>
                       </div>
                       <div className="space-y-2">
@@ -1444,26 +1574,23 @@ export default function ModalDetalhesPedido({
                         <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
                           <div className="flex min-w-0 items-center gap-2">
                             <Clock strokeWidth={1.6} className="size-4 shrink-0 text-muted-foreground" />
-                            <h4 className="truncate text-sm font-medium text-foreground">Timeline dos Itens</h4>
+                            <h4 className="truncate text-sm font-medium text-foreground">Linha do tempo</h4>
                           </div>
                           {modoSelecaoTimeline ? (
-                            <button
-                              type="button"
-                              onClick={cancelarModoSelecao}
-                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-md border border-border/70 bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                            >
+                            <Botao variante="fantasma" tamanho="sm" className="h-11 sm:h-9" onClick={cancelarModoSelecao}>
                               Cancelar
-                            </button>
+                            </Botao>
                           ) : (
-                            <button
-                              type="button"
+                            <Botao
+                              variante="contorno"
+                              tamanho="sm"
+                              className="h-11 sm:h-9"
                               onClick={ativarModoSelecao}
-                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-md border border-border/70 bg-card px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
-                              title="Selecionar itens para imprimir"
+                              title="Selecionar itens para imprimir ou cobrar"
                             >
-                              <ListChecks strokeWidth={1.6} className="size-3.5" />
+                              <ListChecks className="size-4" />
                               Selecionar
-                            </button>
+                            </Botao>
                           )}
                         </div>
                         <div className="space-y-0">
@@ -1556,13 +1683,13 @@ export default function ModalDetalhesPedido({
                                             {item.nome_garcom ? ` · ${item.nome_garcom}` : ''}
                                           </p>
                                           {statusItem.qtdPaga > 0 && (
-                                            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
                                               <Check strokeWidth={2.4} className="size-2.5" />
                                               Pago {statusItem.qtdPaga}/{statusItem.total}{formaItemPago ? ` · ${FORMA_PAGAMENTO_LABEL[formaItemPago as FormaPagamentoOpcao] || formaItemPago}` : ''}
                                             </span>
                                           )}
                                           {statusItem.qtdCrediario > 0 && (
-                                            <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                                            <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                                               <Wallet strokeWidth={2.4} className="size-2.5" />
                                               Fiado {statusItem.qtdCrediario}/{statusItem.total}
                                             </span>
@@ -1713,11 +1840,11 @@ export default function ModalDetalhesPedido({
                       </div>
                     )}
 
-                    {/* Resumo Financeiro */}
+                    {/* Resumo */}
                     <div className="rounded-xl border border-border/70 bg-muted/30 p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <Banknote strokeWidth={1.6} className="size-4 text-muted-foreground" />
-                        <h4 className="text-sm font-medium text-foreground">Resumo Financeiro</h4>
+                        <h4 className="text-sm font-medium text-foreground">Resumo</h4>
                       </div>
                       <div className="space-y-1.5 text-sm">
                         <div className="flex items-center justify-between rounded-md bg-card px-3 py-2">
@@ -1804,299 +1931,14 @@ export default function ModalDetalhesPedido({
                     </div>
                   </div>
                 ) : (
-                  <div className="py-12 text-center">
-                    <p className="text-sm text-muted-foreground">Pedido não encontrado</p>
-                  </div>
+                  <ListaVazia
+                    icone={<Package />}
+                    titulo="Pedido não encontrado"
+                    descricao="Ele pode ter sido apagado. Feche e atualize a lista."
+                  />
                 )}
               </div>
-
-              {/* Barra de ações da seleção da timeline */}
-              {pedido && modoSelecaoTimeline && (() => {
-                const itensSelecionadosLista = itensTimeline.filter((item) =>
-                  itensSelecionadosTimeline.has(item.id),
-                )
-                const itensNaoPagosSelecionados = itensSelecionadosLista.filter(
-                  (item) => obterStatusItem(item).qtdRestante > 0,
-                )
-                const valorSelecionado = Number(
-                  itensNaoPagosSelecionados
-                    .reduce((sum, item) => {
-                      const status = obterStatusItem(item)
-                      const total = Number(item.quantidade || 1)
-                      const subtotal = Number(item.subtotal || 0)
-                      const precoUnit = total > 0 ? subtotal / total : Number(item.preco_unitario || 0)
-                      return sum + status.qtdRestante * precoUnit
-                    }, 0)
-                    .toFixed(2),
-                )
-                return (
-                  <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border/70 bg-muted/30 px-4 py-3 sm:flex-nowrap sm:gap-3">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {itensSelecionadosTimeline.size === 0
-                        ? 'Selecione itens'
-                        : `${itensSelecionadosTimeline.size} ${
-                            itensSelecionadosTimeline.size === 1 ? 'selecionado' : 'selecionados'
-                          }${valorSelecionado > 0 ? ` · R$ ${valorSelecionado.toFixed(2)}` : ''}`}
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={cancelarModoSelecao}
-                        className="inline-flex min-h-[36px] items-center rounded-md border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void imprimirItensSelecionados()}
-                        disabled={imprimindoSelecionados || itensSelecionadosTimeline.size === 0}
-                        className="inline-flex min-h-[36px] items-center gap-1.5 rounded-md border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {imprimindoSelecionados ? (
-                          <Loader2 strokeWidth={1.6} className="size-3.5 animate-spin" />
-                        ) : (
-                          <Printer strokeWidth={1.6} className="size-3.5" />
-                        )}
-                        Imprimir{itensSelecionadosTimeline.size > 0 ? ` ${itensSelecionadosTimeline.size}` : ''}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => abrirModalForma(itensNaoPagosSelecionados, 'selecao')}
-                        disabled={pagandoSelecionados || itensNaoPagosSelecionados.length === 0}
-                        className="inline-flex min-h-[36px] items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {pagandoSelecionados ? (
-                          <Loader2 strokeWidth={1.6} className="size-3.5 animate-spin" />
-                        ) : (
-                          <CircleDollarSign strokeWidth={1.6} className="size-3.5" />
-                        )}
-                        Pagar{itensNaoPagosSelecionados.length > 0 ? ` ${itensNaoPagosSelecionados.length}` : ''}
-                      </button>
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* Footer */}
-              {pedido && (
-                <div className="flex flex-shrink-0 gap-2 border-t border-border/70 p-4">
-                  <button
-                    onClick={onFechar}
-                    className="flex-1 rounded-lg border border-border/70 bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                  >
-                    Fechar
-                  </button>
-                  {onEditar && (
-                    <button
-                      onClick={() => {
-                        onEditar(pedido)
-                        onFechar()
-                      }}
-                      className="flex items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                    >
-                      <Edit2 strokeWidth={1.6} className="size-4" />
-                      Editar
-                    </button>
-                  )}
-                  {onGerarPDF && (
-                    <button
-                      onClick={() => {
-                        const pedidoComPagamentos = {
-                          ...pedido,
-                          pagamentos: pagamentos.length > 0 ? pagamentos : undefined,
-                        }
-                        onGerarPDF(pedidoComPagamentos as any)
-                        onFechar()
-                      }}
-                      className="flex items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                    >
-                      <FileText strokeWidth={1.6} className="size-4" />
-                      PDF
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      const pedidoComDados = {
-                        ...pedido,
-                        itens: itens.map((item) => ({
-                          nome_item: item.nome_item || 'Produto',
-                          quantidade: item.quantidade,
-                          preco_unitario: item.preco_unitario,
-                          subtotal: item.subtotal,
-                          adicionais:
-                            item.adicionais_lista && item.adicionais_lista.length > 0
-                              ? item.adicionais_lista
-                                  .map(
-                                    (a) =>
-                                      `${a.quantidade && a.quantidade > 1 ? a.quantidade + 'x ' : ''}${a.nome}`,
-                                  )
-                                  .join(', ')
-                              : item.adicionais,
-                          observacoes: item.observacoes,
-                        })),
-                        pagamentos: pagamentos.length > 0 ? pagamentos : undefined,
-                      }
-                      gerarTicketPDF(pedidoComDados as any)
-                      onFechar()
-                    }}
-                    className="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                  >
-                    <Printer strokeWidth={1.6} className="size-4" />
-                    Ticket
-                  </button>
-                </div>
-              )}
-            </div>
-      </ModalSheet>
-
-          <ModalSheet
-            open={false}
-            onOpenChange={(open) => {
-              if (!open) fecharModalForma()
-            }}
-            title="Forma de pagamento"
-            showCloseButton={false}
-            className="sm:max-w-sm"
-          >
-            <div className="p-5">
-                {modalFormaAberto && (() => {
-                  const itemUnico = modalFormaAberto.origem === 'item_unico' ? modalFormaAberto.itens[0] : null
-                  const itensQuantidadeModal = modalFormaAberto.itens.map((item) => {
-                    const status = obterStatusItem(item)
-                    const maxQtd = Math.floor(status.qtdRestante)
-                    const qtdEscolhida = normalizarQuantidadeUnidades(
-                      modalFormaAberto.quantidadesPorItem[item.id],
-                      maxQtd,
-                    )
-                    const precoUnit = valorUnitarioItem(item)
-                    return {
-                      item,
-                      maxQtd,
-                      qtdEscolhida,
-                      valor: Number((precoUnit * qtdEscolhida).toFixed(2)),
-                    }
-                  })
-                  const totalUnidadesSelecionadas = itensQuantidadeModal.reduce(
-                    (sum, registro) => sum + registro.qtdEscolhida,
-                    0,
-                  )
-                  const totalDescricao = Number(
-                    itensQuantidadeModal.reduce((sum, registro) => sum + registro.valor, 0).toFixed(2),
-                  )
-
-                  return (
-                    <>
-                      <div className="mb-4 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="text-base font-semibold text-foreground">Forma de pagamento</h3>
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {itemUnico
-                              ? `${totalUnidadesSelecionadas}/${itensQuantidadeModal[0]?.maxQtd || 0} ${nomeProduto(itemUnico)}`
-                              : `${modalFormaAberto.itens.length} ${
-                                  modalFormaAberto.itens.length === 1 ? 'item' : 'itens'
-                                } · ${totalUnidadesSelecionadas} ${
-                                  totalUnidadesSelecionadas === 1 ? 'unidade' : 'unidades'
-                                }`}{' '}
-                            · R$ {totalDescricao.toFixed(2)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={fecharModalForma}
-                          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                        >
-                          <X strokeWidth={1.6} className="size-4" />
-                        </button>
-                      </div>
-
-                      <div className="mb-4 max-h-[42vh] space-y-2 overflow-y-auto pr-1">
-                        {itensQuantidadeModal.map(({ item, maxQtd, qtdEscolhida, valor }) => (
-                          <div
-                            key={`pagamento-qtd-${item.id}`}
-                            className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <span className="block truncate text-xs font-semibold text-foreground">
-                                  {nomeProduto(item)}
-                                </span>
-                                <span className="block truncate text-[11px] text-muted-foreground">
-                                  {maxQtd} {maxQtd === 1 ? 'unidade restante' : 'unidades restantes'} · R$ {valor.toFixed(2)}
-                                </span>
-                              </div>
-                              <div className="flex shrink-0 items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    ajustarQuantidadePagamento(item.id, maxQtd, qtdEscolhida - 1)
-                                  }
-                                  disabled={qtdEscolhida <= 1 || maxQtd <= 1}
-                                  aria-label={`Diminuir quantidade de ${nomeProduto(item)}`}
-                                  className="flex size-9 items-center justify-center rounded-md border border-border/70 bg-card text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  <Minus strokeWidth={1.8} className="size-4" />
-                                </button>
-                                <span className="min-w-[2.5ch] text-center font-mono text-lg font-semibold tabular-nums text-foreground">
-                                  {qtdEscolhida}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    ajustarQuantidadePagamento(item.id, maxQtd, qtdEscolhida + 1)
-                                  }
-                                  disabled={qtdEscolhida >= maxQtd}
-                                  aria-label={`Aumentar quantidade de ${nomeProduto(item)}`}
-                                  className="flex size-9 items-center justify-center rounded-md border border-border/70 bg-card text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  <Plus strokeWidth={1.8} className="size-4" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        {([
-                          { id: 'pix' as const, label: 'PIX', icone: QrCode, cor: 'emerald' as const },
-                          { id: 'dinheiro' as const, label: 'Dinheiro', icone: Banknote, cor: 'emerald' as const },
-                          { id: 'cartao' as const, label: 'Cartão', icone: CreditCard, cor: 'emerald' as const },
-                          { id: 'crediario' as const, label: 'Crediário', icone: Wallet, cor: 'red' as const },
-                        ]).map((opcao) => {
-                          const IconeForma = opcao.icone
-                          const ocupado = pagandoItemId !== null || pagandoSelecionados
-                          const isCrediario = opcao.cor === 'red'
-                          return (
-                            <button
-                              key={opcao.id}
-                              type="button"
-                              disabled={ocupado || totalUnidadesSelecionadas <= 0}
-                              onClick={() => {
-                                void registrarPagamentoParcial(
-                                  modalFormaAberto.itens,
-                                  opcao.id,
-                                  modalFormaAberto.origem,
-                                  [],
-                                )
-                              }}
-                              className={cn(
-                                'flex min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-card p-3 text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50',
-                                isCrediario
-                                  ? 'hover:border-red-400/70 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 dark:hover:text-red-300'
-                                  : 'hover:border-emerald-400/70 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300',
-                              )}
-                            >
-                              <IconeForma strokeWidth={1.6} className="size-5" />
-                              <span className="text-xs font-medium">{opcao.label}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </>
-                  )
-                })()}
-            </div>
-          </ModalSheet>
+      </Gaveta>
 
           <ModalFormaPagamentoItens
             aberto={Boolean(modalFormaAberto)}
@@ -2128,165 +1970,68 @@ export default function ModalDetalhesPedido({
             }}
           />
 
-          <ModalSheet
-            open={Boolean(modalReversaoAberto)}
-            onOpenChange={(open) => {
-              if (!open) fecharModalReversao()
-            }}
-            title="Reverter cobrança"
-            showCloseButton={false}
-            className="sm:max-w-sm"
+          <Gaveta
+            aberto={Boolean(modalReversaoAberto)}
+            aoFechar={fecharModalReversao}
+            bloqueada={Boolean(reversao?.ocupado)}
+            titulo="Reverter cobrança"
+            descricao={
+              reversao
+                ? `${nomeProduto(reversao.item)} · ${reversao.quantidade}/${reversao.maxOrigem} ${
+                    reversao.quantidade === 1 ? 'unidade' : 'unidades'
+                  } · R$ ${reversao.valorRevertido.toFixed(2)}`
+                : undefined
+            }
+            rodape={
+              reversao ? (
+                <>
+                  <Botao variante="contorno" onClick={fecharModalReversao} disabled={reversao.ocupado}>
+                    Cancelar
+                  </Botao>
+                  <Botao
+                    carregando={reversao.ocupado}
+                    disabled={reversao.quantidade <= 0 || reversao.maxOrigem <= 0}
+                    onClick={() => void reverterCobrancaItem(reversao.item, reversao.origem, reversao.quantidade)}
+                  >
+                    {!reversao.ocupado && <RotateCcw className="size-4" />}
+                    Reverter
+                  </Botao>
+                </>
+              ) : undefined
+            }
           >
-            <div className="p-5">
-                {modalReversaoAberto && (() => {
-                  const {
-                    item,
-                    origem,
-                    quantidade,
-                    maxPagamento,
-                    maxCrediario,
-                  } = modalReversaoAberto
-                  const maxOrigem = origem === 'pagamento' ? maxPagamento : maxCrediario
-                  const valorRevertido = Number((valorUnitarioItem(item) * quantidade).toFixed(2))
-                  const ocupado = revertendoItemId === item.id
-
-                  const selecionarOrigem = (proximaOrigem: 'pagamento' | 'crediario') => {
-                    const proximoMax = proximaOrigem === 'pagamento' ? maxPagamento : maxCrediario
-                    if (proximoMax <= 0) return
-                    setModalReversaoAberto((atual) =>
-                      atual
-                        ? {
-                            ...atual,
-                            origem: proximaOrigem,
-                            quantidade: normalizarQuantidadeUnidades(atual.quantidade, proximoMax),
-                          }
-                        : atual,
-                    )
-                  }
-
-                  const ajustarQuantidadeReversao = (proximaQuantidade: number) => {
-                    setModalReversaoAberto((atual) =>
-                      atual
-                        ? {
-                            ...atual,
-                            quantidade: normalizarQuantidadeUnidades(proximaQuantidade, maxOrigem),
-                          }
-                        : atual,
-                    )
-                  }
-
-                  return (
-                    <>
-                      <div className="mb-4 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="text-base font-semibold text-foreground">Reverter cobrança</h3>
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {nomeProduto(item)} · {quantidade}/{maxOrigem}{' '}
-                            {quantidade === 1 ? 'unidade' : 'unidades'} · R$ {valorRevertido.toFixed(2)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={fecharModalReversao}
-                          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                        >
-                          <X strokeWidth={1.6} className="size-4" />
-                        </button>
-                      </div>
-
-                      {maxPagamento > 0 && maxCrediario > 0 && (
-                        <div className="mb-3 grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => selecionarOrigem('pagamento')}
-                            className={cn(
-                              'min-h-[38px] rounded-md border px-3 text-xs font-semibold transition-colors',
-                              origem === 'pagamento'
-                                ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
-                                : 'border-border/70 bg-card text-foreground hover:bg-accent',
-                            )}
-                          >
-                            Pago · {maxPagamento}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => selecionarOrigem('crediario')}
-                            className={cn(
-                              'min-h-[38px] rounded-md border px-3 text-xs font-semibold transition-colors',
-                              origem === 'crediario'
-                                ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
-                                : 'border-border/70 bg-card text-foreground hover:bg-accent',
-                            )}
-                          >
-                            Crediário · {maxCrediario}
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="mb-4 rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              Quantidade a reverter
-                            </span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {origem === 'pagamento' ? 'Pagamento recebido' : 'Crediário aberto'} · máximo {maxOrigem}
-                            </span>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => ajustarQuantidadeReversao(quantidade - 1)}
-                              disabled={quantidade <= 1 || maxOrigem <= 1 || ocupado}
-                              aria-label="Diminuir quantidade a reverter"
-                              className="flex size-9 items-center justify-center rounded-md border border-border/70 bg-card text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <Minus strokeWidth={1.8} className="size-4" />
-                            </button>
-                            <span className="min-w-[2.5ch] text-center font-mono text-lg font-semibold tabular-nums text-foreground">
-                              {quantidade}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => ajustarQuantidadeReversao(quantidade + 1)}
-                              disabled={quantidade >= maxOrigem || ocupado}
-                              aria-label="Aumentar quantidade a reverter"
-                              className="flex size-9 items-center justify-center rounded-md border border-border/70 bg-card text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <Plus strokeWidth={1.8} className="size-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-[1fr_auto] gap-2">
-                        <button
-                          type="button"
-                          onClick={fecharModalReversao}
-                          disabled={ocupado}
-                          className="min-h-[42px] rounded-lg border border-border/70 bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void reverterCobrancaItem(item, origem, quantidade)}
-                          disabled={ocupado || quantidade <= 0 || maxOrigem <= 0}
-                          className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {ocupado ? (
-                            <Loader2 strokeWidth={1.6} className="size-4 animate-spin" />
-                          ) : (
-                            <RotateCcw strokeWidth={1.6} className="size-4" />
-                          )}
-                          Reverter
-                        </button>
-                      </div>
-                    </>
-                  )
-                })()}
-            </div>
-          </ModalSheet>
+            {reversao && (
+              <div className="space-y-4">
+                {reversao.maxPagamento > 0 && reversao.maxCrediario > 0 && (
+                  <Campo rotulo="O que reverter">
+                    <Segmentos
+                      rotuloAcessivel="Origem da cobrança"
+                      valor={reversao.origem}
+                      aoMudar={selecionarOrigemReversao}
+                      opcoes={[
+                        { valor: 'pagamento', rotulo: `Pago · ${reversao.maxPagamento}` },
+                        { valor: 'crediario', rotulo: `Crediário · ${reversao.maxCrediario}` },
+                      ]}
+                    />
+                  </Campo>
+                )}
+                <Campo
+                  rotulo="Quantidade a reverter"
+                  ajuda={`${reversao.origem === 'pagamento' ? 'Pagamento recebido' : 'Crediário aberto'} · máximo ${reversao.maxOrigem}`}
+                >
+                  <div>
+                    <Contador
+                      valor={reversao.quantidade}
+                      aoMudar={ajustarQuantidadeReversao}
+                      minimo={1}
+                      maximo={Math.max(1, reversao.maxOrigem)}
+                      rotuloAcessivel="quantidade a reverter"
+                    />
+                  </div>
+                </Campo>
+              </div>
+            )}
+          </Gaveta>
     </>
   )
 }

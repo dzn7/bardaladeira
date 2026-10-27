@@ -6,56 +6,29 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import {
-  Banknote,
-  CalendarClock,
-  CheckCircle2,
-  CreditCard,
-  ExternalLink,
-  Eye,
-  FileText,
-  History,
-  Loader2,
-  Phone,
-  RefreshCw,
-  Search,
-  Trash2,
-  Wallet,
-  X,
-} from 'lucide-react'
+import { Money as Banknote, CalendarCheck as CalendarClock, CheckCircle as CheckCircle2, CreditCard, ArrowSquareOut as ExternalLink, FileText, ClockCounterClockwise as History, CircleNotch as Loader2, ArrowsClockwise as RefreshCw, MagnifyingGlass as Search, Trash as Trash2, Wallet, X } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
-import { FiltrosAtivosChips, type ChipFiltroAtivo } from '@/components/admin/filtros/FiltrosAtivosChips'
-import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
 import IconeWhatsApp from '@/components/icons/IconeWhatsApp'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+  Botao,
+  CabecalhoPagina,
+  Campo,
+  Cartao,
+  Chip,
+  Entrada,
+  EntradaPreco,
+  Gaveta,
+  Lista,
+  ListaCarregando,
+  ListaVazia,
+  Pagina,
+  Secao,
+  Selecao,
+  Selo,
+  useConfirmar,
+} from '@/components/admin/ui'
 import { MenuAcoes } from '@/components/ui/menu-acoes'
 import { Progress } from '@/components/ui/progress'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { PaginacaoFinancas } from '@/features/financas/components/PaginacaoFinancas'
 import { carregarGarconsPorIds } from '@/lib/pedidos-utils'
 import { supabase } from '@/lib/supabase'
@@ -141,12 +114,6 @@ type CicloCrediario = {
   fimEm: string | null
 }
 
-type ConfirmacaoCrediario =
-  | { tipo: 'movimento'; movimento: MovimentoCrediario }
-  | { tipo: 'item'; movimento: MovimentoCrediario; itemIndice: number; itemNome: string }
-  | { tipo: 'reverter-ciclo'; ciclo: CicloCrediario }
-  | null
-
 type JsPdfComAutoTable = jsPDF & {
   lastAutoTable?: {
     finalY: number
@@ -229,15 +196,6 @@ const statusLabel: Record<StatusConta, string> = {
   arquivado: 'Arquivado',
 }
 
-const FieldGroupCrediario = ({ title, children }: { title: string; children: ReactNode }) => (
-  <section className="border-t border-border/70 pt-5 first:border-t-0 first:pt-0">
-    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-      {title}
-    </h3>
-    {children}
-  </section>
-)
-
 const InlineFactCrediario = ({
   icon,
   label,
@@ -247,39 +205,23 @@ const InlineFactCrediario = ({
   label: string
   value: string
 }) => (
-  <div className="flex min-w-[8rem] items-start gap-2">
-    <span className="mt-0.5 text-muted-foreground [&_svg]:size-3.5" aria-hidden>
-      {icon}
-    </span>
-    <p className="grid gap-0.5">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <span className="text-sm text-foreground">{value}</span>
+  <div className="min-w-0 px-3 py-2.5">
+    <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+      <span className="[&_svg]:size-3.5" aria-hidden>
+        {icon}
+      </span>
+      <span className="truncate">{label}</span>
     </p>
+    <p className="mt-0.5 truncate text-base font-semibold tabular-nums text-foreground">{value}</p>
   </div>
 )
 
-const DetailRowCrediario = ({
-  icon,
-  label,
-  value,
-}: {
-  icon?: ReactNode
-  label: string
-  value: string | null | undefined
-}) => {
+const DetailRowCrediario = ({ label, value }: { label: string; value: string | null | undefined }) => {
   const filled = Boolean(value && value !== '--' && value !== '—')
   return (
-    <div className="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2 border-b border-border/60 py-2.5 last:border-b-0">
-      <span
-        className="mt-0.5 flex size-5 items-center justify-center text-muted-foreground [&_svg]:size-3.5"
-        aria-hidden
-      >
-        {icon ?? <span className="size-1.5 rounded-full bg-muted-foreground/50" />}
-      </span>
-      <dt className="min-w-0 text-xs text-muted-foreground">{label}</dt>
-      <dd className="col-start-2 min-w-0 truncate text-sm text-foreground">
-        {filled ? value : '—'}
-      </dd>
+    <div className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+      <dt className="shrink-0 text-sm text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right text-sm text-foreground">{filled ? value : '—'}</dd>
     </div>
   )
 }
@@ -486,6 +428,7 @@ const calcularProgressoPagamento = (
 
 export default function PainelCrediario() {
   const router = useRouter()
+  const confirmar = useConfirmar()
   const [contas, setContas] = useState<ContaCrediario[]>([])
   const [movimentos, setMovimentos] = useState<MovimentoCrediario[]>([])
   const [movimentosResumoPorConta, setMovimentosResumoPorConta] = useState<Map<string, MovimentoProgressoCrediario[]>>(new Map())
@@ -510,10 +453,8 @@ export default function PainelCrediario() {
   const [valorPagamento, setValorPagamento] = useState('')
   const [descricaoPagamento, setDescricaoPagamento] = useState('')
   const [metadataPagamento, setMetadataPagamento] = useState<Record<string, unknown>>({})
-  const [confirmacao, setConfirmacao] = useState<ConfirmacaoCrediario>(null)
   const [processando, setProcessando] = useState(false)
   const [contaCobrancaId, setContaCobrancaId] = useState<string | null>(null)
-  const [solicitarTelefoneCobranca, setSolicitarTelefoneCobranca] = useState(false)
   const [telefoneCobranca, setTelefoneCobranca] = useState('')
   const [cobrancaEmEnvioId, setCobrancaEmEnvioId] = useState<string | null>(null)
   const [mostrarMovimentacoesAntigas, setMostrarMovimentacoesAntigas] = useState(false)
@@ -821,27 +762,7 @@ export default function PainelCrediario() {
     return contasFiltradas.slice(inicio, inicio + limite)
   }, [contasFiltradas, pagina, limite])
 
-  const chipsFiltroAtivo = useMemo(() => {
-    const chips: ChipFiltroAtivo[] = []
-    if (filtroStatus !== 'aberto') {
-      chips.push({
-        key: 'status',
-        label: 'Status',
-        value: filtroStatus === 'quitado' ? 'Quitadas' : 'Todas',
-      })
-    }
-    if (filtroOrigem !== 'novo') {
-      chips.push({
-        key: 'origem',
-        label: 'Origem',
-        value: filtroOrigem === 'legado' ? 'Sistema antigo' : 'Tudo',
-      })
-    }
-    if (busca.trim()) {
-      chips.push({ key: 'busca', label: 'Busca', value: busca.trim() })
-    }
-    return chips
-  }, [busca, filtroOrigem, filtroStatus])
+  const temFiltroAtivo = filtroStatus !== 'aberto' || filtroOrigem !== 'novo' || Boolean(busca.trim())
 
   const handleLimparFiltros = () => {
     setFiltroStatus('aberto')
@@ -929,9 +850,12 @@ export default function PainelCrediario() {
       toast.info('Esta conta não possui saldo em aberto.')
       return
     }
-    setContaCobrancaId(conta.id)
     setTelefoneCobranca('')
-    setSolicitarTelefoneCobranca(!temWhatsAppValido(conta.telefone))
+    if (temWhatsAppValido(conta.telefone)) {
+      void confirmarEnvioCobranca(conta)
+      return
+    }
+    setContaCobrancaId(conta.id)
   }
 
   const confirmarTelefoneCobranca = () => {
@@ -939,20 +863,33 @@ export default function PainelCrediario() {
       toast.error('Digite um WhatsApp válido com DDD.')
       return
     }
-    setSolicitarTelefoneCobranca(false)
+    const conta = contaCobranca
+    setContaCobrancaId(null)
+    if (conta) void confirmarEnvioCobranca(conta, telefoneCobranca)
   }
 
-  const enviarCobranca = async () => {
-    if (!contaCobranca || cobrancaEmEnvioId) return
+  /** `telefone` só vem quando a conta não tem WhatsApp válido salvo. */
+  const confirmarEnvioCobranca = async (conta: ContaCrediario, telefone?: string) => {
+    const ok = await confirmar({
+      titulo: 'Enviar lembrete pelo WhatsApp?',
+      descricao: `${conta.cliente_nome} receberá o resumo das compras e o saldo atual de ${moeda.format(conta.saldo_atual)}. Confira o telefone: ${formatarTelefone(telefone ?? conta.telefone)}.`,
+      confirmar: 'Enviar cobrança',
+    })
+    if (ok) await enviarCobranca(conta, telefone)
+    else setTelefoneCobranca('')
+  }
+
+  const enviarCobranca = async (conta: ContaCrediario, telefone?: string) => {
+    if (cobrancaEmEnvioId) return
 
     try {
-      setCobrancaEmEnvioId(contaCobranca.id)
+      setCobrancaEmEnvioId(conta.id)
       const response = await fetch('/api/crediario/cobranca', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contaId: contaCobranca.id,
-          telefone: temWhatsAppValido(contaCobranca.telefone) ? undefined : telefoneCobranca,
+          contaId: conta.id,
+          telefone: temWhatsAppValido(conta.telefone) ? undefined : telefone,
         }),
       })
       const data = (await response.json().catch(() => null)) as { sucesso?: boolean; mensagem?: string; erro?: string; telefone?: string } | null
@@ -961,14 +898,13 @@ export default function PainelCrediario() {
       }
 
       toast.success('Cobrança enviada pelo WhatsApp', {
-        description: `Mensagem enviada para ${contaCobranca.cliente_nome}.`,
+        description: `Mensagem enviada para ${conta.cliente_nome}.`,
       })
       if (data.telefone) {
-        setContas((atuais) => atuais.map((conta) => (
-          conta.id === contaCobranca.id ? { ...conta, telefone: data.telefone || conta.telefone } : conta
+        setContas((atuais) => atuais.map((item) => (
+          item.id === conta.id ? { ...item, telefone: data.telefone || item.telefone } : item
         )))
       }
-      setContaCobrancaId(null)
       setTelefoneCobranca('')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível enviar a cobrança.')
@@ -1107,7 +1043,6 @@ export default function PainelCrediario() {
 
     if (contaSelecionada.id === CONTA_DEMO_ID) {
       toast.info('Exemplo: em uma conta real, este movimento seria removido.')
-      setConfirmacao(null)
       return
     }
 
@@ -1121,7 +1056,6 @@ export default function PainelCrediario() {
       if (error) throw error
 
       toast.success('Movimento removido')
-      setConfirmacao(null)
       await carregarContas({ silencioso: true })
       await carregarMovimentos(contaSelecionada.id)
     } catch (error) {
@@ -1137,7 +1071,6 @@ export default function PainelCrediario() {
 
     if (contaSelecionada.id === CONTA_DEMO_ID) {
       toast.info('Exemplo: em uma conta real, este item seria removido.')
-      setConfirmacao(null)
       return
     }
 
@@ -1152,7 +1085,6 @@ export default function PainelCrediario() {
       if (error) throw error
 
       toast.success('Item removido')
-      setConfirmacao(null)
       await carregarContas({ silencioso: true })
       await carregarMovimentos(contaSelecionada.id)
     } catch (error) {
@@ -1183,7 +1115,6 @@ export default function PainelCrediario() {
       }
 
       toast.success('Crediario revertido')
-      setConfirmacao(null)
       await carregarContas({ silencioso: true })
       await carregarMovimentos(contaSelecionada.id)
     } catch (error) {
@@ -1194,20 +1125,34 @@ export default function PainelCrediario() {
     }
   }
 
-  const executarConfirmacao = async () => {
-    if (!confirmacao) return
+  const pedirRemoverMovimento = async (movimento: MovimentoCrediario) => {
+    const ok = await confirmar({
+      titulo: 'Remover este registro?',
+      descricao: 'Este registro será cancelado e o valor devido do cliente será recalculado.',
+      confirmar: 'Apagar',
+      perigo: true,
+    })
+    if (ok) await cancelarMovimento(movimento)
+  }
 
-    if (confirmacao.tipo === 'movimento') {
-      await cancelarMovimento(confirmacao.movimento)
-      return
-    }
+  const pedirRemoverItem = async (movimento: MovimentoCrediario, itemIndice: number, itemNome: string) => {
+    const ok = await confirmar({
+      titulo: 'Remover este item do fiado?',
+      descricao: `O item "${itemNome}" sai do fiado e o valor devido é recalculado.`,
+      confirmar: 'Apagar',
+      perigo: true,
+    })
+    if (ok) await apagarItemMovimento(movimento, itemIndice)
+  }
 
-    if (confirmacao.tipo === 'reverter-ciclo') {
-      await reverterCicloCrediario(confirmacao.ciclo)
-      return
-    }
-
-    await apagarItemMovimento(confirmacao.movimento, confirmacao.itemIndice)
+  const pedirReverterCiclo = async (ciclo: CicloCrediario) => {
+    const ok = await confirmar({
+      titulo: 'Desfazer a quitação?',
+      descricao: 'Os pagamentos deste ciclo voltam a ficar em aberto. Use só se a quitação foi um engano.',
+      confirmar: 'Reverter',
+      perigo: true,
+    })
+    if (ok) await reverterCicloCrediario(ciclo)
   }
 
   const gerarPdfDetalhado = () => {
@@ -1615,974 +1560,568 @@ export default function PainelCrediario() {
     doc.save(nomeArquivo)
   }
 
+  const ehDemoSelecionada = contaSelecionada?.id === CONTA_DEMO_ID
+  const classeAcaoLinha = 'h-11 md:h-8 md:px-2.5 md:text-xs'
+
   return (
-    <div className="space-y-4">
-      <div className="flex w-full min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border/70 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">Crediário</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {origemAtualLabel} · {resumo.abertas} abertas · {moeda.format(resumo.saldoAberto)} em aberto
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-4 md:gap-6">
-          <div className="min-w-[120px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Saldo aberto</p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{moeda.format(resumo.saldoAberto)}</p>
-          </div>
-          <div className="min-w-[80px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Abertas</p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{resumo.abertas}</p>
-          </div>
-          <div className="min-w-[80px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Quitadas</p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-muted-foreground">{resumo.quitadas}</p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 shadow-none"
-            onClick={() => void carregarContas()}
-            disabled={carregandoContas}
-          >
-            <RefreshCw className={cn('mr-2 h-4 w-4', carregandoContas && 'animate-spin')} />
+    <Pagina>
+      <CabecalhoPagina
+        titulo="Crediário"
+        descricao={`${resumo.abertas} ${resumo.abertas === 1 ? 'conta aberta' : 'contas abertas'} · ${moeda.format(resumo.saldoAberto)} a receber · ${resumo.quitadas} ${resumo.quitadas === 1 ? 'quitada' : 'quitadas'}`}
+        acoes={
+          <Botao variante="contorno" onClick={() => void carregarContas()} disabled={carregandoContas}>
+            <RefreshCw className={cn(carregandoContas && 'animate-spin')} />
             Atualizar
-          </Button>
-        </div>
-      </div>
+          </Botao>
+        }
+      />
 
-      <div className="w-full overflow-hidden rounded-xl border border-border/70 bg-card p-3.5 shadow-sm md:p-5">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-base font-medium text-foreground/90">Contas</span>
-            <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-              {contasFiltradas.length} {contasFiltradas.length === 1 ? 'conta' : 'contas'}
-            </span>
-          </div>
-        </div>
-
-        <div className="mb-3 w-full overflow-x-auto" data-onboarding="crediario-filtro-status">
-          <ToggleGroup
-            type="single"
-            value={filtroStatus}
-            onValueChange={(v) => {
-              if (v) setFiltroStatus(v as FiltroStatus)
-            }}
-            aria-label="Filtro de status do crediário"
-            className="flex w-max items-center justify-start gap-2"
-          >
-            <ToggleGroupItem value="aberto" aria-label="Contas abertas" className={CHIP_FILTRO_DEFAULT}>
-              <Wallet className="h-3.5 w-3.5" />
-              <span>Abertas</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="quitado" aria-label="Contas quitadas" className={CHIP_FILTRO_DEFAULT}>
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Quitadas</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="todos" aria-label="Todas as contas" className={CHIP_FILTRO_DEFAULT}>
-              <History className="h-3.5 w-3.5" />
-              <span>Todas</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-
-        <div className="mb-3 w-full overflow-x-auto">
-          <ToggleGroup
-            type="single"
-            value={filtroOrigem}
-            onValueChange={(v) => {
-              if (v) setFiltroOrigem(v as FiltroOrigem)
-            }}
-            aria-label="Filtro de origem do crediário"
-            className="flex w-max items-center justify-start gap-2"
-          >
-            <ToggleGroupItem value="novo" aria-label="Contas novas" className={CHIP_FILTRO_DEFAULT}>
-              <span>Novos</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="legado" aria-label="Sistema antigo" className={CHIP_FILTRO_DEFAULT}>
-              <span>Sistema antigo</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="todos" aria-label="Todas as origens" className={CHIP_FILTRO_DEFAULT}>
-              <span>Tudo</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-
-        <div className="mb-3 w-full overflow-x-auto">
-          <ToggleGroup
-            type="single"
-            value={ordenacao}
-            onValueChange={(v) => {
-              if (v) setOrdenacao(v as OrdenacaoContas)
-            }}
-            aria-label="Ordenação das contas do crediário"
-            className="flex w-max items-center justify-start gap-2"
-          >
-            <ToggleGroupItem value="recentes" className={CHIP_FILTRO_DEFAULT}>Mais recentes</ToggleGroupItem>
-            <ToggleGroupItem value="antigas" className={CHIP_FILTRO_DEFAULT}>Mais antigas</ToggleGroupItem>
-            <ToggleGroupItem value="maior_saldo" className={CHIP_FILTRO_DEFAULT}>Maior saldo</ToggleGroupItem>
-            <ToggleGroupItem value="menor_saldo" className={CHIP_FILTRO_DEFAULT}>Menor saldo</ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative min-w-0 flex-1" data-onboarding="crediario-busca">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={busca}
-              onChange={(event) => setBusca(event.target.value)}
-              placeholder="Buscar cliente, telefone ou ID legado"
-              aria-label="Buscar contas do crediário"
-              className="h-9 rounded-lg border-border/70 bg-background pl-9 pr-9 shadow-none"
-            />
-            {busca ? (
-              <button
-                type="button"
-                onClick={() => setBusca('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label="Limpar busca"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        <FiltrosAtivosChips chips={chipsFiltroAtivo} onLimpar={handleLimparFiltros} className="mb-4" />
-
-        {carregandoContas ? (
-          <TabelaSkeleton linhas={6} />
-        ) : contasFiltradas.length === 0 ? (
-          <ListaVazia
-            className="border-0 bg-transparent py-10"
-            icone={<Wallet className="h-6 w-6" strokeWidth={1.6} />}
-            titulo="Nenhuma conta encontrada"
-            descricao="Ajuste os filtros ou a busca para ver outras contas do crediário."
+      <div className="space-y-3">
+        <div className="relative" data-onboarding="crediario-busca">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Entrada
+            type="search"
+            value={busca}
+            onChange={(event) => setBusca(event.target.value)}
+            placeholder="Buscar cliente, telefone ou ID antigo"
+            aria-label="Buscar contas do crediário"
+            className="pl-9 pr-11"
           />
-        ) : (
-          <>
-            <div className="flex flex-col gap-3 md:hidden">
-              {contasPagina.map((conta) => {
-                const progresso = calcularProgressoPagamento(conta, movimentosResumoPorConta.get(conta.id))
-                const ehDemo = conta.id === CONTA_DEMO_ID
-                const card = (
-                  <CardContaCrediario
-                    conta={conta}
-                    statusRotulo={statusLabel[conta.status] || conta.status}
-                    telefoneFormatado={formatarTelefone(conta.telefone)}
-                    dataFormatada={formatarData(conta.ultimo_movimento_em || conta.atualizado_em)}
-                    saldoFormatado={moeda.format(conta.saldo_atual)}
-                    progresso={progresso}
-                    responsavel={responsaveisResumoPorConta.get(conta.id)}
-                    selecionada={contaSelecionadaId === conta.id}
-                    processando={processando}
-                    cobrancaDisponivel={conta.id !== CONTA_DEMO_ID && conta.status === 'aberto' && conta.saldo_atual > 0}
-                    cobrancaEmEnvio={cobrancaEmEnvioId === conta.id}
-                    onDetalhes={() => abrirDetalhes(conta)}
-                    onPagar={() => abrirPagamento(conta)}
-                    onQuitar={() => void quitarConta(conta)}
-                    onCobrar={() => abrirCobranca(conta)}
-                  />
-                )
-                return ehDemo ? (
-                  <div key={conta.id} data-onboarding="demo-card">
-                    {card}
-                  </div>
-                ) : (
-                  <div key={conta.id}>{card}</div>
-                )
-              })}
-            </div>
+          {busca ? (
+            <button
+              type="button"
+              onClick={() => setBusca('')}
+              className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label="Limpar busca"
+            >
+              <X className="size-4" />
+            </button>
+          ) : null}
+        </div>
 
-            <div className="hidden overflow-x-auto md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border/60 hover:bg-transparent">
-                    <TableHead className="w-10 text-xs font-medium text-muted-foreground" aria-label="Status" />
-                    <TableHead className="text-xs font-medium text-muted-foreground">Cliente</TableHead>
-                    <TableHead className="text-xs font-medium text-muted-foreground">
-                      <div className="flex w-full justify-center">Status</div>
-                    </TableHead>
-                    <TableHead className="text-xs font-medium text-muted-foreground">Origem</TableHead>
-                    <TableHead className="text-xs font-medium text-muted-foreground">Atualizado</TableHead>
-                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Saldo</TableHead>
-                    <TableHead className="w-12" aria-label="Ações" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contasPagina.map((conta) => {
-                    const aberto = conta.status === 'aberto'
-                    const legado = conta.origem === 'migracao_edienai_antigo'
-                    const progresso = calcularProgressoPagamento(conta, movimentosResumoPorConta.get(conta.id))
-                    const nomeResponsavel = responsaveisResumoPorConta.get(conta.id)
-                    return (
-                      <TableRow
-                        key={conta.id}
-                        className="cursor-pointer border-border/60"
-                        onClick={() => abrirDetalhes(conta)}
-                        data-onboarding={conta.id === CONTA_DEMO_ID ? 'demo-card' : undefined}
-                      >
-                        <TableCell className="py-3 pl-3">
-                          <div
-                            className={cn(
-                              'flex h-12 items-center border-l-4',
-                              aberto ? 'border-amber-500' : 'border-emerald-500',
-                            )}
-                          >
-                            <span className="pl-3">
-                              {aberto ? (
-                                <Wallet className="h-4 w-4 text-amber-600" aria-hidden />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
-                              )}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-[260px] py-3">
-                          <span className="block truncate text-sm font-medium text-foreground">{conta.cliente_nome}</span>
-                          <span className="text-[11px] text-muted-foreground">{formatarTelefone(conta.telefone)}</span>
-                          {nomeResponsavel ? (
-                            <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                              Iniciado por: {nomeResponsavel}
-                            </span>
-                          ) : null}
-                          {progresso.temPagamentoParcial ? (
-                            <div className="mt-2 max-w-[200px]">
-                              <Progress value={progresso.percentual} className="h-1.5 bg-muted" />
-                            </div>
-                          ) : null}
-                        </TableCell>
-                        <TableCell className="py-3">
-                          <div className="flex w-full justify-center">
-                            <Badge
-                              className={cn(
-                                'rounded-full px-2 py-0.5 text-xs font-medium shadow-none',
-                                aberto
-                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100'
-                                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
-                              )}
-                            >
-                              {statusLabel[conta.status] || conta.status}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-3">
-                          <Badge variant="outline" className="rounded-full border-border/70 bg-background/50 font-medium">
-                            {legado ? 'Antigo' : 'Novo'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap py-3 text-xs tabular-nums text-muted-foreground">
-                          {formatarData(conta.ultimo_movimento_em || conta.atualizado_em)}
-                        </TableCell>
-                        <TableCell
-                          className={cn(
-                            'py-3 text-right text-sm font-semibold tabular-nums',
-                            aberto ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-400',
-                          )}
-                        >
-                          {moeda.format(conta.saldo_atual)}
-                        </TableCell>
-                        <TableCell
-                          className="py-3 text-right"
-                          data-onboarding={conta.id === CONTA_DEMO_ID ? 'demo-dropdown' : undefined}
-                        >
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-md text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#1da851]"
-                              aria-label={`Cobrar ${conta.cliente_nome} pelo WhatsApp`}
-                              title={temWhatsAppValido(conta.telefone) ? 'Enviar cobrança pelo WhatsApp' : 'Cadastrar WhatsApp e enviar cobrança'}
-                              disabled={
-                                conta.id === CONTA_DEMO_ID
-                                || conta.status !== 'aberto'
-                                || conta.saldo_atual <= 0
-                                || cobrancaEmEnvioId === conta.id
-                              }
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                abrirCobranca(conta)
-                              }}
-                            >
-                              {cobrancaEmEnvioId === conta.id
-                                ? <Loader2 className="h-4 w-4 animate-spin" />
-                                : <IconeWhatsApp className="h-4 w-4" />}
-                            </Button>
-                            <MenuAcoes
-                              ariaLabel="Ações da conta"
-                              disabled={processando}
-                              items={[
-                                {
-                                  key: 'detalhes',
-                                  label: 'Ver detalhes',
-                                  icon: <Eye className="h-3.5 w-3.5" />,
-                                  onSelect: () => abrirDetalhes(conta),
-                                },
-                                {
-                                  key: 'pagar',
-                                  label: 'Registrar pagamento',
-                                  icon: <Banknote className="h-3.5 w-3.5" />,
-                                  onSelect: () => abrirPagamento(conta),
-                                  disabled: processando,
-                                },
-                                {
-                                  key: 'quitar',
-                                  label: 'Quitar tudo',
-                                  icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-                                  onSelect: () => void quitarConta(conta),
-                                  disabled: processando || conta.saldo_atual <= 0,
-                                  variant: 'success',
-                                  separatorBefore: true,
-                                },
-                              ]}
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-
-            <PaginacaoFinancas
-              paginaAtual={pagina}
-              totalPaginas={totalPaginas}
-              totalItens={contasFiltradas.length}
-              itensPorPagina={limite}
-              onPaginaChange={setPagina}
-              onItensPorPaginaChange={(qtd) => {
-                setLimite(qtd)
-                setPagina(1)
-              }}
-              carregando={carregandoContas}
-            />
-          </>
-        )}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div
+            className="flex gap-2 overflow-x-auto pb-1 md:pb-0"
+            role="group"
+            aria-label="Filtro de status do crediário"
+            data-onboarding="crediario-filtro-status"
+          >
+            <Chip ativo={filtroStatus === 'aberto'} onClick={() => setFiltroStatus('aberto')} className="h-11 md:h-9">
+              <Wallet className="size-4" />
+              Abertas
+            </Chip>
+            <Chip ativo={filtroStatus === 'quitado'} onClick={() => setFiltroStatus('quitado')} className="h-11 md:h-9">
+              <CheckCircle2 className="size-4" />
+              Quitadas
+            </Chip>
+            <Chip ativo={filtroStatus === 'todos'} onClick={() => setFiltroStatus('todos')} className="h-11 md:h-9">
+              <History className="size-4" />
+              Todas
+            </Chip>
+          </div>
+          <div className="grid grid-cols-2 gap-2 md:flex">
+            <Selecao
+              value={filtroOrigem}
+              onChange={(event) => setFiltroOrigem(event.target.value as FiltroOrigem)}
+              aria-label="Origem das contas"
+              className="md:w-44"
+            >
+              <option value="novo">Contas novas</option>
+              <option value="legado">Sistema antigo</option>
+              <option value="todos">Todas as origens</option>
+            </Selecao>
+            <Selecao
+              value={ordenacao}
+              onChange={(event) => setOrdenacao(event.target.value as OrdenacaoContas)}
+              aria-label="Ordenar contas"
+              className="md:w-44"
+            >
+              <option value="recentes">Mais recentes</option>
+              <option value="antigas">Mais antigas</option>
+              <option value="maior_saldo">Maior saldo</option>
+              <option value="menor_saldo">Menor saldo</option>
+            </Selecao>
+          </div>
+        </div>
       </div>
 
-      <Dialog
-        open={dialogDetalhesAberto}
-        // Durante o tutorial o modal precisa CONVIVER com o popover do tour.
-        // `modal` (padrão) faz o Radix/vaul aplicarem pointer-events:none no
-        // body, prender o foco e marcar o resto como aria-hidden — o tour fica
-        // visível mas sem receber cliques ("não avança"). Fora do tutorial,
-        // nada muda.
-        modal={contaSelecionada?.id === CONTA_DEMO_ID ? false : undefined}
-        dismissible={contaSelecionada?.id === CONTA_DEMO_ID ? false : undefined}
-        onOpenChange={(aberto) => {
-          setDialogDetalhesAberto(aberto)
-          if (!aberto) {
-            setContaSelecionadaId(null)
-            setMovimentos([])
-            setMostrarMovimentacoesAntigas(false)
+      <div className="flex min-h-9 items-center justify-between gap-3 px-1">
+        <p className="text-sm text-muted-foreground">
+          {contasFiltradas.length} {contasFiltradas.length === 1 ? 'conta' : 'contas'} · {origemAtualLabel}
+        </p>
+        {temFiltroAtivo ? (
+          <Botao variante="fantasma" tamanho="sm" onClick={handleLimparFiltros}>
+            Limpar filtros
+          </Botao>
+        ) : null}
+      </div>
+
+      {carregandoContas ? (
+        <ListaCarregando linhas={6} />
+      ) : contasFiltradas.length === 0 ? (
+        <ListaVazia
+          icone={<Wallet />}
+          titulo="Nenhuma conta encontrada"
+          descricao="O fiado aparece aqui quando um pedido é fechado com a forma de pagamento Fiado. Ajuste os filtros para ver outras contas."
+          acao={
+            temFiltroAtivo ? (
+              <Botao variante="contorno" onClick={handleLimparFiltros}>
+                Limpar filtros
+              </Botao>
+            ) : undefined
           }
-        }}
-      >
-        <DialogContent
-          showCloseButton={false}
-          // Durante o tutorial, o modal só é controlado pelo tour: interagir com
-          // o popover do onboarding (clique/ESC "fora") não pode fechá-lo.
-          onInteractOutside={
-            contaSelecionada?.id === CONTA_DEMO_ID ? (event) => event.preventDefault() : undefined
-          }
-          onEscapeKeyDown={
-            contaSelecionada?.id === CONTA_DEMO_ID ? (event) => event.preventDefault() : undefined
-          }
-          className="flex h-[92dvh] w-[calc(100vw-0.75rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl border-border/70 p-0 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)] sm:h-[96dvh] sm:w-[min(1680px,98.5vw)] sm:max-w-none"
-        >
-          <header className="flex min-w-0 shrink-0 items-center gap-2 border-b border-border/70 bg-background px-5 py-3 sm:px-6">
-            <DialogTitle className="sr-only">
-              {contaSelecionada ? `Fiado de ${contaSelecionada.cliente_nome}` : 'Detalhes do fiado'}
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              {contaSelecionada
-                ? contaSelecionada.saldo_atual > 0
-                  ? `Este cliente ainda deve ${moeda.format(contaSelecionada.saldo_atual)}.`
-                  : 'Esta conta está quitada. Não há valor em aberto.'
-                : 'Abra uma conta na lista para ver o histórico.'}
-            </DialogDescription>
-            {contaSelecionada ? (
-              <Badge
-                variant="outline"
-                className={cn(
-                  'shrink-0 rounded-lg border-0 px-2.5 py-1 text-xs font-medium',
-                  contaSelecionada.status === 'aberto'
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100'
-                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
-                )}
-              >
-                <span
-                  className={cn(
-                    'size-1.5 rounded-full',
-                    contaSelecionada.status === 'aberto' ? 'bg-amber-500' : 'bg-emerald-500',
-                  )}
-                  aria-hidden
+        />
+      ) : (
+        <>
+          <Lista>
+            {contasPagina.map((conta) => (
+              <li key={conta.id}>
+                <CardContaCrediario
+                  conta={conta}
+                  statusRotulo={statusLabel[conta.status] || conta.status}
+                  telefoneFormatado={formatarTelefone(conta.telefone)}
+                  dataFormatada={formatarData(conta.ultimo_movimento_em || conta.atualizado_em)}
+                  saldoFormatado={moeda.format(conta.saldo_atual)}
+                  progresso={calcularProgressoPagamento(conta, movimentosResumoPorConta.get(conta.id))}
+                  responsavel={responsaveisResumoPorConta.get(conta.id)}
+                  selecionada={contaSelecionadaId === conta.id}
+                  processando={processando}
+                  cobrancaDisponivel={conta.id !== CONTA_DEMO_ID && conta.status === 'aberto' && conta.saldo_atual > 0}
+                  cobrancaEmEnvio={cobrancaEmEnvioId === conta.id}
+                  demo={conta.id === CONTA_DEMO_ID}
+                  onDetalhes={() => abrirDetalhes(conta)}
+                  onPagar={() => abrirPagamento(conta)}
+                  onQuitar={() => void quitarConta(conta)}
+                  onCobrar={() => abrirCobranca(conta)}
                 />
+              </li>
+            ))}
+          </Lista>
+
+          <PaginacaoFinancas
+            paginaAtual={pagina}
+            totalPaginas={totalPaginas}
+            totalItens={contasFiltradas.length}
+            itensPorPagina={limite}
+            onPaginaChange={setPagina}
+            onItensPorPaginaChange={(qtd) => {
+              setLimite(qtd)
+              setPagina(1)
+            }}
+            carregando={carregandoContas}
+          />
+        </>
+      )}
+
+      {/*
+        Detalhes da conta. Durante o tutorial a gaveta fica travada (bloqueada):
+        só o tour abre/fecha, e tocar no popover do onboarding não a fecha.
+      */}
+      <Gaveta
+        aberto={dialogDetalhesAberto}
+        aoFechar={() => {
+          setDialogDetalhesAberto(false)
+          setContaSelecionadaId(null)
+          setMovimentos([])
+          setMostrarMovimentacoesAntigas(false)
+        }}
+        bloqueada={ehDemoSelecionada}
+        largura="lg"
+        titulo={contaSelecionada ? contaSelecionada.cliente_nome : 'Detalhes do fiado'}
+        descricao={
+          contaSelecionada ? (
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Selo tom={contaSelecionada.status === 'aberto' ? 'alerta' : 'sucesso'}>
                 {contaSelecionada.status === 'aberto'
                   ? 'Em aberto'
                   : statusLabel[contaSelecionada.status] || contaSelecionada.status}
-              </Badge>
-            ) : null}
-            <div className="ml-auto flex shrink-0 items-center gap-0.5">
-              {contaSelecionada ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1.5 px-2 text-muted-foreground"
-                    onClick={() => abrirPagamento(contaSelecionada)}
-                    disabled={processando || contaSelecionada.saldo_atual <= 0}
-                    aria-label="Receber pagamento"
-                    data-onboarding={contaSelecionada.id === CONTA_DEMO_ID ? 'demo-pagamento' : undefined}
-                  >
-                    <Banknote className="size-3.5" />
-                    <span className="hidden sm:inline">Receber</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1.5 px-2 text-muted-foreground"
-                    onClick={() => void quitarConta(contaSelecionada)}
-                    disabled={processando || contaSelecionada.saldo_atual <= 0}
-                    aria-label="Quitar tudo agora"
-                    data-onboarding={contaSelecionada.id === CONTA_DEMO_ID ? 'demo-quitar' : undefined}
-                  >
-                    {processando ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="size-3.5" />
-                    )}
-                    <span className="hidden sm:inline">Quitar</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1.5 px-2 text-muted-foreground"
-                    onClick={gerarPdfDetalhado}
-                    aria-label="Baixar PDF"
-                    data-onboarding={contaSelecionada.id === CONTA_DEMO_ID ? 'demo-pdf' : undefined}
-                  >
-                    <FileText className="size-3.5" />
-                    <span className="hidden sm:inline">PDF</span>
-                  </Button>
-                </>
-              ) : null}
-              <span className="mx-1 h-4 w-px bg-border" aria-hidden />
-              {contaSelecionada?.id === CONTA_DEMO_ID ? null : (
-                <DialogClose asChild>
-                  <Button type="button" variant="ghost" size="icon" className="size-8" aria-label="Fechar">
-                    <X className="size-4" />
-                  </Button>
-                </DialogClose>
+              </Selo>
+              <span className="tabular-nums">{formatarTelefone(contaSelecionada.telefone)}</span>
+              <span aria-hidden>·</span>
+              <span>{contaSelecionada.origem === 'migracao_edienai_antigo' ? 'Conta antiga' : 'Conta nova'}</span>
+            </span>
+          ) : undefined
+        }
+        rodape={
+          contaSelecionada ? (
+            <>
+              <Botao
+                variante="fantasma"
+                className="md:mr-auto"
+                onClick={gerarPdfDetalhado}
+                aria-label="Baixar PDF"
+                data-onboarding={ehDemoSelecionada ? 'demo-pdf' : undefined}
+              >
+                <FileText />
+                PDF
+              </Botao>
+              <Botao
+                variante="contorno"
+                onClick={() => void quitarConta(contaSelecionada)}
+                disabled={processando || contaSelecionada.saldo_atual <= 0}
+                carregando={processando}
+                aria-label="Quitar tudo agora"
+                data-onboarding={ehDemoSelecionada ? 'demo-quitar' : undefined}
+              >
+                {!processando && <CheckCircle2 />}
+                Quitar
+              </Botao>
+              <Botao
+                onClick={() => abrirPagamento(contaSelecionada)}
+                disabled={processando || contaSelecionada.saldo_atual <= 0}
+                aria-label="Receber pagamento"
+                data-onboarding={ehDemoSelecionada ? 'demo-pagamento' : undefined}
+              >
+                <Banknote />
+                Receber
+              </Botao>
+            </>
+          ) : undefined
+        }
+      >
+        {!contaSelecionada ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Selecione uma conta</p>
+        ) : (
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <Cartao
+                className="grid grid-cols-3 divide-x divide-border/70"
+                data-onboarding={ehDemoSelecionada ? 'demo-modal-visao' : undefined}
+              >
+                <InlineFactCrediario
+                  icon={<Banknote />}
+                  label="Deve"
+                  value={moeda.format(contaSelecionada.saldo_atual)}
+                />
+                <InlineFactCrediario
+                  icon={<Wallet />}
+                  label="Pedidos"
+                  value={String(progressoContaSelecionada?.totalConsumos ?? contaSelecionada.total_consumos)}
+                />
+                <InlineFactCrediario
+                  icon={<CalendarClock />}
+                  label="Pagamentos"
+                  value={String(progressoContaSelecionada?.totalPagamentos ?? contaSelecionada.total_pagamentos)}
+                />
+              </Cartao>
+
+              {progressoContaSelecionada && progressoContaSelecionada.temPagamentoParcial ? (
+                <div className="space-y-2 px-1">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">
+                      Já pagou {moeda.format(progressoContaSelecionada.totalPago)} de{' '}
+                      {moeda.format(progressoContaSelecionada.totalConsumido)}
+                    </span>
+                    <span className="font-semibold tabular-nums">
+                      {Math.round(progressoContaSelecionada.percentual)}%
+                    </span>
+                  </div>
+                  <Progress value={progressoContaSelecionada.percentual} className="h-2 bg-muted" />
+                </div>
+              ) : (
+                <p className="px-1 text-sm text-muted-foreground">
+                  {contaSelecionada.saldo_atual > 0
+                    ? `Ainda deve ${moeda.format(contaSelecionada.saldo_atual)} neste ciclo.`
+                    : 'Conta quitada. Não há valor em aberto.'}
+                </p>
               )}
             </div>
-          </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-background">
-            {!contaSelecionada ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">Selecione uma conta</div>
-            ) : (
-              <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_1px_26rem]">
-                <main className="min-w-0">
-                  <div className="mb-7 grid gap-2">
-                    <h2 className="min-w-0 truncate text-2xl font-semibold leading-tight tracking-tight">
-                      {contaSelecionada.cliente_nome}
-                    </h2>
-                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="inline-flex min-w-0 items-center gap-1.5 font-mono tabular-nums">
-                        <Phone className="size-3.5 shrink-0" aria-hidden />
-                        <span className="truncate">{formatarTelefone(contaSelecionada.telefone)}</span>
-                      </span>
-                      <span className="inline-flex min-w-0 items-center gap-1.5">
-                        <span className="size-1.5 rounded-full bg-muted-foreground/60" aria-hidden />
-                        <span className="truncate">
-                          {contaSelecionada.origem === 'migracao_edienai_antigo'
-                            ? 'Conta antiga'
-                            : 'Conta nova'}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div
-                    className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-3"
-                    data-onboarding={contaSelecionada.id === CONTA_DEMO_ID ? 'demo-modal-visao' : undefined}
-                  >
-                    <InlineFactCrediario
-                      icon={<Banknote />}
-                      label="Saldo em aberto"
-                      value={moeda.format(contaSelecionada.saldo_atual)}
-                    />
-                    <InlineFactCrediario
-                      icon={<Wallet />}
-                      label="Pedidos no fiado"
-                      value={String(
-                        progressoContaSelecionada?.totalConsumos ?? contaSelecionada.total_consumos,
-                      )}
-                    />
-                    <InlineFactCrediario
-                      icon={<CalendarClock />}
-                      label="Pagamentos"
-                      value={String(
-                        progressoContaSelecionada?.totalPagamentos ??
-                          contaSelecionada.total_pagamentos,
-                      )}
-                    />
-                  </div>
-
-                  <FieldGroupCrediario title="Financeiro">
-                    {progressoContaSelecionada && progressoContaSelecionada.temPagamentoParcial ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">Já pagou uma parte</p>
-                            <p className="text-xs text-muted-foreground">
-                              {moeda.format(progressoContaSelecionada.totalPago)} de{' '}
-                              {moeda.format(progressoContaSelecionada.totalConsumido)}
+            <Secao
+              titulo="Histórico"
+              descricao={`Pedidos no fiado e pagamentos${movimentosAtuais.length > 0 ? ` · ${movimentosAtuais.length} registro${movimentosAtuais.length === 1 ? '' : 's'}` : ''}`}
+              acao={
+                <div className="flex shrink-0 items-center gap-2">
+                  {carregandoMovimentos && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+                  {ciclosQuitados.length > 0 && (
+                    <Botao
+                      variante="fantasma"
+                      tamanho="sm"
+                      onClick={() => setMostrarMovimentacoesAntigas((atual) => !atual)}
+                    >
+                      <History />
+                      {mostrarMovimentacoesAntigas ? 'Ocultar pagos' : 'Ver pagos'}
+                    </Botao>
+                  )}
+                </div>
+              }
+            >
+              {movimentosAtuais.length === 0 && !carregandoMovimentos ? (
+                <div className="rounded-xl border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+                  Ainda não há pedidos ou pagamentos neste ciclo.
+                </div>
+              ) : (
+                <Lista>
+                  {movimentosAtuais.map((movimento) => {
+                    const itens = extrairItensMovimento(movimento.itens)
+                    const podeAbrirPedido = movimento.tipo === 'consumo' && Boolean(movimento.pedido_id)
+                    return (
+                      <li key={movimento.id} className="px-4 py-3">
+                        <div className="flex items-start gap-3">
+                          <span
+                            className={cn(
+                              'mt-2 size-2 shrink-0 rounded-full',
+                              movimento.tipo === 'pagamento' ? 'bg-emerald-500' : 'bg-amber-500',
+                            )}
+                            aria-hidden
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground">
+                              {movimento.tipo === 'pagamento'
+                                ? 'Pagamento recebido'
+                                : movimento.tipo === 'consumo'
+                                  ? 'Pedido no fiado'
+                                  : movimento.tipo === 'estorno'
+                                    ? 'Estorno'
+                                    : 'Ajuste'}
+                            </p>
+                            <p className="mt-0.5 line-clamp-2 text-[13px] text-muted-foreground">
+                              {movimento.descricao || 'Sem descrição'}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {formatarData(movimento.realizado_em)}
+                              {movimento.tipo === 'consumo' && movimento.nome_responsavel_pedido
+                                ? ` · Iniciado por ${movimento.nome_responsavel_pedido}`
+                                : ''}
                             </p>
                           </div>
-                          <span className="text-sm font-semibold tabular-nums">
-                            {Math.round(progressoContaSelecionada.percentual)}%
-                          </span>
+                          <p
+                            className={cn(
+                              'shrink-0 pt-0.5 text-sm font-semibold tabular-nums',
+                              movimento.tipo === 'pagamento' ? 'text-emerald-700 dark:text-emerald-300' : 'text-foreground',
+                            )}
+                          >
+                            {movimento.tipo === 'pagamento' ? '-' : '+'}
+                            {moeda.format(movimento.valor)}
+                          </p>
+                          <MenuAcoes
+                            ariaLabel="Ações do registro"
+                            triggerClassName="-mr-2 -mt-1.5 h-11 w-11 md:h-9 md:w-9"
+                            items={[
+                              ...(movimento.tipo === 'consumo'
+                                ? [
+                                    {
+                                      key: 'pedido',
+                                      label: podeAbrirPedido ? 'Abrir pedido' : 'Pedido antigo sem vínculo',
+                                      icon: <ExternalLink className="h-3.5 w-3.5" />,
+                                      onSelect: () => abrirPedidoDoCrediario(movimento),
+                                      disabled: !podeAbrirPedido,
+                                    },
+                                  ]
+                                : []),
+                              {
+                                key: 'pdf',
+                                label: 'Baixar PDF',
+                                icon: <FileText className="h-3.5 w-3.5" />,
+                                onSelect: () => gerarPdfMovimentacao(movimento),
+                              },
+                              {
+                                key: 'apagar',
+                                label: 'Apagar registro',
+                                icon: <Trash2 className="h-3.5 w-3.5" />,
+                                onSelect: () => void pedirRemoverMovimento(movimento),
+                                disabled: processando,
+                                variant: 'destructive',
+                                separatorBefore: true,
+                              },
+                            ]}
+                          />
                         </div>
-                        <Progress value={progressoContaSelecionada.percentual} className="h-2 bg-muted" />
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {contaSelecionada.saldo_atual > 0
-                          ? `Ainda deve ${moeda.format(contaSelecionada.saldo_atual)} neste ciclo.`
-                          : 'Conta quitada. Não há valor em aberto.'}
-                      </p>
-                    )}
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        className="h-10 shadow-none"
-                        onClick={() => abrirPagamento(contaSelecionada)}
-                        disabled={processando || contaSelecionada.saldo_atual <= 0}
-                      >
-                        <Banknote className="mr-1.5 size-4" />
-                        Receber pagamento
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 shadow-none"
-                        onClick={() => void quitarConta(contaSelecionada)}
-                        disabled={processando || contaSelecionada.saldo_atual <= 0}
-                      >
-                        {processando ? (
-                          <Loader2 className="mr-1.5 size-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="mr-1.5 size-4" />
-                        )}
-                        Quitar tudo agora
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-10 shadow-none"
-                        onClick={gerarPdfDetalhado}
-                      >
-                        <FileText className="mr-1.5 size-4" />
-                        Baixar PDF
-                      </Button>
-                    </div>
-                  </FieldGroupCrediario>
 
-                  <FieldGroupCrediario title="Histórico">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <p className="text-xs text-muted-foreground">
-                      Pedidos no fiado e pagamentos já feitos
-                      {movimentosAtuais.length > 0
-                        ? ` · ${movimentosAtuais.length} registro${movimentosAtuais.length === 1 ? '' : 's'}`
-                        : ''}
-                    </p>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {ciclosQuitados.length > 0 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-2 text-xs"
-                          onClick={() => setMostrarMovimentacoesAntigas((atual) => !atual)}
-                        >
-                          <History className="mr-1 size-3.5" />
-                          {mostrarMovimentacoesAntigas ? 'Ocultar antigas' : 'Ver antigas'}
-                        </Button>
-                      )}
-                      {carregandoMovimentos && (
-                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-
-                    <div className="space-y-2">
-                      {movimentosAtuais.length === 0 && !carregandoMovimentos ? (
-                        <div className="rounded-xl border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
-                          Ainda não há pedidos ou pagamentos neste ciclo.
-                        </div>
-                      ) : (
-                        movimentosAtuais.map((movimento) => {
-                          const itens = extrairItensMovimento(movimento.itens)
-                          const podeAbrirPedido = movimento.tipo === 'consumo' && Boolean(movimento.pedido_id)
-                          return (
-                            <div key={movimento.id} className="rounded-xl border border-border/70 p-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span
-                                      className={cn(
-                                        'size-2 rounded-full',
-                                        movimento.tipo === 'pagamento' ? 'bg-emerald-500' : 'bg-amber-500',
-                                      )}
-                                    />
-                                    <p className="text-sm font-medium">
-                                      {movimento.tipo === 'pagamento' ? 'Pagamento recebido' : movimento.tipo === 'consumo' ? 'Pedido no fiado' : movimento.tipo === 'estorno' ? 'Estorno' : 'Ajuste'}
+                        {itens.length > 0 && (
+                          <ul className="mt-3 space-y-2 pl-5">
+                            {itens.map((item, indice) => (
+                              <li
+                                key={`${item.id || movimento.id}-${indice}`}
+                                className="rounded-lg bg-muted/40 px-3 py-2"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="break-words text-sm text-foreground">
+                                      {item.quantidade}x {item.nome}
                                     </p>
-                                    {movimento.tipo === 'consumo' && (
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 px-2 text-[11px]"
-                                        disabled={!podeAbrirPedido}
-                                        onClick={() => abrirPedidoDoCrediario(movimento)}
-                                        aria-label={
-                                          podeAbrirPedido
-                                            ? 'Abrir pedido em Pedidos'
-                                            : 'Pedido legado sem vínculo'
-                                        }
-                                        title={
-                                          podeAbrirPedido
-                                            ? 'Abrir pedido em Pedidos'
-                                            : 'Pedido legado sem vínculo'
-                                        }
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                      {item.precoUnitario > 0 ? `${moeda.format(item.precoUnitario)} un.` : 'Item do histórico'}
+                                      {item.criadoEm ? ` · ${formatarData(item.criadoEm)}` : ''}
+                                    </p>
+                                    {item.observacoes && (
+                                      <p className="break-words text-xs text-muted-foreground">{item.observacoes}</p>
+                                    )}
+                                  </div>
+                                  <span className="shrink-0 text-sm font-medium tabular-nums">{moeda.format(item.subtotal)}</span>
+                                </div>
+                                {movimento.tipo === 'consumo' && (
+                                  <div className="mt-2 flex gap-2">
+                                    {contaSelecionada.saldo_atual > 0 && item.subtotal > 0 && (
+                                      <Botao
+                                        variante="contorno"
+                                        tamanho="sm"
+                                        className={cn('flex-1 md:flex-none', classeAcaoLinha)}
+                                        onClick={() => abrirPagamentoItem(movimento, item)}
                                       >
-                                        <ExternalLink className="mr-1 size-3" />
-                                        Abrir pedido
-                                      </Button>
+                                        <CreditCard />
+                                        Pagar item
+                                      </Botao>
                                     )}
-                                  </div>
-                                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                    {movimento.descricao || 'Sem descricao'}
-                                  </p>
-                                  <p className="mt-2 text-[11px] text-muted-foreground">{formatarData(movimento.realizado_em)}</p>
-                                  {movimento.tipo === 'consumo' && movimento.nome_responsavel_pedido && (
-                                    <p className="mt-1 text-[11px] font-medium text-muted-foreground">
-                                      Iniciado por: {movimento.nome_responsavel_pedido}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="flex shrink-0 items-start gap-2">
-                                  <p
-                                    className={cn(
-                                      'font-mono text-sm font-semibold tabular-nums',
-                                      movimento.tipo === 'pagamento' ? 'text-emerald-700 dark:text-emerald-300' : 'text-foreground',
-                                    )}
-                                  >
-                                    {movimento.tipo === 'pagamento' ? '-' : '+'}
-                                    {moeda.format(movimento.valor)}
-                                  </p>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 px-2 text-[11px]"
-                                    onClick={() => gerarPdfMovimentacao(movimento)}
-                                    title="PDF da movimentacao"
-                                  >
-                                    <FileText className="mr-1 size-3" />
-                                    PDF
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 px-0 text-muted-foreground hover:text-destructive"
-                                    disabled={processando}
-                                    onClick={() => setConfirmacao({ tipo: 'movimento', movimento })}
-                                    title="Apagar movimento"
-                                  >
-                                    <Trash2 className="size-3.5" />
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {itens.length > 0 && (
-                                <div className="mt-3 space-y-1.5 border-t border-border/70 pt-3">
-                                  {itens.map((item, indice) => (
-                                    <div
-                                      key={`${item.id || movimento.id}-${indice}`}
-                                      className="flex flex-col gap-2 rounded-lg bg-muted/35 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between"
+                                    <Botao
+                                      variante="perigoSuave"
+                                      tamanho="sm"
+                                      className={cn('flex-1 md:flex-none', classeAcaoLinha)}
+                                      disabled={processando}
+                                      onClick={() => void pedirRemoverItem(movimento, indice, item.nome)}
                                     >
-                                      <div className="min-w-0">
-                                        <p className="break-words text-xs font-medium leading-5">
-                                          {item.quantidade}x {item.nome}
-                                        </p>
-                                        <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                          {item.precoUnitario > 0 ? `${moeda.format(item.precoUnitario)} un.` : 'Item do historico'}
-                                          {item.criadoEm ? ` · ${formatarData(item.criadoEm)}` : ''}
-                                        </p>
-                                        {item.observacoes && (
-                                          <p className="break-words text-[11px] text-muted-foreground">{item.observacoes}</p>
-                                        )}
-                                      </div>
-                                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                                        <span className="font-mono text-xs font-semibold tabular-nums">{moeda.format(item.subtotal)}</span>
-                                        {movimento.tipo === 'consumo' && contaSelecionada.saldo_atual > 0 && item.subtotal > 0 && (
-                                          <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-7 px-2 text-[11px]"
-                                            onClick={() => abrirPagamentoItem(movimento, item)}
-                                          >
-                                            <CreditCard className="mr-1 size-3" />
-                                            Pagar
-                                          </Button>
-                                        )}
-                                        {movimento.tipo === 'consumo' && (
-                                          <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-destructive"
-                                            disabled={processando}
-                                            onClick={() => setConfirmacao({ tipo: 'item', movimento, itemIndice: indice, itemNome: item.nome })}
-                                          >
-                                            <Trash2 className="mr-1 size-3" />
-                                            Apagar
-                                          </Button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })
-                      )}
-                    </div>
+                                      <Trash2 />
+                                      Apagar
+                                    </Botao>
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    )
+                  })}
+                </Lista>
+              )}
+            </Secao>
 
-                    {mostrarMovimentacoesAntigas && ciclosQuitados.length > 0 && (
-                      <div className="mt-4 rounded-xl border border-border/70 bg-muted/20 p-3">
-                        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-sm font-semibold">Crediarios pagos</p>
-                            <p className="text-xs text-muted-foreground">
-                              {ciclosQuitados.length} ciclo{ciclosQuitados.length === 1 ? '' : 's'} fechado
-                              {ciclosQuitados.length === 1 ? '' : 's'}
+            {mostrarMovimentacoesAntigas && ciclosQuitados.length > 0 && (
+              <Secao
+                titulo="Crediários pagos"
+                descricao={`${ciclosQuitados.length} ciclo${ciclosQuitados.length === 1 ? '' : 's'} fechado${ciclosQuitados.length === 1 ? '' : 's'}`}
+              >
+                <Lista>
+                  {ciclosQuitados.map((ciclo) => {
+                    const itens = ciclo.consumos.flatMap((movimento) => extrairItensMovimento(movimento.itens))
+                    const descricao = ciclo.consumos.map((movimento) => movimento.descricao || 'Consumo').join(' / ') || 'Consumo'
+
+                    return (
+                      <li key={`ciclo-${ciclo.id}`} className="px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-foreground">Crediário pago</p>
+                              <Selo tom="sucesso">Pago</Selo>
+                            </div>
+                            <p className="mt-0.5 line-clamp-2 text-[13px] text-muted-foreground">{descricao}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {formatarData(ciclo.inicioEm)} até {formatarData(ciclo.fimEm)}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-semibold tabular-nums">{moeda.format(ciclo.totalConsumido)}</p>
+                            <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                              Pago {moeda.format(ciclo.totalPago)}
                             </p>
                           </div>
                         </div>
 
-                        <ScrollArea
-                          className="rounded-lg pr-3"
-                          style={{ height: 'min(18rem, 45vh)' }}
-                        >
-                          <div className="space-y-2 pr-2">
-                            {ciclosQuitados.map((ciclo) => {
-                              const itens = ciclo.consumos.flatMap((movimento) => extrairItensMovimento(movimento.itens))
-                              const descricao = ciclo.consumos.map((movimento) => movimento.descricao || 'Consumo').join(' / ') || 'Consumo'
-
-                              return (
-                                <div key={`ciclo-${ciclo.id}`} className="rounded-lg border border-border/70 bg-card p-3">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <span className="size-2 rounded-full bg-emerald-500" />
-                                        <p className="text-sm font-medium">Crediario pago</p>
-                                        <Badge variant="outline" className="h-6 rounded-md border-emerald-200 bg-emerald-50 px-2 text-[11px] text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
-                                          Pago
-                                        </Badge>
-                                      </div>
-                                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                        {descricao}
-                                      </p>
-                                      <p className="mt-2 text-[11px] text-muted-foreground">
-                                        {formatarData(ciclo.inicioEm)} - {formatarData(ciclo.fimEm)}
-                                      </p>
-                                    </div>
-                                    <div className="flex shrink-0 flex-col items-end gap-2">
-                                      <p className="font-mono text-sm font-semibold tabular-nums">{moeda.format(ciclo.totalConsumido)}</p>
-                                      <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                                        Pago {moeda.format(ciclo.totalPago)}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/70 pt-3 sm:flex sm:justify-end">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-8 px-2 text-xs"
-                                      onClick={() => gerarPdfCicloCrediario(ciclo)}
-                                      title="PDF do crediario pago"
-                                    >
-                                      <FileText className="mr-1 size-3.5" />
-                                      PDF
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                      disabled={processando || ciclo.pagamentos.length === 0}
-                                      onClick={() => setConfirmacao({ tipo: 'reverter-ciclo', ciclo })}
-                                      title="Reverter crediario"
-                                    >
-                                      <History className="mr-1 size-3.5" />
-                                      Reverter
-                                    </Button>
-                                  </div>
-
-                                  {itens.length > 0 && (
-                                    <div className="mt-3 space-y-1.5 border-t border-border/70 pt-3">
-                                      {itens.map((item, indice) => (
-                                        <div
-                                          key={`ciclo-${ciclo.id}-${item.id || indice}`}
-                                          className="flex flex-col gap-1 rounded-lg bg-muted/35 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between"
-                                        >
-                                          <div className="min-w-0">
-                                            <p className="break-words text-xs font-medium leading-5">
-                                              {item.quantidade}x {item.nome}
-                                            </p>
-                                            <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                              {item.precoUnitario > 0 ? `${moeda.format(item.precoUnitario)} un.` : 'Item do historico'}
-                                              {item.criadoEm ? ` · ${formatarData(item.criadoEm)}` : ''}
-                                            </p>
-                                          </div>
-                                          <span className="shrink-0 font-mono text-xs font-semibold tabular-nums">
-                                            {moeda.format(item.subtotal)}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {itens.length === 0 && (
-                                    <div className="mt-3 rounded-lg border border-dashed border-border/70 p-3 text-xs text-muted-foreground">
-                                      Sem itens detalhados salvos neste consumo.
-                                    </div>
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </ScrollArea>
-                      </div>
-                    )}
-                  </FieldGroupCrediario>
-                </main>
-
-                <div className="hidden bg-border/70 lg:block" aria-hidden />
-
-                <aside className="grid min-w-0 content-start gap-5">
-                  <FieldGroupCrediario title="Contato">
-                    <dl className="grid gap-1">
-                      <DetailRowCrediario
-                        icon={<Phone />}
-                        label="Telefone"
-                        value={formatarTelefone(contaSelecionada.telefone)}
-                      />
-                      <DetailRowCrediario
-                        icon={<Wallet />}
-                        label="Cliente"
-                        value={contaSelecionada.cliente_nome}
-                      />
-                    </dl>
-                  </FieldGroupCrediario>
-
-                  <FieldGroupCrediario title="Conta">
-                    <dl className="grid gap-1">
-                      <DetailRowCrediario
-                        label="Status"
-                        value={
-                          contaSelecionada.status === 'aberto'
-                            ? 'Em aberto'
-                            : statusLabel[contaSelecionada.status] || contaSelecionada.status
-                        }
-                      />
-                      <DetailRowCrediario
-                        label="Origem"
-                        value={
-                          contaSelecionada.origem === 'migracao_edienai_antigo'
-                            ? 'Conta antiga'
-                            : 'Conta nova'
-                        }
-                      />
-                      <DetailRowCrediario
-                        label="Limite"
-                        value={
-                          contaSelecionada.limite_credito != null
-                            ? moeda.format(contaSelecionada.limite_credito)
-                            : null
-                        }
-                      />
-                      <DetailRowCrediario
-                        label="Observações"
-                        value={contaSelecionada.observacoes}
-                      />
-                    </dl>
-                  </FieldGroupCrediario>
-
-                  <FieldGroupCrediario title="Datas">
-                    <dl className="grid gap-1">
-                      <DetailRowCrediario
-                        label="Último movimento"
-                        value={formatarData(
-                          contaSelecionada.ultimo_movimento_em || contaSelecionada.atualizado_em,
+                        {itens.length > 0 ? (
+                          <ul className="mt-2 space-y-1">
+                            {itens.map((item, indice) => (
+                              <li
+                                key={`ciclo-${ciclo.id}-${item.id || indice}`}
+                                className="flex items-baseline justify-between gap-3 text-[13px] text-muted-foreground"
+                              >
+                                <span className="min-w-0 break-words">
+                                  {item.quantidade}x {item.nome}
+                                </span>
+                                <span className="shrink-0 tabular-nums">{moeda.format(item.subtotal)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-[13px] text-muted-foreground">Sem itens detalhados salvos neste consumo.</p>
                         )}
-                      />
-                      <DetailRowCrediario
-                        label="Criada em"
-                        value={formatarData(contaSelecionada.criado_em)}
-                      />
-                      <DetailRowCrediario
-                        label="Atualizada em"
-                        value={formatarData(contaSelecionada.atualizado_em)}
-                      />
-                      <DetailRowCrediario
-                        label="Quitada em"
-                        value={formatarData(contaSelecionada.quitado_em)}
-                      />
-                    </dl>
-                  </FieldGroupCrediario>
-                </aside>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog
-        open={Boolean(contaCobranca) && solicitarTelefoneCobranca}
-        onOpenChange={(aberto) => {
-          if (!aberto) {
-            setContaCobrancaId(null)
-            setSolicitarTelefoneCobranca(false)
-            setTelefoneCobranca('')
-          }
+                        <div className="mt-3 flex gap-2">
+                          <Botao
+                            variante="contorno"
+                            tamanho="sm"
+                            className={cn('flex-1 md:flex-none', classeAcaoLinha)}
+                            onClick={() => gerarPdfCicloCrediario(ciclo)}
+                          >
+                            <FileText />
+                            PDF
+                          </Botao>
+                          <Botao
+                            variante="contorno"
+                            tamanho="sm"
+                            className={cn('flex-1 md:flex-none', classeAcaoLinha)}
+                            disabled={processando || ciclo.pagamentos.length === 0}
+                            onClick={() => void pedirReverterCiclo(ciclo)}
+                          >
+                            <History />
+                            Desfazer quitação
+                          </Botao>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </Lista>
+              </Secao>
+            )}
+
+            <Secao titulo="Dados da conta">
+              <Cartao>
+                <dl className="divide-y divide-border/70">
+                  <DetailRowCrediario label="Telefone" value={formatarTelefone(contaSelecionada.telefone)} />
+                  <DetailRowCrediario
+                    label="Limite"
+                    value={
+                      contaSelecionada.limite_credito != null ? moeda.format(contaSelecionada.limite_credito) : null
+                    }
+                  />
+                  <DetailRowCrediario label="Observações" value={contaSelecionada.observacoes} />
+                  <DetailRowCrediario
+                    label="Último movimento"
+                    value={formatarData(contaSelecionada.ultimo_movimento_em || contaSelecionada.atualizado_em)}
+                  />
+                  <DetailRowCrediario label="Criada em" value={formatarData(contaSelecionada.criado_em)} />
+                  <DetailRowCrediario label="Atualizada em" value={formatarData(contaSelecionada.atualizado_em)} />
+                  <DetailRowCrediario label="Quitada em" value={formatarData(contaSelecionada.quitado_em)} />
+                </dl>
+              </Cartao>
+            </Secao>
+          </div>
+        )}
+      </Gaveta>
+
+      <Gaveta
+        aberto={Boolean(contaCobranca)}
+        aoFechar={() => {
+          setContaCobrancaId(null)
+          setTelefoneCobranca('')
         }}
+        titulo="WhatsApp do cliente"
+        descricao="Esta conta ainda não tem um número válido. Ele será salvo no crediário antes do envio."
+        rodape={
+          <>
+            <Botao
+              variante="contorno"
+              onClick={() => {
+                setContaCobrancaId(null)
+                setTelefoneCobranca('')
+              }}
+            >
+              Cancelar
+            </Botao>
+            <Botao onClick={confirmarTelefoneCobranca}>
+              <IconeWhatsApp className="size-4" />
+              Continuar
+            </Botao>
+          </>
+        }
       >
-        <DialogContent className="rounded-xl border-border/70 sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Adicionar WhatsApp do cliente</DialogTitle>
-            <DialogDescription>
-              Esta conta ainda não tem um número válido. Ele será salvo no crediário antes do envio.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="telefone-cobranca">WhatsApp com DDD</Label>
-            <Input
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            confirmarTelefoneCobranca()
+          }}
+        >
+          <Campo rotulo="WhatsApp com DDD" htmlFor="telefone-cobranca">
+            <Entrada
               id="telefone-cobranca"
               type="tel"
               inputMode="tel"
@@ -2590,159 +2129,70 @@ export default function PainelCrediario() {
               placeholder="(86) 99999-9999"
               value={telefoneCobranca}
               onChange={(event) => setTelefoneCobranca(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  confirmarTelefoneCobranca()
-                }
-              }}
-              autoFocus
             />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">Cancelar</Button>
-            </DialogClose>
-            <Button
-              type="button"
-              className="bg-[#25D366] text-white hover:bg-[#1da851]"
-              onClick={confirmarTelefoneCobranca}
-            >
-              <IconeWhatsApp className="mr-2 size-4" />
-              Continuar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </Campo>
+          <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+        </form>
+      </Gaveta>
 
-      <AlertDialog
-        open={Boolean(contaCobranca) && !solicitarTelefoneCobranca}
-        onOpenChange={(aberto) => {
-          if (!aberto && !cobrancaEmEnvioId) {
-            setContaCobrancaId(null)
-            setTelefoneCobranca('')
-          }
+      <Gaveta
+        aberto={dialogPagamentoAberto}
+        aoFechar={() => {
+          setDialogPagamentoAberto(false)
+          setContaPagamentoId(null)
         }}
-      >
-        <AlertDialogContent className="rounded-xl border-border/70 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Enviar lembrete pelo WhatsApp?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {contaCobranca
-                ? `${contaCobranca.cliente_nome} receberá o resumo das compras e o saldo atual de ${moeda.format(contaCobranca.saldo_atual)}. Confira o telefone: ${formatarTelefone(temWhatsAppValido(contaCobranca.telefone) ? contaCobranca.telefone : telefoneCobranca)}.`
-                : 'A mensagem será montada com os dados atuais do crediário.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(cobrancaEmEnvioId)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={Boolean(cobrancaEmEnvioId)}
-              className="bg-[#25D366] text-white hover:bg-[#1da851]"
-              onClick={(event) => {
-                event.preventDefault()
-                void enviarCobranca()
+        bloqueada={processando}
+        titulo="Receber pagamento"
+        descricao={
+          contaPagamento
+            ? `${contaPagamento.cliente_nome} ainda deve ${moeda.format(contaPagamento.saldo_atual)}. Digite quanto está pagando agora.`
+            : 'Informe o valor recebido do cliente.'
+        }
+        rodape={
+          <>
+            <Botao
+              variante="contorno"
+              onClick={() => {
+                setDialogPagamentoAberto(false)
+                setContaPagamentoId(null)
               }}
-            >
-              {cobrancaEmEnvioId
-                ? <Loader2 className="mr-2 size-4 animate-spin" />
-                : <IconeWhatsApp className="mr-2 size-4" />}
-              Enviar cobrança
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={Boolean(confirmacao)} onOpenChange={(aberto) => !aberto && setConfirmacao(null)}>
-        <AlertDialogContent className="rounded-xl border-border/70 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmacao?.tipo === 'item'
-                ? 'Remover este item do fiado?'
-                : confirmacao?.tipo === 'reverter-ciclo'
-                  ? 'Desfazer a quitação?'
-                  : 'Remover este registro?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmacao?.tipo === 'item'
-                ? `O item "${confirmacao.itemNome}" sai do fiado e o valor devido é recalculado.`
-                : confirmacao?.tipo === 'reverter-ciclo'
-                  ? 'Os pagamentos deste ciclo voltam a ficar em aberto. Use só se a quitação foi um engano.'
-                  : 'Este registro será cancelado e o valor devido do cliente será recalculado.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={processando}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
               disabled={processando}
-              className="bg-red-600 text-white hover:bg-red-700"
-              onClick={(event) => {
-                event.preventDefault()
-                void executarConfirmacao()
-              }}
             >
-              {processando && <Loader2 className="mr-2 size-4 animate-spin" />}
-              {confirmacao?.tipo === 'reverter-ciclo' ? 'Reverter' : 'Apagar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog
-        open={dialogPagamentoAberto}
-        onOpenChange={(aberto) => {
-          setDialogPagamentoAberto(aberto)
-          if (!aberto) setContaPagamentoId(null)
-        }}
-      >
-        <DialogContent className="rounded-xl sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Receber pagamento do fiado</DialogTitle>
-            <DialogDescription>
-              {contaPagamento
-                ? `${contaPagamento.cliente_nome} ainda deve ${moeda.format(contaPagamento.saldo_atual)}. Digite quanto está pagando agora.`
-                : 'Informe o valor recebido do cliente.'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {contaPagamento ? (
-              <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 text-sm">
-                <p className="text-muted-foreground">Valor em aberto</p>
-                <p className="mt-0.5 text-lg font-semibold tabular-nums">{moeda.format(contaPagamento.saldo_atual)}</p>
-              </div>
-            ) : null}
-            <div className="space-y-2">
-              <Label htmlFor="valor-pagamento">Valor recebido agora</Label>
-              <Input
-                id="valor-pagamento"
-                value={valorPagamento}
-                onChange={(event) => setValorPagamento(event.target.value)}
-                inputMode="decimal"
-                placeholder="0,00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="descricao-pagamento">Descricao</Label>
-              <Input
-                id="descricao-pagamento"
-                value={descricaoPagamento}
-                onChange={(event) => setDescricaoPagamento(event.target.value)}
-                placeholder="Pagamento recebido"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setDialogPagamentoAberto(false)} disabled={processando}>
               Cancelar
-            </Button>
-            <Button type="button" onClick={() => void registrarPagamento()} disabled={processando}>
-              {processando && <Loader2 className="mr-2 size-4 animate-spin" />}
+            </Botao>
+            <Botao carregando={processando} onClick={() => void registrarPagamento()}>
               Confirmar recebimento
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </Botao>
+          </>
+        }
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void registrarPagamento()
+          }}
+        >
+          {contaPagamento ? (
+            <div className="flex items-baseline justify-between gap-3 rounded-xl bg-muted/50 px-4 py-3">
+              <span className="text-sm text-muted-foreground">Valor em aberto</span>
+              <span className="text-lg font-semibold tabular-nums">{moeda.format(contaPagamento.saldo_atual)}</span>
+            </div>
+          ) : null}
+          <Campo rotulo="Valor recebido agora" htmlFor="valor-pagamento">
+            <EntradaPreco id="valor-pagamento" valor={valorPagamento} aoMudar={setValorPagamento} />
+          </Campo>
+          <Campo rotulo="Descrição" htmlFor="descricao-pagamento" opcional>
+            <Entrada
+              id="descricao-pagamento"
+              value={descricaoPagamento}
+              onChange={(event) => setDescricaoPagamento(event.target.value)}
+              placeholder="Pagamento recebido"
+            />
+          </Campo>
+          <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
+        </form>
+      </Gaveta>
 
       <ModalFormaPagamentoItens
         aberto={Boolean(pagamentoItemAberto)}
@@ -2776,6 +2226,6 @@ export default function PainelCrediario() {
           void registrarPagamentoItem(itensPagos, forma)
         }}
       />
-    </div>
+    </Pagina>
   )
 }

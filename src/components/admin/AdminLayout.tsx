@@ -4,26 +4,7 @@ import { CSSProperties, Fragment, ReactNode, useCallback, useEffect, useLayoutEf
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import {
-  Armchair,
-  AlertTriangle,
-  Bell,
-  BellOff,
-  MoreHorizontal,
-  LogOut,
-  Menu,
-  Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PlusCircle,
-  Receipt,
-  Search,
-  Settings2,
-  Sun,
-  ShoppingBasket,
-  UserCog,
-  X,
-} from 'lucide-react'
+import { Armchair, Warning as AlertTriangle, Bell, BellSlash as BellOff, DotsThree as MoreHorizontal, SignOut as LogOut, List as Menu, Moon, SidebarSimple as PanelLeftClose, SidebarSimple as PanelLeftOpen, PlusCircle, Receipt, MagnifyingGlass as Search, GearSix as Settings2, Sun, Basket as ShoppingBasket, UserGear as UserCog, X } from '@phosphor-icons/react'
 import { useAdminAuth } from '@/contexts/AdminAuthContext'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
@@ -594,7 +575,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             className="ml-auto flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             aria-label="Fechar menu"
           >
-            <X strokeWidth={1.6} className="size-[18px]" />
+            <X className="size-[18px]" />
           </button>
         )}
       </div>
@@ -682,7 +663,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     )}
                     <span className="relative flex shrink-0">
                       <Icone
-                        strokeWidth={isActive ? 1.85 : 1.6}
+                        weight={isActive ? 'fill' : 'regular'}
                         className={cn(
                           'size-[18px] shrink-0',
                           isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground',
@@ -751,7 +732,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   )}
                   aria-label="Mais itens do menu"
                 >
-                  <MoreHorizontal strokeWidth={1.6} className="size-[18px] shrink-0" />
+                  <MoreHorizontal className="size-[18px] shrink-0" />
                   <span>Mais</span>
                 </button>
                 {maisAberto ? (
@@ -779,7 +760,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                               : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                           )}
                         >
-                          <Icone strokeWidth={1.6} className="size-4 shrink-0" />
+                          <Icone weight={isActive ? 'fill' : 'regular'} className="size-4 shrink-0" />
                           <span className="truncate">{item.texto}</span>
                         </Link>
                       )
@@ -798,7 +779,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     )}
                     aria-label="Mais itens do menu"
                   >
-                    <MoreHorizontal strokeWidth={1.6} className="size-[18px] shrink-0" />
+                    <MoreHorizontal className="size-[18px] shrink-0" />
                     {!colapsada && <span>Mais</span>}
                   </button>
                 </PopoverTrigger>
@@ -824,7 +805,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                               : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                           )}
                         >
-                          <Icone strokeWidth={1.6} className="size-4 shrink-0" />
+                          <Icone weight={isActive ? 'fill' : 'regular'} className="size-4 shrink-0" />
                           <span className="truncate">{item.texto}</span>
                         </Link>
                       )
@@ -887,7 +868,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 )}
                 aria-label="Personalizar sidebar"
               >
-                <Settings2 strokeWidth={1.6} className="size-[18px] shrink-0" />
+                <Settings2 className="size-[18px] shrink-0" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>Personalizar</TooltipContent>
@@ -902,7 +883,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             )}
             aria-label="Personalizar sidebar"
           >
-            <Settings2 strokeWidth={1.6} className="size-[18px] shrink-0" />
+            <Settings2 className="size-[18px] shrink-0" />
             <span>Personalizar</span>
           </button>
         )}
@@ -918,7 +899,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 )}
                 aria-label="Sair"
               >
-                <LogOut strokeWidth={1.6} className="size-[18px] shrink-0" />
+                <LogOut className="size-[18px] shrink-0" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>Sair</TooltipContent>
@@ -931,7 +912,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               mobile && 'min-h-11',
             )}
           >
-            <LogOut strokeWidth={1.6} className="size-[18px] shrink-0" />
+            <LogOut className="size-[18px] shrink-0" />
             <span>Sair</span>
           </button>
         )}
@@ -945,7 +926,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   className="flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
                   aria-label="Expandir sidebar"
                 >
-                  <PanelLeftOpen strokeWidth={1.6} className="size-[18px]" />
+                  <PanelLeftOpen className="size-[18px]" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>Expandir sidebar</TooltipContent>
@@ -955,7 +936,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               onClick={onToggle}
               className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
             >
-              <PanelLeftClose strokeWidth={1.6} className="size-[18px]" />
+              <PanelLeftClose className="size-[18px]" />
               <span>Recolher</span>
             </button>
           )
@@ -988,7 +969,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               aria-label="Fechar menu"
               className="flex h-11 w-11 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
-              <X strokeWidth={1.6} className="size-5" />
+              <X className="size-5" />
               <span className="sr-only">Fechar menu</span>
             </DrawerClose>
           </div>
@@ -1012,7 +993,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
             aria-label="Abrir menu"
           >
-            <Menu strokeWidth={1.6} className="size-[18px]" />
+            <Menu className="size-[18px]" />
           </button>
 
           <div className="min-w-0 flex-1">
@@ -1039,7 +1020,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                           : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                       )}
                     >
-                      <Icone strokeWidth={1.6} className="size-[17px]" />
+                      <Icone weight={ativo ? 'fill' : 'regular'} className="size-[17px]" />
                       <span>{atalho.texto}</span>
                     </button>
                   </TooltipTrigger>
@@ -1060,7 +1041,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   className="flex h-9 items-center gap-2 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
                   aria-label="Abrir atalhos e busca do painel"
                 >
-                  <Search strokeWidth={1.6} className="size-[18px]" />
+                  <Search className="size-[18px]" />
                   <span className="hidden sm:inline">Atalhos</span>
                   <kbd className="hidden rounded border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground xl:inline">
                     ⌘K
@@ -1076,9 +1057,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               aria-label={temaEscuroAtivo ? 'Ativar tema claro' : 'Ativar tema escuro'}
             >
               {temaEscuroAtivo ? (
-                <Sun strokeWidth={1.6} className="size-[18px]" />
+                <Sun className="size-[18px]" />
               ) : (
-                <Moon strokeWidth={1.6} className="size-[18px]" />
+                <Moon className="size-[18px]" />
               )}
             </button>
 
@@ -1119,9 +1100,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       aria-label={alertasMesaAtivos ? 'Desligar alertas de mesa' : 'Ligar alertas de mesa'}
                     >
                       {alertasMesaAtivos ? (
-                        <Bell strokeWidth={1.6} className="size-4" />
+                        <Bell className="size-4" />
                       ) : (
-                        <BellOff strokeWidth={1.6} className="size-4" />
+                        <BellOff className="size-4" />
                       )}
                       <span className="flex-1 text-left">Alertas de mesa</span>
                       <span
@@ -1142,7 +1123,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       }}
                       className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
-                      <LogOut strokeWidth={1.6} className="size-4" />
+                      <LogOut className="size-4" />
                       Sair
                     </button>
                   </div>
@@ -1172,7 +1153,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         onSelect={() => navegarPara(item.path)}
                         className="cursor-pointer"
                       >
-                        <Icone strokeWidth={1.6} className="mr-2 size-4" />
+                        <Icone className="mr-2 size-4" />
                         <span className="flex-1">{item.texto}</span>
                         {item.tecla && (
                           <kbd className="rounded border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">

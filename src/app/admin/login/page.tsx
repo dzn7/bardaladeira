@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAdminAuth } from '@/contexts/AdminAuthContext'
 import TelaSelecaoPerfil from '@/components/login/TelaSelecaoPerfil'
 import { salvarSessao, type UsuarioSistema } from '@/lib/autenticacao'
-import { Loader2 } from 'lucide-react'
-
+import { CircleNotch as Loader2 } from '@phosphor-icons/react'
 export default function AdminLogin() {
   const { isAuthenticated, login, loading } = useAdminAuth()
   const router = useRouter()

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownLeft, ArrowUpRight, Check, ChevronsUpDown, History, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Check, CaretUpDown as ChevronsUpDown, ClockCounterClockwise as History, ArrowsClockwise as RefreshCw, SlidersHorizontal } from '@phosphor-icons/react'
 import { CHIP_FILTRO_DEFAULT } from '@/components/admin/filtros/chip-classes'
 import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
 import { Button } from '@/components/ui/button'

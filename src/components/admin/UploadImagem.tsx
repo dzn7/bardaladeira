@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { Upload, X, ImageIcon, Loader2, Check, AlertCircle } from 'lucide-react'
+import { UploadSimple as Upload, X, Image as ImageIcon, CircleNotch as Loader2, Check, WarningCircle as AlertCircle } from '@phosphor-icons/react'
 import Image from 'next/image'
 import { uploadImagemB2, validarImagem, obterUrlPublicaB2 } from '@/lib/backblaze'
 
@@ -71,7 +71,7 @@ export default function UploadImagem({
       // Reset após 2 segundos
       setTimeout(() => setStatus('idle'), 2000)
     } else {
-      setErro(resultado.erro || 'Erro no upload')
+      setErro(resultado.erro || 'Não foi possível enviar')
       setStatus('erro')
       setPreviewUrl(urlAtual ? obterUrlPublicaB2(urlAtual) : null)
     }
@@ -126,22 +126,22 @@ export default function UploadImagem({
 
   // Determina a cor do border baseado no status
   const borderClass = {
-    idle: 'border-gray-300 dark:border-gray-600',
-    validando: 'border-yellow-400',
-    comprimindo: 'border-yellow-400',
-    enviando: 'border-laranja-400 animate-pulse',
-    sucesso: 'border-green-500',
-    erro: 'border-red-500',
+    idle: 'border-border',
+    validando: 'border-primary/60',
+    comprimindo: 'border-primary/60',
+    enviando: 'border-primary animate-pulse',
+    sucesso: 'border-primary',
+    erro: 'border-destructive',
   }[status]
 
   // Texto do status
   const textoStatus = {
-    idle: 'Clique ou arraste uma imagem',
-    validando: 'Validando...',
-    comprimindo: 'Comprimindo...',
-    enviando: 'Enviando...',
-    sucesso: 'Upload concluído!',
-    erro: erro || 'Erro no upload',
+    idle: 'Toque ou arraste uma foto',
+    validando: 'Conferindo…',
+    comprimindo: 'Comprimindo…',
+    enviando: 'Enviando…',
+    sucesso: 'Foto enviada',
+    erro: erro || 'Não foi possível enviar',
   }[status]
 
   return (
@@ -161,11 +161,10 @@ export default function UploadImagem({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={`
-          relative cursor-pointer rounded-xl border-2 border-dashed
-          transition-all duration-300 overflow-hidden
+          group relative cursor-pointer overflow-hidden rounded-xl border-2 border-dashed transition-colors
           ${borderClass}
-          ${arrastando ? 'bg-laranja-50 dark:bg-laranja-950/20 scale-[1.02]' : 'bg-gray-50 dark:bg-gray-800/50'}
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-laranja-400 hover:bg-laranja-50/50 dark:hover:bg-laranja-950/10'}
+          ${arrastando ? 'bg-primary/10' : 'bg-muted/40'}
+          ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:border-primary/60 hover:bg-primary/5'}
         `}
         style={{ width: larguraPreview, height: alturaPreview }}
       >
@@ -173,7 +172,7 @@ export default function UploadImagem({
           <>
             <Image
               src={previewUrl}
-              alt="Preview"
+              alt="Prévia da foto"
               fill
               className="object-cover"
               sizes={`${larguraPreview}px`}
@@ -181,18 +180,18 @@ export default function UploadImagem({
             
             {/* Overlay de status */}
             {status !== 'idle' && status !== 'sucesso' && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                 {status === 'enviando' ? (
                   <Loader2 className="w-8 h-8 text-white animate-spin" />
                 ) : status === 'erro' ? (
-                  <AlertCircle className="w-8 h-8 text-red-400" />
+                  <AlertCircle className="w-8 h-8 text-destructive" />
                 ) : null}
               </div>
             )}
 
             {/* Badge de sucesso */}
             {status === 'sucesso' && (
-              <div className="absolute top-2 right-2 bg-green-500 text-white p-1 rounded-full">
+              <div className="absolute right-2 top-2 rounded-full bg-primary p-1 text-primary-foreground">
                 <Check className="w-4 h-4" />
               </div>
             )}
@@ -200,34 +199,37 @@ export default function UploadImagem({
             {/* Botão remover */}
             {status === 'idle' && !disabled && (
               <button
+                type="button"
+                aria-label="Remover foto"
                 onClick={(e) => {
                   e.stopPropagation()
                   removerImagem()
                 }}
-                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full 
-                         transition-all duration-200 opacity-0 group-hover:opacity-100"
+                className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full text-white"
               >
-                <X className="w-4 h-4" />
+                <span className="flex size-7 items-center justify-center rounded-full bg-black/60 transition-colors hover:bg-destructive">
+                  <X className="size-4" />
+                </span>
               </button>
             )}
           </>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
             {status === 'enviando' ? (
-              <Loader2 className="w-10 h-10 text-laranja-500 animate-spin mb-2" />
+              <Loader2 className="w-10 h-10 mb-2 animate-spin text-primary" />
             ) : status === 'erro' ? (
-              <AlertCircle className="w-10 h-10 text-red-500 mb-2" />
+              <AlertCircle className="w-10 h-10 mb-2 text-destructive" />
             ) : (
               <div className="relative">
-                <ImageIcon className="w-10 h-10 text-gray-400 mb-2" />
-                <Upload className="w-5 h-5 text-laranja-500 absolute -bottom-1 -right-1" />
+                <ImageIcon className="w-10 h-10 mb-2 text-muted-foreground" />
+                <Upload className="w-5 h-5 text-primary absolute -bottom-1 -right-1" />
               </div>
             )}
-            <span className={`text-sm ${status === 'erro' ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
+            <span className={`text-sm ${status === 'erro' ? 'text-destructive' : 'text-muted-foreground'}`}>
               {textoStatus}
             </span>
             {status === 'idle' && (
-              <span className="text-xs text-gray-400 mt-1">
+              <span className="mt-1 text-xs text-muted-foreground">
                 JPG, PNG, WebP ou GIF (máx. 5MB)
               </span>
             )}
@@ -237,7 +239,7 @@ export default function UploadImagem({
 
       {/* Mensagem de erro abaixo */}
       {erro && status === 'erro' && (
-        <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
+        <p className="mt-2 text-xs text-destructive flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
           {erro}
         </p>

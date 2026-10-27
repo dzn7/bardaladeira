@@ -1,19 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Botao, Entrada, Gaveta, Secao } from '@/components/admin/ui'
 import {
   CONFIG_PRODUTIVIDADE_PADRAO,
   type ChaveConfigProdutividade,
@@ -118,79 +107,56 @@ export function ModalConfigPontuacao({ aberto, config, onFechar, onSalvo }: Prop
   }
 
   const renderGrupo = (titulo: string, descricao: string, campos: CampoConfig[]) => (
-    <div>
-      <h3 className="text-sm font-medium text-foreground">{titulo}</h3>
-      <p className="mt-0.5 text-xs text-muted-foreground">{descricao}</p>
-      <div className="mt-3 space-y-3">
+    <Secao titulo={titulo} descricao={descricao}>
+      <ul className="divide-y divide-border/70 rounded-xl border border-border/70">
         {campos.map((campo) => (
-          <div key={campo.chave} className="flex items-center gap-3">
+          <li key={campo.chave} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
-              <Label htmlFor={campo.chave} className="text-sm font-normal text-foreground">
+              <label htmlFor={campo.chave} className="text-sm font-medium text-foreground">
                 {campo.rotulo}
-              </Label>
-              <p className="text-[11px] text-muted-foreground">{campo.ajuda}</p>
+              </label>
+              <p className="text-[13px] leading-5 text-muted-foreground">{campo.ajuda}</p>
             </div>
-            <Input
+            <Entrada
               id={campo.chave}
               inputMode="decimal"
               value={valores[campo.chave] ?? ''}
               onChange={(evento) => alterar(campo.chave, evento.target.value)}
-              className="h-10 w-24 shrink-0 text-right tabular-nums shadow-none"
-              aria-label={campo.rotulo}
+              className="w-24 shrink-0 text-right tabular-nums"
             />
-          </div>
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </Secao>
   )
 
   return (
-    <Dialog open={aberto} onOpenChange={(estado) => !estado && onFechar()}>
-      <DialogContent className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
-        <DialogHeader className="border-b border-border/60 p-5 pb-4 text-left">
-          <DialogTitle>Pontuação e metas</DialogTitle>
-          <DialogDescription>
-            Vale para todo o histórico: mudar um peso recalcula os períodos já passados.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
-          {renderGrupo('Ganhos', 'Pontos somados a cada ação do garçom.', GANHOS)}
-          {renderGrupo(
-            'Descontos',
-            'Informe valores positivos: eles são subtraídos do total.',
-            PERDAS,
-          )}
-          {renderGrupo('Metas da equipe', 'Usadas nas barras de progresso do topo.', METAS)}
-        </div>
-
-        <DialogFooter className="gap-2 border-t border-border/60 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-11 w-full shadow-none sm:h-9 sm:w-auto"
-            onClick={restaurarPadrao}
-            disabled={salvando}
-          >
+    <Gaveta
+      aberto={aberto}
+      aoFechar={onFechar}
+      bloqueada={salvando}
+      titulo="Pontuação e metas"
+      descricao="Vale para todo o histórico: mudar um peso recalcula os períodos já passados."
+      rodape={
+        <>
+          <Botao variante="fantasma" className="md:mr-auto" onClick={restaurarPadrao} disabled={salvando}>
             Restaurar padrão
-          </Button>
-          <Button
-            type="button"
-            className="h-11 w-full shadow-none sm:h-9 sm:w-auto"
-            onClick={() => void salvar()}
-            disabled={salvando}
-          >
-            {salvando ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Salvando
-              </>
-            ) : (
-              'Salvar'
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </Botao>
+          <Botao carregando={salvando} onClick={() => void salvar()}>
+            Salvar
+          </Botao>
+        </>
+      }
+    >
+      <div className="space-y-6">
+        {renderGrupo('Ganhos', 'Pontos somados a cada ação do garçom.', GANHOS)}
+        {renderGrupo(
+          'Descontos',
+          'Use números positivos: eles são tirados do total.',
+          PERDAS,
+        )}
+        {renderGrupo('Metas da equipe', 'Usadas nas barras de progresso das metas.', METAS)}
+      </div>
+    </Gaveta>
   )
 }

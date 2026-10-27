@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeSlash as EyeOff } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import type { ResumoPeriodo } from '../types'
 import { formatarMoeda } from '../lib/formatadores'

@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useRef, useCallback, useEffect } from 'react'
-import { Check, Inbox, Palette } from 'lucide-react'
+import { Check, Tray as Inbox, Palette } from '@phosphor-icons/react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import {
@@ -288,7 +288,7 @@ function ColunaKanbanComponent({
       <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5 md:px-4 md:py-3">
         <div className="flex min-w-0 items-center gap-2">
           <span
-            className="inline-flex max-w-full items-center truncate rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-wide md:text-xs"
+            className="inline-flex max-w-full items-center truncate rounded-md px-2 py-1 text-sm font-medium"
             style={{ backgroundColor: estilos.fundoTitulo, color: estilos.textoTitulo }}
           >
             {config.titulo}
@@ -310,7 +310,7 @@ function ColunaKanbanComponent({
               <button
                 type="button"
                 aria-label={`Trocar a cor da coluna ${config.titulo}`}
-                className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-black/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 dark:hover:bg-white/10 md:opacity-0 md:group-hover/coluna:opacity-100 md:focus-visible:opacity-100"
+                className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-opacity md:size-8 hover:bg-black/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 dark:hover:bg-white/10 md:opacity-0 md:group-hover/coluna:opacity-100 md:focus-visible:opacity-100"
               >
                 <Palette className="size-4" strokeWidth={1.8} />
               </button>
@@ -326,7 +326,7 @@ function ColunaKanbanComponent({
                       type="button"
                       onClick={() => onTrocarCor(chave, opcao)}
                       className={cn(
-                        'flex size-7 items-center justify-center rounded-md transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+                        'flex size-9 items-center justify-center rounded-md transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
                         selecionada && 'ring-2 ring-foreground/40 ring-offset-2 ring-offset-popover',
                       )}
                       style={{ backgroundColor: opcao }}

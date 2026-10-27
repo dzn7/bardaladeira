@@ -1,9 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Copy, ExternalLink, RefreshCw } from 'lucide-react'
+import { Check, Copy, ArrowSquareOut as ExternalLink, ArrowsClockwise as RefreshCw } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { Botao, CabecalhoPagina, Cartao, Pagina } from '@/components/admin/ui'
 import { obterIntervaloDiaOperacionalAtual } from '@/lib/dia-operacional'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -164,73 +164,58 @@ export default function PainelGarcons() {
     return { total: garcons.length, ativos, criadosHoje, editadosHoje, vendasHoje }
   }, [garcons])
 
+  const indicadores = [
+    { rotulo: 'Equipe', valor: String(resumo.total), detalhe: `${resumo.ativos} ativos` },
+    { rotulo: 'Pedidos hoje', valor: String(resumo.criadosHoje) },
+    { rotulo: 'Editados hoje', valor: String(resumo.editadosHoje) },
+    { rotulo: 'Vendas hoje', valor: moeda.format(resumo.vendasHoje) },
+  ]
+
   return (
-    <div className="space-y-5">
-      <div className="flex w-full min-w-0 flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">Garçons</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Desempenho do dia operacional (até 3h) · acesso ao app
+    <Pagina>
+      <CabecalhoPagina
+        titulo="Garçons"
+        descricao="Desempenho do dia (o dia vira às 3h) e link de acesso ao app."
+        acoes={
+          <Botao variante="contorno" onClick={() => void carregarGarcons()} disabled={carregando}>
+            <RefreshCw className={cn(carregando && 'animate-spin')} />
+            Atualizar
+          </Botao>
+        }
+      />
+
+      <Cartao className="grid grid-cols-2 gap-px overflow-hidden bg-border/70 md:grid-cols-4">
+        {indicadores.map((item) => (
+          <div key={item.rotulo} className="min-w-0 bg-card p-4">
+            <p className="text-[13px] text-muted-foreground">{item.rotulo}</p>
+            <p className="mt-1 truncate text-lg font-semibold tabular-nums text-foreground">{item.valor}</p>
+            {item.detalhe && <p className="text-[13px] text-muted-foreground">{item.detalhe}</p>}
+          </div>
+        ))}
+      </Cartao>
+
+      <Cartao className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground">Link de acesso</p>
+          <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
+            Mande para o garçom entrar no app. Cadastro e senha ficam em Usuários.
+          </p>
+          <p className="mt-2 flex min-w-0 items-center gap-1.5 text-sm text-foreground">
+            <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
+            <span className="truncate font-mono">{urlGarcom}</span>
           </p>
         </div>
-        <div className="flex flex-wrap items-end gap-4 md:gap-6">
-          <div className="min-w-[70px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Equipe</p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{resumo.total}</p>
-            <p className="text-xs text-muted-foreground">{resumo.ativos} ativos</p>
-          </div>
-          <div className="min-w-[70px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Criados hoje</p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{resumo.criadosHoje}</p>
-          </div>
-          <div className="min-w-[70px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Editados hoje</p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{resumo.editadosHoje}</p>
-          </div>
-          <div className="min-w-[100px]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Vendas hoje</p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-              {moeda.format(resumo.vendasHoje)}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 shadow-none"
-            onClick={() => void carregarGarcons()}
-            disabled={carregando}
-          >
-            <RefreshCw className={cn('mr-2 h-4 w-4', carregando && 'animate-spin')} />
-            Atualizar
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm md:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Link de acesso</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Envie para o garçom entrar no app. Cadastro e senha ficam em Usuários.
-            </p>
-          </div>
-          <Button type="button" size="sm" className="h-9 shrink-0 shadow-none" onClick={() => void copiarUrl()}>
-            {urlCopiada ? <Check className="mr-2 h-3.5 w-3.5" /> : <Copy className="mr-2 h-3.5 w-3.5" />}
-            {urlCopiada ? 'Copiado' : 'Copiar link'}
-          </Button>
-        </div>
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
-          <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <p className="min-w-0 truncate font-mono text-sm tabular-nums text-foreground">{urlGarcom}</p>
-        </div>
-      </div>
+        <Botao className="h-11 shrink-0 md:h-10" onClick={() => void copiarUrl()}>
+          {urlCopiada ? <Check /> : <Copy />}
+          {urlCopiada ? 'Copiado' : 'Copiar link'}
+        </Botao>
+      </Cartao>
 
       <ListaGarcons
         garcons={garcons}
         carregando={carregando}
         onAtualizar={() => void carregarGarcons({ silencioso: true })}
       />
-    </div>
+    </Pagina>
   )
 }

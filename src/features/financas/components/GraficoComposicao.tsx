@@ -52,9 +52,9 @@ export function GraficoComposicao({ dados, total, carregando }: GraficoComposica
   )
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card p-5">
+    <div className="rounded-xl border border-border/70 bg-card p-4 md:p-5">
       <div className="mb-4">
-        <h3 className="text-base font-semibold tracking-tight text-foreground">Receita por forma de pagamento</h3>
+        <h3 className="text-base font-semibold text-foreground">Receita por forma de pagamento</h3>
         <p className="text-sm text-muted-foreground">Distribuição dos pedidos no período.</p>
       </div>
 

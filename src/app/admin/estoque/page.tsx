@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { AlertTriangle, ChevronRight, History, Package, RefreshCw, Search } from 'lucide-react'
+import { Warning as AlertTriangle, CaretRight as ChevronRight, ClockCounterClockwise as History, Package, ArrowsClockwise as RefreshCw, MagnifyingGlass as Search } from '@phosphor-icons/react'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import Interruptor from '@/components/admin/Interruptor'

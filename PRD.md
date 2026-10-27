@@ -192,9 +192,9 @@ Há ainda páginas de detalhes/edição de pedido, relatórios e saldos de caixa
 ### 7.1 Estoque e notificações administrativas
 
 - `/admin/estoque` reúne produtos e bebidas e oferece busca global, estado, categoria, paginação, ajuste rápido por RPC atômica e toggle “Esgotado no site” por item.
-- `itens_pedido.produto_id` e `itens_pedido.bebida_id` reservam saldo ao inserir/alterar item e restauram exatamente o consumo ao excluir, cancelar ou reabrir um pedido.
 - A aba Movimentações lista entradas, saídas e ajustes de produtos e bebidas (data, quantidade, saldo depois e origem) pela RPC `listar_movimentacoes_estoque`, lida só pelo route handler `/api/admin/estoque/movimentacoes` com service role.
 - Quando o bloqueio está ativo, saldo insuficiente rejeita somente pedidos de origem `site`; pedidos físicos de origem `admin`/`garcom` continuam permitidos. Sem saldo, esses canais registram consumo zero e nunca deixam quantidade negativa.
+- `itens_pedido.produto_id` e `itens_pedido.bebida_id` reservam saldo ao inserir/alterar item e restauram exatamente o consumo ao excluir, cancelar ou reabrir um pedido.
 - A Central usa route handlers autenticados e service role para suas relações privadas. O estoque operacional legado continua acessado pelo client anon, risco conhecido que esta task não amplia.
 
 ### 7.2 Histórico e inteligência de produto
@@ -285,6 +285,7 @@ Outros triggers importantes atualizam snapshots de itens/fila, saldo do crediár
 | UI compartilhada | Primitivos shadcn/Radix em `src/components/ui` e Kibo UI em `src/components/kibo-ui` | Novas telas devem reutilizar essas bases | 2026-07-12 |
 | Arquivos | Backblaze B2 via API compatível com S3 | URLs públicas ficam salvas nas entidades | 2026-07-12 |
 | Estoque de produtos e bebidas | Postgres reserva/restaura por `itens_pedido.produto_id`/`bebida_id`; bloqueio de saldo vale para `pedidos.origem = site`; ajustes usam RPC `SECURITY INVOKER` por tipo | O site respeita “Esgotado”, enquanto Admin/Garçom preservam a venda física | 2026-08-25 |
+| UI do admin | Kit `@/components/admin/ui` (Gaveta Vaul, `useConfirmar`, campos) + ícones Phosphor no admin; lucide fica no público/garçom/entregador | Criar/editar/detalhe sempre em gaveta; confirmações e avisos padronizados | 2026-10-27 |
 | Histórico de produto | Audit trail append-only por trigger, episódios promocionais identificados e snapshot em `itens_pedido`; leitura somente pelo route handler admin | Alterações não dependem da UI e métricas não usam preço atual; histórico administrativo começa na migration | 2026-08-22 |
 
 ## Hotspots e dependências sensíveis

@@ -1,7 +1,7 @@
 'use client'
 
 import { useId } from 'react'
-import { Calendar, ChevronDown, RotateCcw } from 'lucide-react'
+import { Calendar, CaretDown as ChevronDown, ArrowCounterClockwise as RotateCcw } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -63,13 +63,13 @@ export function FiltroPeriodo({ filtro, onChange, onAtualizar, carregando }: Fil
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-9 gap-2">
-              <Calendar strokeWidth={1.6} className="h-4 w-4" />
+              <Calendar className="h-4 w-4" />
               <span className="font-medium">{opcaoAtiva.rotulo}</span>
-              <ChevronDown strokeWidth={1.6} className="h-[15px] w-[15px] text-muted-foreground" />
+              <ChevronDown className="h-[15px] w-[15px] text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">
-            <DropdownMenuLabel className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+            <DropdownMenuLabel className="text-[13px] text-muted-foreground">
               Período
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -97,7 +97,7 @@ export function FiltroPeriodo({ filtro, onChange, onAtualizar, carregando }: Fil
           disabled={carregando}
           aria-label="Atualizar"
         >
-          <RotateCcw strokeWidth={1.6} className={`h-4 w-4 ${carregando ? 'animate-spin' : ''}`} />
+          <RotateCcw className={`h-4 w-4 ${carregando ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">Atualizar</span>
         </Button>
       </div>
@@ -107,7 +107,7 @@ export function FiltroPeriodo({ filtro, onChange, onAtualizar, carregando }: Fil
           <div className="flex flex-col gap-1">
             <Label
               htmlFor={idInicio}
-              className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground"
+              className="text-[13px] text-muted-foreground"
             >
               Início
             </Label>
@@ -122,7 +122,7 @@ export function FiltroPeriodo({ filtro, onChange, onAtualizar, carregando }: Fil
           <div className="flex flex-col gap-1">
             <Label
               htmlFor={idFim}
-              className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground"
+              className="text-[13px] text-muted-foreground"
             >
               Fim
             </Label>

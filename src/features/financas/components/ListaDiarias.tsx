@@ -1,18 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Trash2 } from 'lucide-react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
+import { CalendarDots as CalendarDays, Trash as Trash2 } from '@phosphor-icons/react'
+import { Selo, useConfirmar } from '@/components/admin/ui'
 import { MenuAcoes } from '@/components/ui/menu-acoes'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ListaVazia, TabelaSkeleton } from '@/components/admin/filtros/ListaEstado'
@@ -51,8 +41,7 @@ type ListaDiariasProps = {
 }
 
 export function ListaDiarias({ diarias, carregando, onRemover, embutido = false }: ListaDiariasProps) {
-  const [confirmacao, setConfirmacao] = useState<FinancasDiaria | null>(null)
-  const [removendo, setRemovendo] = useState(false)
+  const confirmar = useConfirmar()
   const [pagina, setPagina] = useState(1)
   const [limite, setLimite] = useState(LIMITE_PADRAO)
 
@@ -71,15 +60,14 @@ export function ListaDiarias({ diarias, carregando, onRemover, embutido = false 
     return diarias.slice(inicio, inicio + limite)
   }, [diarias, pagina, limite])
 
-  const handleConfirmarRemocao = async () => {
-    if (!confirmacao) return
-    setRemovendo(true)
-    try {
-      await onRemover(confirmacao)
-      setConfirmacao(null)
-    } finally {
-      setRemovendo(false)
-    }
+  const pedirRemocao = async (d: FinancasDiaria) => {
+    const ok = await confirmar({
+      titulo: 'Excluir diária?',
+      descricao: `Sai a diária de ${d.nome_pessoa} e a despesa dela no caixa.`,
+      confirmar: 'Excluir',
+      perigo: true,
+    })
+    if (ok) await onRemover(d)
   }
 
   return (
@@ -94,50 +82,40 @@ export function ListaDiarias({ diarias, carregando, onRemover, embutido = false 
       ) : diarias.length === 0 ? (
         <ListaVazia
           className="border-0 bg-transparent py-10"
-          icone={<CalendarDays className="h-6 w-6" strokeWidth={1.6} />}
+          icone={<CalendarDays className="h-6 w-6" />}
           titulo="Nenhuma diária neste período"
-          descricao="Clique num dia do calendário ou use Nova diária para lançar o pagamento."
+          descricao="Toque num dia do calendário ou em Nova diária."
         />
       ) : (
         <>
-          <div className="flex flex-col gap-3 p-3 md:hidden">
+          <ul className="divide-y divide-border/70 md:hidden">
             {paginaItens.map((d) => (
-              <article
-                key={d.id}
-                className="rounded-lg border border-border/70 bg-muted/20 p-3"
-              >
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{d.nome_pessoa}</p>
-                    <p className="text-xs text-muted-foreground">{formatarDataLocal(d.data_referencia)}</p>
-                  </div>
-                  <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-destructive">
-                    − {formatarMoeda(d.valor)}
+              <li key={d.id} className="flex min-h-16 items-center gap-3 px-1 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{d.nome_pessoa}</p>
+                  <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                    {formatarDataLocal(d.data_referencia)} · {rotuloForma(d.forma_pagamento)}
+                    {d.observacoes ? ` · ${d.observacoes}` : ''}
                   </p>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant="outline" className="rounded-md border-border/70 font-normal shadow-none">
-                    {rotuloForma(d.forma_pagamento)}
-                  </Badge>
-                  <MenuAcoes
-                    ariaLabel="Ações da diária"
-                    items={[
-                      {
-                        key: 'excluir',
-                        label: 'Excluir',
-                        icon: <Trash2 className="h-3.5 w-3.5" />,
-                        onSelect: () => setConfirmacao(d),
-                        variant: 'destructive',
-                      },
-                    ]}
-                  />
-                </div>
-                {d.observacoes ? (
-                  <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{d.observacoes}</p>
-                ) : null}
-              </article>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-destructive">
+                  − {formatarMoeda(d.valor)}
+                </span>
+                <MenuAcoes
+                  ariaLabel="Ações da diária"
+                  items={[
+                    {
+                      key: 'excluir',
+                      label: 'Excluir',
+                      icon: <Trash2 className="h-3.5 w-3.5" />,
+                      onSelect: () => void pedirRemocao(d),
+                      variant: 'destructive',
+                    },
+                  ]}
+                />
+              </li>
             ))}
-          </div>
+          </ul>
 
           <div className="hidden md:block">
             <Table>
@@ -163,11 +141,9 @@ export function ListaDiarias({ diarias, carregando, onRemover, embutido = false 
                       ) : null}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="rounded-md border-border/70 font-normal shadow-none">
-                        {rotuloForma(d.forma_pagamento)}
-                      </Badge>
+                      <Selo>{rotuloForma(d.forma_pagamento)}</Selo>
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm font-semibold tabular-nums text-destructive">
+                    <TableCell className="text-right text-sm font-semibold tabular-nums text-destructive">
                       − {formatarMoeda(d.valor)}
                     </TableCell>
                     <TableCell>
@@ -178,7 +154,7 @@ export function ListaDiarias({ diarias, carregando, onRemover, embutido = false 
                             key: 'excluir',
                             label: 'Excluir',
                             icon: <Trash2 className="h-3.5 w-3.5" />,
-                            onSelect: () => setConfirmacao(d),
+                            onSelect: () => void pedirRemocao(d),
                             variant: 'destructive',
                           },
                         ]}
@@ -205,29 +181,6 @@ export function ListaDiarias({ diarias, carregando, onRemover, embutido = false 
         </>
       )}
 
-      <AlertDialog open={Boolean(confirmacao)} onOpenChange={(aberto) => !aberto && setConfirmacao(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir diária?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Isso remove o lançamento de {confirmacao?.nome_pessoa} e a despesa correspondente no caixa.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={removendo}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault()
-                void handleConfirmarRemocao()
-              }}
-              disabled={removendo}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {removendo ? 'Excluindo…' : 'Excluir'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
