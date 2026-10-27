@@ -27,6 +27,7 @@ Centralizar a operação digital e presencial do Bar da Ladeira: exposição do 
 - Gestão de entregas, entregadores e repasses.
 - Catálogo: produtos, bebidas, combos, adicionais, categorias, ordenação, imagens e disponibilidade. Produtos finais possuem histórico operacional/comercial auditável, acessível no admin.
 - Estoque operacional de produtos e bebidas: custo opcional, quantidade, mínimo, bloqueio de venda e reserva/restauração atômica pelos itens do pedido. Combos, adicionais e insumos ficam fora desse controle.
+- O saldo pode ficar negativo: toda venda (admin, garçom, PDV, site, bot) baixa a quantidade inteira, mesmo com saldo zero, e a reposição soma a partir do negativo. Só o bloqueio do site (`bloquear_venda_sem_estoque` + origem `site`) recusa a venda, sem mudança de regra.
 - Caixa, movimentações, categorias financeiras, saldos, salários, crediário, relatórios e fechamento anual.
 - A Central do Admin mantém ocorrências persistentes de estoque baixo/esgotado, pedidos novos e pagamentos mensais da equipe, com preferências por administrador, deduplicação e resolução automática.
 - Gestão de usuários de sistema (`admin`, `garcom`, `entregador`) e cadastro derivado de clientes.
@@ -192,13 +193,14 @@ Há ainda páginas de detalhes/edição de pedido, relatórios e saldos de caixa
 
 - `/admin/estoque` reúne produtos e bebidas e oferece busca global, estado, categoria, paginação, ajuste rápido por RPC atômica e toggle “Esgotado no site” por item.
 - `itens_pedido.produto_id` e `itens_pedido.bebida_id` reservam saldo ao inserir/alterar item e restauram exatamente o consumo ao excluir, cancelar ou reabrir um pedido.
+- A aba Movimentações lista entradas, saídas e ajustes de produtos e bebidas (data, quantidade, saldo depois e origem) pela RPC `listar_movimentacoes_estoque`, lida só pelo route handler `/api/admin/estoque/movimentacoes` com service role.
 - Quando o bloqueio está ativo, saldo insuficiente rejeita somente pedidos de origem `site`; pedidos físicos de origem `admin`/`garcom` continuam permitidos. Sem saldo, esses canais registram consumo zero e nunca deixam quantidade negativa.
 - A Central usa route handlers autenticados e service role para suas relações privadas. O estoque operacional legado continua acessado pelo client anon, risco conhecido que esta task não amplia.
 
 ### 7.2 Histórico e inteligência de produto
 
 - O estado atual continua em `produtos`; `produto_historico_eventos` é um audit trail append-only e `produto_promocoes_historico` identifica cada episódio promocional a partir de 22/08/2026. Não há auditoria administrativa retroativa inventada.
-- Triggers registram alterações relevantes de catálogo, visibilidade e estoque. As rotinas já existentes de estoque acrescentam contexto causal para ajuste, reserva por pedido, cancelamento e reabertura, sem duplicar movimentos.
+- Triggers registram alterações relevantes de catálogo, visibilidade e estoque. Bebidas registram só movimentação de saldo (`item_tipo = 'bebida'`) a partir de 27/10/2026; `produto_id` virou snapshot sem FK. As rotinas já existentes de estoque acrescentam contexto causal para ajuste, reserva por pedido, cancelamento e reabertura, sem duplicar movimentos.
 - `itens_pedido` congela o episódio, preço normal e preço promocional quando a venda coincide com a promoção ativa. Métricas usam o item/pedido histórico e excluem `cancelado`, `aguardando_pagamento` e `pendente`; não derivam faturamento do preço atual.
 - O Dialog de produto consome funções agregadas exclusivamente por route handlers administrativos com service role. Timeline usa cursor de 25 eventos e relatórios aceitam no máximo 366 dias por consulta.
 - O login atual ainda é local/client-side; por isso eventos originados por escrita direta no legado registram ator `Sistema` e origem técnica verificável, sem atribuir falsamente um funcionário. Sessão administrativa server-side é uma evolução separada.

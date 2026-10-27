@@ -9,6 +9,15 @@ const inteiroNaoNegativo = (valor, padrao, campo) => {
   return efetivo
 }
 
+// Saldo pode ficar negativo: venda sem estoque baixa mesmo assim (ex.: 0 - 2 = -2).
+const inteiro = (valor, padrao, campo) => {
+  const efetivo = valor === '' || valor === null || valor === undefined ? padrao : Number(valor)
+  if (!Number.isInteger(efetivo)) {
+    throw new Error(`${campo} deve ser um número inteiro`)
+  }
+  return efetivo
+}
+
 const quantidadeProduto = (produto) => produto.estoque_quantidade ?? produto.quantidade
 const minimoProduto = (produto) => produto.estoque_minimo ?? produto.minimo
 const bloqueioProduto = (produto) => (
@@ -16,7 +25,7 @@ const bloqueioProduto = (produto) => (
 ) === true
 
 export const normalizarConfiguracaoEstoque = (configuracao = {}) => ({
-  quantidade: inteiroNaoNegativo(
+  quantidade: inteiro(
     configuracao.quantidade,
     ESTOQUE_QUANTIDADE_PADRAO,
     'Quantidade',
@@ -30,7 +39,7 @@ export const obterSituacaoEstoque = (produto) => {
     quantidade: quantidadeProduto(produto),
     minimo: minimoProduto(produto),
   })
-  if (configuracao.quantidade === 0) return 'esgotado'
+  if (configuracao.quantidade <= 0) return 'esgotado'
   if (configuracao.quantidade <= configuracao.minimo) return 'baixo'
   return 'em_estoque'
 }
@@ -39,7 +48,7 @@ export const obterSituacaoEstoqueProduto = obterSituacaoEstoque
 
 export const produtoBloqueadoPorEstoque = (produto) => (
   bloqueioProduto(produto)
-  && inteiroNaoNegativo(quantidadeProduto(produto), 0, 'Quantidade') === 0
+  && inteiro(quantidadeProduto(produto), 0, 'Quantidade') <= 0
 )
 
 export const produtoDisponivelParaCompra = (produto) => (
@@ -66,7 +75,7 @@ export const avaliarCompraProduto = (produto, quantidadeNoCarrinho, quantidadeAd
     return { permitido: true, quantidadeMaxima: null, motivo: null }
   }
 
-  const quantidade = inteiroNaoNegativo(quantidadeProduto(produto), 0, 'Quantidade')
+  const quantidade = inteiro(quantidadeProduto(produto), 0, 'Quantidade')
   const quantidadeMaxima = Math.max(0, quantidade - noCarrinho)
   return {
     permitido: aAdicionar <= quantidadeMaxima,

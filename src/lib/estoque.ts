@@ -46,6 +46,11 @@ const inteiroOuPadrao = (valor: unknown, padrao: number) => {
   return Number.isInteger(numero) && numero >= 0 ? numero : padrao
 }
 
+const saldoOuZero = (valor: unknown) => {
+  const numero = Number(valor)
+  return Number.isInteger(numero) ? numero : 0
+}
+
 export const mapearLinhaEstoque = (
   linha: Record<string, unknown>,
   tabela: ProdutoComEstoque['tabela'] = 'produtos',
@@ -58,7 +63,7 @@ export const mapearLinhaEstoque = (
     linha.custo_unitario === null || linha.custo_unitario === undefined || linha.custo_unitario === ''
       ? null
       : Number(linha.custo_unitario),
-  estoque_quantidade: inteiroOuPadrao(linha.estoque_quantidade, 0),
+  estoque_quantidade: saldoOuZero(linha.estoque_quantidade),
   estoque_minimo: inteiroOuPadrao(linha.estoque_minimo, 5),
   bloquear_venda_sem_estoque: linha.bloquear_venda_sem_estoque === true,
   disponivel: linha.disponivel !== false,
@@ -88,7 +93,7 @@ export class ErroEstoque extends Error {
 export async function ajustarEstoqueProduto(ajuste: AjusteEstoqueProduto): Promise<number> {
   const usaDelta = ajuste.delta !== undefined
   const valor = usaDelta ? ajuste.delta : ajuste.quantidade
-  if (typeof valor !== 'number' || !Number.isInteger(valor) || (!usaDelta && valor < 0)) {
+  if (typeof valor !== 'number' || !Number.isInteger(valor)) {
     throw new ErroEstoque(new Error('O ajuste de estoque deve usar um número inteiro válido'))
   }
 
@@ -107,7 +112,7 @@ export async function ajustarEstoqueProduto(ajuste: AjusteEstoqueProduto): Promi
 
   if (error) throw new ErroEstoque(error)
   const quantidadeConfirmada = Number(data)
-  if (!Number.isInteger(quantidadeConfirmada) || quantidadeConfirmada < 0) {
+  if (!Number.isInteger(quantidadeConfirmada)) {
     throw new ErroEstoque(new Error('O banco retornou uma quantidade de estoque inválida'))
   }
   return quantidadeConfirmada

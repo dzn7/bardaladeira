@@ -1,5 +1,28 @@
 # Progress
 
+## [2026-10-27] Histórico de estoque completo, saldo negativo e nova tela de Estoque
+
+**Agente/Modelo:** Claude Opus 5.5
+**Objetivo:** toda movimentação de estoque de qualquer item aparece no histórico; venda sem estoque deixa saldo negativo; tela de Estoque mais simples.
+**Arquivos alterados:** `supabase/migrations/20261027120000_estoque_negativo_movimentacoes.sql`, `src/app/api/admin/estoque/movimentacoes/route.ts` (novo), `src/components/admin/estoque/MovimentacoesEstoque.tsx` (novo), `src/app/admin/estoque/page.tsx`, `src/components/admin/estoque/ControleEstoqueProduto.tsx`, `src/lib/estoque.ts`, `src/lib/estoque-produto.mjs`, `tests/estoque-produto.test.mjs`, `src/app/admin/produtos/page.tsx`, `src/components/admin/produtos/ModalFormularioProduto.tsx`, `PRD.md`, `UI.md`, `Progress.md`.
+**Causa raiz:** (1) bebidas não tinham trigger de histórico e `produto_historico_eventos.produto_id` tinha FK para `produtos` — nenhuma movimentação das 30 bebidas era gravada; (2) `sincronizar_estoque_item_pedido`/`reconciliar_estoque_status_pedido` consumiam `least(saldo, quantidade)`: com saldo 0 o UPDATE não mudava nada e nenhum evento nascia; com saldo menor, só a parte disponível era registrada.
+**O que foi feito:** CHECK `estoque_quantidade >= 0` removido de produtos/bebidas; venda consome a quantidade inteira com lock por linha; contexto causal gravado também para bebidas; trigger `trg_registrar_historico_estoque_bebida`; coluna `item_tipo`; RPCs de ajuste aceitam negativo; esgotado/recuperado e episódios de esgotado usam `<= 0`; RPC `listar_movimentacoes_estoque` (só service_role) + route handler admin; tela nova com abas Saldo/Movimentações e detalhe responsivo. Edição de produto só chama `definir_estoque_*` quando a quantidade mudou (antes sobrescrevia vendas feitas com o formulário aberto). Migration aplicada pela Management API.
+**Decisões tomadas:** sem backfill (dado não gravado não é inventado). Tipo de movimento derivado da origem: venda = saída; cancelamento/remoção de item = entrada; ajuste manual positivo = entrada (reposição); negativo = ajuste. `−` manual não leva o saldo abaixo de zero. Regra do site (bloqueio) intacta; mensagem `ESTOQUE_INSUFICIENTE` usa `greatest(saldo, 0)`. Exclusão de produto com histórico voltou a funcionar (a FK `SET NULL` batia no trigger append-only).
+**Verificação:** migration + cenário em `BEGIN/ROLLBACK` (Água de coco 0 → venda 2 → −2; +10 → 8; cancelar devolve; reabrir baixa; site bloqueado recusa; excluir produto ok) ✓ · concorrência: 2 vendas simultâneas, a segunda esperou o lock 2,9 s ✓ · `npx tsc --noEmit` ✓ · testes 67/67 ✓ · `next build` ✓ (com env do Supabase no processo) · ESLint mínimo (react-hooks) 0 erros · UI validada por código (usuário vetou navegador).
+**Pendências / próximos passos:** 959 unidades de 17 produtos e 3.490 unidades de 28 bebidas vendidas desde 22/08 não têm movimentação gravada (471 unidades de bebida nem baixaram saldo); ficam como estão. `next lint` segue indisponível; `.env.local` local não tem as vars do Supabase.
+**Armadilhas descobertas:** `produto_historico_eventos` guarda produtos e bebidas — filtre por `item_tipo` quando importar. `listar_historico_produto`/`obter_inteligencia_produto` continuam só para produtos.
+
+## [2026-10-03] Fila de impressão pausada retém e imprime só manualmente
+
+**Agente/Modelo:** Claude Sonnet 5.5
+**Objetivo:** com a fila Pausada, nada imprime sozinho; o admin imprime manualmente.
+**Arquivos alterados:** `supabase/migrations/20261003120000_fila_impressao_pausada_retem.sql`, `src/lib/filaImpressao.ts`, `src/components/admin/GerenciadorImpressao.tsx`, `PRD.md`, `UI.md`, `Progress.md`.
+**O que foi feito:** pausa deixa de descartar e passa a gravar `status='retido'` (trigger de INSERT, `configurar_fila_impressao` e `proteger_retorno_fila_impressao_automatica`); `fila_impressao_automatica_permitida` ganhou `p_ignorar_pausa` para separar pausa (reter) de janela/itens editados (descartar); UI lista retidos e libera por item ou em lote (`retido → pendente`, `automatico=false`). Migration aplicada pela Management API.
+**Decisões tomadas:** Electron intacto — só consome `pendente` e já reage a UPDATE para `pendente`; sem coluna/constraint nova (`status` não tem CHECK). Reativar a fila não libera retidos (evita lote tardio). Pausa deixou de cancelar: comportamento antigo (descartar) agora só vale para janela de horário.
+**Verificação:** teste SQL transacional com rollback (pausada→retido, liberar→pendente, ativa→pendente, pausar converte pendente→retido, itens editados off descarta) ✓ · `npx tsc --noEmit` ✓ · lint indisponível no Next 16.
+**Pendências / próximos passos:** `20260920120000_pedido_pagamento_pendente.sql` ainda não confirmada como aplicada; não testado na UI nem com impressora física.
+**Armadilhas descobertas:** `fn_atualizar_snapshot_itens_fila` só atualiza snapshot de `pendente/processando` — item adicionado a pedido com ticket `retido` não entra no snapshot retido.
+
 ## [2026-09-20] Pagamento posterior e descarte da fila antiga
 
 **Agente/Modelo:** Codex GPT-5

@@ -212,7 +212,7 @@ export const ModalFormularioProduto = ({
         try {
           normalizarConfiguracaoEstoque({ quantidade: quantidadeEstoque, minimo: 0 })
         } catch {
-          proximosErros.quantidade = 'Quantidade deve ser um inteiro não negativo.'
+          proximosErros.quantidade = 'Quantidade deve ser um número inteiro.'
         }
       }
       if (estoqueMinimo.trim() === '') {

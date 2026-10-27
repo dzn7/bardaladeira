@@ -91,7 +91,8 @@ export const ControleEstoqueProduto = ({
   const handleDelta = (delta: number) => {
     if (desabilitado || ocupado) return
     const previa = quantidadeLocal + delta
-    if (previa < 0) return
+    // Só a venda leva o saldo abaixo de zero; o ajuste manual não diminui além disso.
+    if (delta < 0 && previa < 0) return
     void executarAjuste({ delta }, previa)
   }
 
@@ -148,7 +149,7 @@ export const ControleEstoqueProduto = ({
           size="icon"
           className="h-11 w-11 min-h-11 min-w-11 rounded-r-none shadow-none"
           onClick={() => handleDelta(-1)}
-          disabled={bloqueado || quantidadeLocal === 0}
+          disabled={bloqueado || quantidadeLocal <= 0}
           aria-label={`Diminuir estoque de ${nomeProduto || 'produto'}`}
         >
           <Minus className="h-4 w-4" />
@@ -165,6 +166,7 @@ export const ControleEstoqueProduto = ({
           className={cn(
             'h-11 w-16 rounded-none border-0 border-x border-border/70 px-1 text-center font-mono tabular-nums shadow-none',
             ocupado && 'opacity-70',
+            quantidadeLocal < 0 && 'text-destructive',
           )}
         />
         <Button

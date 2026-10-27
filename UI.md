@@ -212,12 +212,16 @@ Primitivos Kibo UI disponíveis:
 
 ### Estoque (`/admin/estoque`)
 
-- Shell `max-w-6xl`; resumo inline Em estoque / Estoque baixo / Esgotados, sem grid de metric cards.
-- Busca normaliza acento/caixa; pills de estado + `FiltroAvancado` de categoria; tabela semântica desktop e cards mobile.
-- Ajuste rápido (`−` / input / `+` / Zerar): Enter confirma, Escape restaura, blur vazio restaura, lock somente na linha e alvos de 44px.
-- Cada produto ou bebida mostra o `Interruptor` “Esgotado no site”: ligado + quantidade zero desabilita o item apenas no cardápio público; o pedido físico continua permitido.
+- Cabeçalho sem card: título + uma linha de resumo (itens · negativos · esgotados · baixos) e atualizar como ícone. Abas `Saldo` | `Movimentações`.
+- Saldo negativo: número em `text-destructive` (`Saldo`), estado “Negativo”, faixa de alerta clicável que filtra os negativos e pill `CHIP_FILTRO_ALERTA` só quando existe negativo.
+- Estado é ponto + texto (`EstadoEstoque`), sem badge preenchido.
+- Desktop: tabela Produto (nome + categoria) / Saldo / Mínimo / Estado / Ajuste rápido / chevron de detalhes. Mobile: lista de linhas tocáveis (nome, estado, saldo) que abre o detalhe.
+- Detalhe (`ModalSheet` responsivo: gaveta no mobile, dialog no desktop): saldo grande, ajuste (`ControleEstoqueProduto`), “Esgotado no site”, mínimo/venda/custo e últimas 6 movimentações com “Ver tudo” para a aba Movimentações filtrada.
+- Movimentações (`MovimentacoesEstoque`): produto por combobox (Popover + Command), período Hoje (dia operacional) / 7 / 30 dias / Tudo e tipo Todos/Entradas/Saídas/Ajustes. Desktop tabela Data/Produto/Tipo/Qtd./Saldo/Origem; mobile linhas que abrem gaveta com saldo antes → depois. Cursor “Carregar mais”; skeleton, vazio com “Ver tudo” e erro com “Tentar novamente”.
+- Ajuste rápido (`−` / input / `+` / Zerar): Enter confirma, Escape restaura, blur vazio restaura, lock somente na linha e alvos de 44px. `−` não leva abaixo de zero (só venda faz isso); `+` sobe a partir do negativo.
+- “Esgotado no site” mora no detalhe: ligado + saldo ≤ 0 desabilita o item apenas no cardápio público; o pedido físico continua permitido.
 - Paginação 15/30/50/100; deep-link `?produto=<uuid>` destaca o produto; mutation reconcilia somente a linha alterada.
-- Quantidade do modal nunca entra no `insert`/`update` geral: ela passa exclusivamente pela RPC atômica correspondente a produto ou bebida.
+- Quantidade do modal nunca entra no `insert`/`update` geral: ela passa exclusivamente pela RPC atômica correspondente a produto ou bebida, e só quando o valor mudou.
 - Histórico de produto: abrir pelo ícone `History` com `Tooltip`; não oferecer edição/exclusão de eventos. Desktop mantém Timeline (~55%) e desempenho (~45%) em colunas com cabeçalho persistente; mobile usa as abas do `Dialog` responsivo. Skeleton inicial não bloqueia a leitura do cabeçalho do produto.
 
 ### Administração mobile

@@ -1352,7 +1352,8 @@ export default function ProdutosPage() {
       if (error) throw error
 
       let quantidadeConfirmada = produto.estoque_quantidade ?? 0
-      if (typeof quantidadeAlvo === 'number') {
+      // Saldo inalterado no formulário não sobrescreve vendas feitas enquanto ele estava aberto.
+      if (typeof quantidadeAlvo === 'number' && quantidadeAlvo !== produto.estoque_quantidade) {
         quantidadeConfirmada = await ajustarEstoqueProduto({ produtoId: produto.id, tabela, quantidade: quantidadeAlvo })
       }
 

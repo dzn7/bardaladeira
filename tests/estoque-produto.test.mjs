@@ -31,14 +31,17 @@ test('aplica defaults e aceita zero nas configuracoes de estoque', () => {
   )
 })
 
-test('rejeita quantidade negativa, fracionaria ou nao numerica', () => {
-  for (const quantidade of [-1, 1.5, '1.5', 'abc']) {
-    assert.throws(() => normalizarConfiguracaoEstoque({ quantidade }), /inteiro não negativo/i)
+test('aceita saldo negativo e rejeita quantidade fracionaria ou nao numerica', () => {
+  assert.equal(normalizarConfiguracaoEstoque({ quantidade: -2 }).quantidade, -2)
+  for (const quantidade of [1.5, '1.5', 'abc']) {
+    assert.throws(() => normalizarConfiguracaoEstoque({ quantidade }), /número inteiro/i)
   }
+  assert.throws(() => normalizarConfiguracaoEstoque({ quantidade: 0, minimo: -1 }), /inteiro não negativo/i)
 })
 
 test('classifica os limites zero, minimo e minimo mais um', () => {
   assert.equal(obterSituacaoEstoque({ quantidade: 0, minimo: 5 }), 'esgotado')
+  assert.equal(obterSituacaoEstoque({ quantidade: -2, minimo: 5 }), 'esgotado')
   assert.equal(obterSituacaoEstoque({ quantidade: 5, minimo: 5 }), 'baixo')
   assert.equal(obterSituacaoEstoque({ quantidade: 6, minimo: 5 }), 'em_estoque')
   assert.equal(
@@ -71,6 +74,14 @@ test('bloqueio considera o que ja esta no carrinho', () => {
       bloquear_venda_sem_estoque: true,
     }, 0, 1).permitido,
     false,
+  )
+  assert.deepEqual(
+    avaliarCompraProduto({ disponivel: true, estoque_quantidade: -2, bloquear_venda_sem_estoque: true }, 0, 1),
+    { permitido: false, quantidadeMaxima: 0, motivo: 'estoque_insuficiente' },
+  )
+  assert.equal(
+    avaliarCompraProduto({ disponivel: true, estoque_quantidade: -2, bloquear_venda_sem_estoque: false }, 0, 1).permitido,
+    true,
   )
 })
 
