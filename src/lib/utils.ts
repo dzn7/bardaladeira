@@ -1,6 +1,10 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
+/** Minúsculas e sem acento, para busca: "água" casa com "agua". */
+export const normalizarBusca = (valor: string) =>
+  valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }

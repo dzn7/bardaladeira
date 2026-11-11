@@ -1,5 +1,20 @@
 # Progress
 
+## [2026-11-11] Busca de produtos sem acento e barra de busca no mobile
+
+**Agente/Modelo:** Claude Code (Opus 5.5)
+**Objetivo:** No mobile, a busca de Produtos ficava espremida ao lado do botão Filtrar e não achava "água" digitando "agua".
+**Arquivos alterados:** `src/lib/utils.ts`, `src/app/admin/produtos/page.tsx`, `src/components/admin/produtos/FiltroProdutosAdmin.tsx`, `src/app/admin/pedidos/novo/page.tsx`, `src/app/admin/adicionais/page.tsx`, `src/app/admin/combos/page.tsx`
+**O que foi feito:**
+
+- Novo `normalizarBusca` (minúsculas, sem acento) em `src/lib/utils.ts`; usado nas buscas de Produtos, Novo pedido, Adicionais e Combos.
+- Barra de Produtos: busca em linha própria no mobile (h-12, ícone 20px, botão limpar de 44px no lugar do × nativo); Filtrar abaixo em largura total; lado a lado a partir de `sm`.
+
+**Decisões tomadas:** Estoque já normalizava acento (`produtoCorrespondeBuscaEstoque`); não mexido.
+**Verificação:** `tsc --noEmit` sem erros. Tela não conferida no navegador (rota protegida, sem login local).
+**Pendências / próximos passos:** Conferir no celular.
+**Armadilhas descobertas:** `FiltroProdutosAdmin` aplicava `w-full` no gatilho do filtro dentro de uma linha flex, o que comia a largura da busca.
+
 ## [2026-10-27] Estoque e Movimentações no padrão do Crediário; saldo negativo manual
 
 **Agente/Modelo:** Claude Opus 5.5

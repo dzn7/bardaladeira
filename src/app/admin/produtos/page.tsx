@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Reorder, useDragControls, type DragControls } from 'framer-motion'
-import { ArrowsClockwise as RefreshCw, ArrowsDownUp, PencilSimple as Pencil, Image as ImageIcon, Plus, CaretDown as ChevronDown, CaretUp as ChevronUp, DotsSixVertical as GripVertical, MagnifyingGlass as Search, ClockCounterClockwise as History, ForkKnife } from '@phosphor-icons/react'
+import { ArrowsClockwise as RefreshCw, ArrowsDownUp, PencilSimple as Pencil, Image as ImageIcon, Plus, CaretDown as ChevronDown, CaretUp as ChevronUp, DotsSixVertical as GripVertical, MagnifyingGlass as Search, ClockCounterClockwise as History, ForkKnife, X } from '@phosphor-icons/react'
 import ProtectedRoute from '@/components/admin/ProtectedRoute'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { FiltrosAtivosChips, type ChipFiltroAtivo } from '@/components/admin/filtros/FiltrosAtivosChips'
@@ -40,7 +40,7 @@ import {
   formatarPreco,
   useConfirmar,
 } from '@/components/admin/ui'
-import { cn } from '@/lib/utils'
+import { cn, normalizarBusca } from '@/lib/utils'
 import { validarArquivoImagem, arquivoParaUrl } from '@/lib/recorteImagem'
 import { enviarImagemParaR2 } from '@/lib/servicoUploadImagem'
 import {
@@ -1393,7 +1393,7 @@ export default function ProdutosPage() {
   }
 
   const categorias = categoriasOrdenadas
-  const termoBuscaProdutos = buscaProdutos.trim().toLowerCase()
+  const termoBuscaProdutos = normalizarBusca(buscaProdutos)
   const produtoPassaNosFiltros = useCallback(
     (produto: Produto) => {
       if (categoriaFiltroProdutos !== 'todas' && !categoriasSaoIguais(produto.categoria, categoriaFiltroProdutos)) {
@@ -1413,10 +1413,10 @@ export default function ProdutosPage() {
         produto.descricao || '',
         produto.categoria,
         produto.tabela === 'bebidas' ? 'bebida' : 'produto',
-        produto.disponivel ? 'ativo disponivel disponível' : 'oculto indisponivel indisponível',
-      ].join(' ').toLowerCase()
+        produto.disponivel ? 'ativo disponivel' : 'oculto indisponivel',
+      ].join(' ')
 
-      return textoProduto.includes(termoBuscaProdutos)
+      return normalizarBusca(textoProduto).includes(termoBuscaProdutos)
     },
     [categoriaFiltroProdutos, filtroFotoProdutos, filtroStatusProdutos, filtroTipoProdutos, termoBuscaProdutos]
   )
@@ -1469,7 +1469,7 @@ export default function ProdutosPage() {
 
   const chipsFiltroProdutos: ChipFiltroAtivo[] = []
   if (termoBuscaProdutos) {
-    chipsFiltroProdutos.push({ key: 'busca', label: 'Busca', value: termoBuscaProdutos })
+    chipsFiltroProdutos.push({ key: 'busca', label: 'Busca', value: buscaProdutos.trim() })
   }
   if (filtroStatusProdutos !== 'todos') {
     chipsFiltroProdutos.push({
@@ -1546,17 +1546,30 @@ export default function ProdutosPage() {
 
           {produtos.length > 0 ? (
             <div className="space-y-2">
-              <div className="flex gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative w-full min-w-0 sm:flex-1">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
                   <Entrada
-                    type="search"
+                    type="text"
+                    inputMode="search"
+                    enterKeyHint="search"
+                    autoComplete="off"
                     value={buscaProdutos}
                     onChange={(evento) => setBuscaProdutos(evento.target.value)}
-                    placeholder="Buscar produto"
-                    className="pl-9"
+                    placeholder="Buscar por nome ou categoria"
+                    className="h-12 pl-11 pr-12 md:h-10"
                     aria-label="Buscar produtos"
                   />
+                  {buscaProdutos ? (
+                    <button
+                      type="button"
+                      onClick={() => setBuscaProdutos('')}
+                      className="absolute right-0 top-0 flex h-full w-11 cursor-pointer items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      aria-label="Limpar busca"
+                    >
+                      <X className="size-5" />
+                    </button>
+                  ) : null}
                 </div>
                 <FiltroProdutosAdmin
                   hasFilter={hasFiltroAvancadoProdutos}

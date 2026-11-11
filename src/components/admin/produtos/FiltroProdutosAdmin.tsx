@@ -40,7 +40,7 @@ export const FiltroProdutosAdmin = ({
     hasFilter={hasFilter}
     onLimpar={onLimpar}
     defaultAba="geral"
-    triggerClassName="w-full sm:w-auto"
+    triggerClassName="h-11 w-full text-sm sm:h-10 sm:w-auto"
     abas={[
       {
         id: 'geral',

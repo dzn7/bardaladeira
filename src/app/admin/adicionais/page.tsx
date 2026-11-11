@@ -23,7 +23,7 @@ import ModalRecorteImagem from '@/components/admin/ModalRecorteImagem'
 import { supabase } from '@/lib/supabase'
 import { validarArquivoImagem, arquivoParaUrl } from '@/lib/recorteImagem'
 import { enviarImagemParaR2 } from '@/lib/servicoUploadImagem'
-import { cn } from '@/lib/utils'
+import { cn, normalizarBusca } from '@/lib/utils'
 import {
   Botao,
   CabecalhoPagina,
@@ -184,9 +184,9 @@ export default function AdicionaisPage() {
         ? adicionais.filter((a) => !a.categoria)
         : adicionais.filter((a) => a.categoria === filtroCategoria)
 
-  const termoBusca = busca.trim().toLowerCase()
+  const termoBusca = normalizarBusca(busca)
   const adicionaisFiltrados = termoBusca
-    ? adicionaisPorCategoria.filter((a) => a.nome.toLowerCase().includes(termoBusca))
+    ? adicionaisPorCategoria.filter((a) => normalizarBusca(a.nome).includes(termoBusca))
     : adicionaisPorCategoria
 
   const criarCategoria = async () => {

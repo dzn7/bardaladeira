@@ -31,7 +31,7 @@ import {
     lerPreco,
     useConfirmar,
 } from '@/components/admin/ui'
-import { cn } from '@/lib/utils'
+import { cn, normalizarBusca } from '@/lib/utils'
 
 type ComboExpandido = Combo & {
     itens: (ComboItem & {
@@ -149,9 +149,9 @@ export default function CombosPage() {
     }
 
     const combosFiltrados = useMemo(() => {
-        const termo = busca.trim().toLowerCase()
+        const termo = normalizarBusca(busca)
         if (!termo) return combos
-        return combos.filter((combo) => combo.nome.toLowerCase().includes(termo))
+        return combos.filter((combo) => normalizarBusca(combo.nome).includes(termo))
     }, [combos, busca])
 
     const abrirModalNovo = () => {

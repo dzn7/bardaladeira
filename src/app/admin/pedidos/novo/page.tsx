@@ -21,7 +21,7 @@ import {
   ItemCatalogoPedido,
   TipoItemCatalogoPedido,
 } from '@/components/admin/pedidos/novo/tipos'
-import { cn } from '@/lib/utils'
+import { cn, normalizarBusca } from '@/lib/utils'
 import { Esqueleto } from '@/components/admin/ui'
 import { normalizarNomeCategoria } from '@/lib/categoriasCardapio'
 import { nomeClienteParaPedido, nomeClienteParaPontoSalao } from '@/lib/nome-cliente-local.mjs'
@@ -1344,13 +1344,11 @@ function NovoPedidoContent() {
   )
 
   const categoriasCatalogo = useMemo<CategoriaCatalogoPedido[]>(() => {
-    const termoBusca = buscaProduto.trim().toLowerCase()
+    const termoBusca = normalizarBusca(buscaProduto)
 
-    const itensFiltrados = itensCatalogo.filter((item) => {
-      const nome = item.nome.toLowerCase()
-      const categoria = item.categoria.toLowerCase()
-      return nome.includes(termoBusca) || categoria.includes(termoBusca)
-    })
+    const itensFiltrados = itensCatalogo.filter((item) =>
+      normalizarBusca(`${item.nome} ${item.categoria}`).includes(termoBusca)
+    )
 
     const agrupado = itensFiltrados.reduce((acumulador, item) => {
       if (!acumulador[item.categoria]) {
